@@ -64,27 +64,30 @@ MainAudioFile := TGeneralAudioFile.Create(someFileName);
 EditTitle.Text := MainAudioFile.Title;
 
 case MainAudioFile.FileType of
+  
   at_Invalid: begin
       ShowMessage('Invalid AudioFile');
   end;
+  
   at_Mp3: begin
-    if not assigned(ID3v2Frames) then  // a TObjectList storing all "Frames" of the ID3Tag
-        ID3v2Frames:= TObjectList.Create(False);
+      if not assigned(ID3v2Frames) then  // a TObjectList storing all "Frames" of the ID3Tag
+          ID3v2Frames:= TObjectList.Create(False);
 
-    // note that ".mp3File" only exists, if the file type is actual mp3!
-    MainAudioFile.MP3File.ID3v2Tag.GetAllTextFrames(ID3v2Frames);
+      // note that ".mp3File" only exists, if the file type is actual mp3!
+      MainAudioFile.MP3File.ID3v2Tag.GetAllTextFrames(ID3v2Frames);
     
-    // display all frames on the form
-    lbKeys.Items.Clear; // a TListBox on the Form
-    for i := 0 to ID3v2Frames.Count - 1 do
-    begin
-        iFrame := TID3v2Frame(ID3v2Frames[i]);
-        lbKeys.AddItem(iFrame.FrameTypeDescription, iFrame);
-    end;
+      // display all frames on the form
+      lbKeys.Items.Clear; // a TListBox on the Form
+      for i := 0 to ID3v2Frames.Count - 1 do
+      begin
+          iFrame := TID3v2Frame(ID3v2Frames[i]);
+          lbKeys.AddItem(iFrame.FrameTypeDescription, iFrame);
+      end;
     
-    MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [AudioFile.MP3File.ID3v1TagSize]));
-    MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [AudioFile.MP3File.ID3v2TagSize]));
+      MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [AudioFile.MP3File.ID3v1TagSize]));
+      MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [AudioFile.MP3File.ID3v2TagSize]));
   end;
+  
   at_Ogg: begin
       AudioFile.OggFile.GetAllFields(lbKeys.Items);      
   end;
@@ -93,16 +96,16 @@ case MainAudioFile.FileType of
 
 // display of the selected frame, in OnClick of lbKeys 
 case AudioFile.FileType of
-        at_Invalid: ;
-        at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
-        at_Ogg: MemoValue.Text := AudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-        at_Flac: MemoValue.Text := AudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-        at_Monkey,
-        at_WavPack,
-        at_MusePack,
-        at_OptimFrog,
-        at_TrueAudio: MemoValue.Text := AudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
-    end;
+    at_Invalid: ;
+    at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
+    at_Ogg: MemoValue.Text := AudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_Flac: MemoValue.Text := AudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_Monkey,
+    at_WavPack,
+    at_MusePack,
+    at_OptimFrog,
+    at_TrueAudio: MemoValue.Text := AudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
+end;
 
 ```
 
