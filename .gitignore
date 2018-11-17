@@ -1,0 +1,13 @@
+
+DemoSimple/__history/
+DemoMp3/__history/
+DemoExtended/__history/
+*.map
+*.dcu
+*.local
+*.identcache
+*.drc
+*.res
+*.stat
+*.mp3
+*.bak
