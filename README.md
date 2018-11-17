@@ -116,7 +116,7 @@ case MainAudioFile.FileType of
     at_WavPack,
     at_MusePack,
     at_OptimFrog,
-    at_TrueAudio: MemoValue.Text := AudioMainAudioFileFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
+    at_TrueAudio: MemoValue.Text := MainAudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
 end;
 ```
 You may also have access to other information like Cover Art here. See demo "DemoExtended" for details.
