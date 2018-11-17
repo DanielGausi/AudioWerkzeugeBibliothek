@@ -74,8 +74,9 @@ case MainAudioFile.FileType of
           ID3v2Frames:= TObjectList.Create(False);
 
       // note that ".mp3File" only exists, if the file type is actual mp3!
+      // note also, that we get only all TEXT frames here, not really all frames (with binary data)
       MainAudioFile.MP3File.ID3v2Tag.GetAllTextFrames(ID3v2Frames);
-    
+
       // display all frames on the form
       lbKeys.Items.Clear; // a TListBox on the Form
       for i := 0 to ID3v2Frames.Count - 1 do
@@ -83,18 +84,18 @@ case MainAudioFile.FileType of
           iFrame := TID3v2Frame(ID3v2Frames[i]);
           lbKeys.AddItem(iFrame.FrameTypeDescription, iFrame);
       end;
-    
+
       MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [AudioFile.MP3File.ID3v1TagSize]));
       MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [AudioFile.MP3File.ID3v2TagSize]));
   end;
-  
+
   at_Ogg: begin
       AudioFile.OggFile.GetAllFields(lbKeys.Items);      
   end;
 
 // ...
 
-// display of the selected frame, in OnClick of lbKeys 
+// display of the selected frame, e.g. in OnClick of lbKeys 
 case AudioFile.FileType of
     at_Invalid: ;
     at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
@@ -106,6 +107,18 @@ case AudioFile.FileType of
     at_OptimFrog,
     at_TrueAudio: MemoValue.Text := AudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
 end;
-
 ```
+You may also have access to other information like Cover Art here. See demo "DemoExtended" for details.
 
+### Level 3
+
+The "expert level" is only for mp3 files with the ID3v2-Tag. Originally this was only a project 
+called "Mp3fileUtils", so I know a lot more stuff about mp3 files than about other files. Also, the 
+documentation for ID3Tags is the best I have ever seen. ;-)
+
+On this level, you may have access to the raw data of the frames within the ID3v2 Tag. With this, you 
+can read and write your own "private" frames, that only your software will understand, but doesn't disturbe
+other programs. A lot of mp3-players do that, and these private frames are meant exactly for such purposes.
+
+See demo "DemoMp3" for more details of what is possible (but not always recommended, some players 
+may stumble about these files then).
