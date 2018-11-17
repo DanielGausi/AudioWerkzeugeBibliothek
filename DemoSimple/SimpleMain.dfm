@@ -1,7 +1,7 @@
 object SimpleTagger: TSimpleTagger
   Left = 0
   Top = 0
-  Caption = 'SimpleTagger'
+  Caption = 'AudioWerkzeugeBibliothek (Demo Level 1)'
   ClientHeight = 447
   ClientWidth = 620
   Color = clBtnFace
@@ -53,8 +53,8 @@ object SimpleTagger: TSimpleTagger
       Anchors = [akLeft, akTop, akRight, akBottom]
       ItemHeight = 13
       Mask = 
-        '*.mp3;*.mp2;*.mp1;*.ogg;*.oga;*.flac;*.fla;*.ape;*.mac;*.wv;*.mp' +
-        'c;*.mp+;*.mpp;*.ofr;*.ofs;*.tta;*.wav;*.wma'
+        '*.mp3;*.mp2;*.mp1;*.m4a;*.ogg;*.oga;*.flac;*.fla;*.ape;*.mac;*.w' +
+        'v;*.mpc;*.mp+;*.mpp;*.ofr;*.ofs;*.tta;*.wav;*.wma'
       TabOrder = 2
       OnChange = FileListBox1Change
     end

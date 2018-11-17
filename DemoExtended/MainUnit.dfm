@@ -2,7 +2,7 @@ object MainFormAPE: TMainFormAPE
   Left = 0
   Top = 0
   BorderStyle = bsSingle
-  Caption = 'Apev2Tag Demo'
+  Caption = 'AudioWerkzeugeBibliothek (Demo Level 2)'
   ClientHeight = 636
   ClientWidth = 642
   Color = clBtnFace
@@ -288,7 +288,10 @@ object MainFormAPE: TMainFormAPE
   end
   object OpenDialog1: TOpenDialog
     DefaultExt = 'ape'
-    Filter = 'Ape-Files|*.ape|All Files|*.*'
+    Filter = 
+      'All Audio Files|*.mp3;*.mp2;*.mp1;*.m4a;*.ogg;*.oga;*.flac;*.fla' +
+      ';*.ape;*.mac;*.wv;*.mpc;*.mp+;*.mpp;*.ofr;*.ofs;*.tta;*.wav;*.wm' +
+      'a'
     FilterIndex = 2
     Left = 512
     Top = 8
