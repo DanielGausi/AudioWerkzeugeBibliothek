@@ -33,7 +33,7 @@ See the demo projects for examples.
 like Title, Artist, Album, Duration and some others.
 * Classes `TMP3File`, `TOggVorbisFile`, `TFlacFile`, ... (seperate files): Classes for the several 
 filetypes, which implement the abstract methods declared in TBaseAudioFile, and may define some more
-methodes. These classes are meant for use on "level 2". Some of these "file classes" are not inherited
+methods. These classes are meant for use on "level 2". Some of these "file classes" are not inherited
 directly from TBaseAudioFile, but from a "BaseTagTypeClass" like `TBaseApeFile`
 * Class `TGeneralAudioFile` (file Audiofiles.pas): A "super class" for use on "level 1". Based on the
 filename extension, an instance of one of the previous classes is created. Thus, the programmer (=you)
