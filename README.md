@@ -20,10 +20,10 @@ You can use this library on different "levels".
 
 * The first level is super easy to use, but limited in what you can get from the audio files, 
 and what you can do with them
-* The second level is littel bit more complicated to use, but you'll get more information from the
+* The second level is little bit more complicated to use, but you'll get more information from the
 audio files
 * And there is (mainly for mp3) a third level, where you can do some crazy stuff with your files. Like, 
-storing another mp3-file within the ID3-tag of anothre mp3-file
+storing another mp3-file within the ID3-tag of another mp3-file
 
 See the demo projects for examples.
 
@@ -38,7 +38,12 @@ directly from TBaseAudioFile, but from a "BaseTagTypeClass" like `TBaseApeFile`
 * Class `TGeneralAudioFile` (file Audiofiles.pas): A "super class" for use on "level 1". Based on the
 filename extension, an instance of one of the previous classes is created. Thus, the programmer (=you)
 doesn't need to care about different file formats, when you just want to display the artist and title of
-an audio file. Just use something like
+an audio file. 
+
+## Usage, short overview
+On "level 1", the usage of this library is super easy. Just create an object of type `TGeneralAudioFile` 
+display some of the properties, let the user edit some of the values and update the file. Thats all. Works 
+on all supported file formats - mp3, ogg, flac, m4a, it doesn't matter. Same code for all.
 ```pascal
 MainAudioFile := TGeneralAudioFile.Create(someFileName);
 EditTitle.Text := MainAudioFile.Title;
