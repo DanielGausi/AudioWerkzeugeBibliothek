@@ -20,16 +20,21 @@ Limitations:
 
 ## General concept of this library
 
-You can use this library on different "levels". Depending on what you want to do, you need (or do not need)
-to know more or less about the inner structure of "audio files".
+You can use this library on different "levels". There is not a real differentiation between these levels. You can just use more or less from the features of this library. Depending on what you want to do, it is recommended to know more or less about the inner structure of "audio files".
 
 * The first level is super easy to use, but limited in what you can get from the audio files, 
-and what you can do with them. You just need to know that there are exist some filetypes containing "music", which also may
+and what you can do with them. You just need to know that there are exist some file types containing "music", which also may
 contain some "meta data" (like Artist or Title).
 * The second level is little bit more complicated to use, but you'll get more information from the
-audio files. You should know that different there are different types of audio files like mp3 and ogg files, and that these different kind of files use different ways to store the meta data (like ID3-Tags or Vorbis Comments), and you should try to get an overwiew about how these ways look like.
+audio files. You should know that there are different types of audio files like mp3 and ogg files, and that these different kind of files use different ways to store the meta data (like ID3-Tags or Vorbis Comments), and you should try to get an overwiew about how these ways look like.
 * And there is (for mp3) a third level, where you can do some crazy stuff with your files. Like, 
-storing another mp3-file within the ID3-tag of another mp3-file. For this, you should understand a littel bit more about the inner structure of ID3Tags on the frame level. This means, that you should know that an ID3Tag contains a list of ID3Frames, where each frame consist of a header and the actual data.
+storing another mp3-file within the ID3-tag of another mp3-file. For this, you should understand a little bit more about the inner structure of ID3Tags on the frame level. This means, that you should know that an ID3Tag contains a list of ID3Frames, where each frame consist of a header and the actual data.
+
+### Possibilities on these levels:
+
+* Level 1: Display (and edit, where possible) basic information like Artist, Title, Album, Duration, Bitrate and some more
+* Level 2: Display (and edit) lyrics (different languages), Cover Art and other images, all available textual data and some more
+* Level 3: Add your own private frames to an mp3 file, access to arbitrary binary frames
 
 See the demo projects for examples.
 
