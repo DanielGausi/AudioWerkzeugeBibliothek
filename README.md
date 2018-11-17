@@ -41,9 +41,9 @@ doesn't need to care about different file formats, when you just want to display
 an audio file. Just use something like
 ```pascal
 MainAudioFile := TGeneralAudioFile.Create(someFileName);
-EditTitle.Text  := MainAudioFile.Title;
+EditTitle.Text := MainAudioFile.Title;
 // ... and for editing the file:
-MainAudioFile.Title  := EditTitle.Text;
+MainAudioFile.Title := EditTitle.Text;
 MainAudioFile.UpdateFile;
 ```
 
