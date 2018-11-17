@@ -52,7 +52,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, ContNrs,
   AudioFileBasics, Apev2Tags, ApeTagItem, ID3v2Frames,
-  Mp3Files, FlacFiles, OggVorbisFiles,
+  Mp3Files, FlacFiles, OggVorbisFiles, M4AFiles,
   MonkeyFiles, WavPackFiles, MusePackFiles, OptimFrogFiles, TrueAudioFiles,
   WmaFiles, WavFiles;
 
@@ -62,6 +62,7 @@ type
                       at_Mp3,
                       at_Ogg,
                       at_Flac,
+                      at_M4A,
                       at_Monkey,
                       at_WavPack,
                       at_MusePack,
@@ -75,6 +76,7 @@ const    TAudioFileNames: Array[TAudioFileType] of String =
             'MPEG Audio',
             'Ogg/Vorbis',
             'Free Lossless Audio Codec',
+            'MPEG-4',
             'Monkey''s Audio',
             'WavPack',
             'Musepack',
@@ -125,6 +127,7 @@ type
             function fGetMP3File       : TMp3File       ;
             function fGetOggFile       : TOggVorbisFile ;
             function fGetFlacFile      : TFlacFile      ;
+            function fGetM4AFile       : TM4AFile       ;
             function fGetBaseApeFile   : TBaseApeFile   ;
             function fGetMonkeyFile    : TMonkeyFile    ;
             function fGetWavPackFile   : TWavPackFile   ;
@@ -157,6 +160,7 @@ type
             property MP3File       : TMp3File       read fGetMP3File      ;
             property OggFile       : TOggVorbisFile read fGetOggFile      ;
             property FlacFile      : TFlacFile      read fGetFlacFile     ;
+            property M4aFile       : TM4AFile       read fGetM4AFile      ;
 
             property BaseApeFile   : TBaseApeFile   read fGetBaseApeFile  ;
             property MonkeyFile    : TMonkeyFile    read fGetMonkeyFile   ;
@@ -213,6 +217,14 @@ begin
     begin
         fBaseAudioFile := TFlacFile.Create;
         fFileType := at_Flac;
+    end
+    else
+    if (ext = '.m4a')
+        or (ext = '.mp4')
+    then
+    begin
+        fBaseAudioFile := TM4AFile.Create;
+        fFileType := at_M4A;
     end
     else
     if (ext = '.ape')
@@ -301,6 +313,14 @@ begin
         result := TFlacFile(fBaseAudioFile)
     else
         result := Nil
+end;
+
+function TGeneralAudioFile.fGetM4AFile: TM4AFile;
+begin
+    if fFileType = at_M4A then
+        result := TM4AFile(fbaseAudioFile)
+    else
+        result := Nil;
 end;
 
 function TGeneralAudioFile.fGetBaseApeFile: TBaseApeFile;

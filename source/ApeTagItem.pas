@@ -120,25 +120,6 @@ type
 
 implementation
 
-
-function ConvertUTF8ToString(aUTF8String: UTF8String): UnicodeString;
-begin
-    {$IFDEF UNICODE}
-        result := UnicodeString(aUTF8String);
-    {$ELSE}
-        result := Utf8Decode(aUTF8String);
-    {$ENDIF}
-end;
-
-function ConvertStringToUTF8(aString: UnicodeString): UTF8String;
-begin
-    {$IFDEF UNICODE}
-        result := UTF8String(aString);
-    {$ELSE}
-        result := Utf8Encode(aString);
-    {$ENDIF}
-end;
-
 { TApeTagItem }
 
 constructor TApeTagItem.Create(aKey: AnsiString);

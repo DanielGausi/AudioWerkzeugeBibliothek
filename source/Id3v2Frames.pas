@@ -1145,19 +1145,27 @@ begin
                   move(tmpbuf[0], result[1], 2*length(result));
               end;
             end else
-            begin
-              // ByteOrder as in wideStrings. Just copy it.
-              setlength(result, alength DIV 2 - 1);       // -1
-              if length(result) > 0 then
-                  move(fData[start+2], result[1], 2*length(result))
-              else
-                  result := '';
-            end;
+                if (fData[start] = $FF) and (fData[start + 1] = $FE) then
+                begin
+                  // ByteOrder as in wideStrings. Just copy it.
+                  setlength(result, alength DIV 2 - 1);       // -1
+                  if length(result) > 0 then
+                      move(fData[start+2], result[1], 2*length(result))
+                  else
+                      result := '';
+                end else
+                begin
+                    // june 2013
+                    // no BOM detected. Just copy it as in TE_UTF16BE
+                    // Todo for the future: Try to guess whether it is probably FF FE or FE FF
+                    setlength(result, alength DIV 2);
+                    move(fData[start], result[1], 2*length(result));
+                end;
             result := trim(result);
         end;
         TE_UTF16BE: begin
            { UTF-16BE [UTF-16] encoded Unicode [UNICODE] __without__ BOM.
-             Terminated with $00 00 } // LE
+             Terminated with $00 00 }
             setlength(result, alength DIV 2);
             move(fData[start], result[1], 2*length(result));
             result := trim(result);

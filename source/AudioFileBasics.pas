@@ -111,6 +111,20 @@ type
           // Wav Files
           WavErr_WritingNotSupported,
 
+          // M4a Files
+          M4AErr_64BitNotSupported,
+          M4aErr_Invalid_TopLevelAtom,
+          M4aErr_Invalid_UDTA,
+          // M4aErr_Invalid_META,
+          M4aErr_Invalid_METAVersion,
+          M4aErr_Invalid_MDHD,
+          M4aErr_Invalid_STSD,
+          M4aErr_Invalid_STCO,
+          M4aErr_Invalid_DuplicateUDTA,
+          M4aErr_Invalid_DuplicateTRAK,
+
+          M4aErr_RemovingNotSupported,
+
           //
           FileErr_NotSupportedFileType
           );
@@ -210,9 +224,29 @@ type
 
 
     function  AudioFileExists(aString: UnicodeString):boolean;
+    function ConvertUTF8ToString(aUTF8String: UTF8String): UnicodeString;
+    function ConvertStringToUTF8(aString: UnicodeString): UTF8String;
 
 
 implementation
+
+function ConvertUTF8ToString(aUTF8String: UTF8String): UnicodeString;
+begin
+    {$IFDEF UNICODE}
+        result := UnicodeString(aUTF8String);
+    {$ELSE}
+        result := Utf8Decode(aUTF8String);
+    {$ENDIF}
+end;
+
+function ConvertStringToUTF8(aString: UnicodeString): UTF8String;
+begin
+    {$IFDEF UNICODE}
+        result := UTF8String(aString);
+    {$ELSE}
+        result := Utf8Encode(aString);
+    {$ENDIF}
+end;
 
 function AudioFileExists(aString: UnicodeString):boolean;
 begin

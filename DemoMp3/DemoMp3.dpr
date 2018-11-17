@@ -4,9 +4,10 @@ uses
   Forms,
   Unit1 in 'Unit1.pas' {Form1},
   UNewFrame in 'UNewFrame.pas' {FormNewFrame},
-  Id3v2Frames in '..\Id3v2Frames.pas',
-  Mp3FileUtils in '..\Mp3FileUtils.pas',
-  U_CharCode in '..\U_CharCode.pas';
+  ID3GenreList in '..\source\ID3GenreList.pas',
+  Id3v2Frames in '..\source\Id3v2Frames.pas',
+  Mp3FileUtils in '..\source\Mp3FileUtils.pas',
+  U_CharCode in '..\source\U_CharCode.pas';
 
 {$R *.res}
 

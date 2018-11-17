@@ -68,6 +68,9 @@
 			<DCCReference Include="..\source\AudioFiles.pas"/>
 			<DCCReference Include="..\source\WmaFiles.pas"/>
 			<DCCReference Include="..\source\WavFiles.pas"/>
+			<DCCReference Include="..\source\M4aAtoms.pas"/>
+			<DCCReference Include="..\source\M4aFiles.pas"/>
+			<DCCReference Include="..\source\ID3GenreList.pas"/>
 			<BuildConfiguration Include="Basis">
 				<Key>Base</Key>
 			</BuildConfiguration>

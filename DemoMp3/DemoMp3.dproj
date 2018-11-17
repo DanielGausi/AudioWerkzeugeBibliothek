@@ -51,6 +51,7 @@
 			<DCCReference Include="UNewFrame.pas">
 				<Form>FormNewFrame</Form>
 			</DCCReference>
+			<DCCReference Include="..\source\ID3GenreList.pas"/>
 			<DCCReference Include="..\source\Id3v2Frames.pas"/>
 			<DCCReference Include="..\source\Mp3FileUtils.pas"/>
 			<DCCReference Include="..\source\U_CharCode.pas"/>

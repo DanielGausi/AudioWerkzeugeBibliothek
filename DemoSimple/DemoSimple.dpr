@@ -21,7 +21,10 @@ uses
   VorbisComments in '..\source\VorbisComments.pas',
   WavPackFiles in '..\source\WavPackFiles.pas',
   WavFiles in '..\source\WavFiles.pas',
-  WmaFiles in '..\source\WmaFiles.pas';
+  WmaFiles in '..\source\WmaFiles.pas',
+  ID3GenreList in '..\source\ID3GenreList.pas',
+  M4aAtoms in '..\source\M4aAtoms.pas',
+  M4aFiles in '..\source\M4aFiles.pas';
 
 {$R *.res}
 

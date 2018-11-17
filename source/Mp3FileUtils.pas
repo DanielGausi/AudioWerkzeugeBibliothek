@@ -64,6 +64,22 @@
   Version-History
   ========================================================================================================
 
+  March 2016: v0.6c -> v0.6d
+  ==========================
+    - added support for the "Info"-variant of the XING-Header in some CBR-files
+
+  June 2012: v0.6b -> v0.6c
+  ==========================
+  Bugfix
+    - getConvertedUnicodeText corrected for TE_UTF16, but actuallay no BOM is present
+
+  June 2012: v0.6a -> v0.6b
+  ==========================
+  Bugfix
+    - correct computation of bitrate and duration in MPEG 2 Layer 3 files
+      with varible bitrate (Xing-Header)
+    - Renamed "genres" to "ID3Genres" and outsourced it into ID3GenreList.pas
+
   December 2011: v0.6 -> v0.6a
   ============================
   Bugfix
@@ -646,7 +662,9 @@ type
   TXingHeader = record
     Frames: integer;
     Size: integer;
+    vbr: boolean;
     valid: boolean;
+    corrupted: boolean;
   end;
   TVBRIHeader = TXingHeader;
 
@@ -753,12 +771,13 @@ var
 
 
 var
-  Genres: TStringList;
   LanguageCodes: TStringlist;
   LanguageNames: TStringlist;
 
 
 implementation
+
+uses ID3GenreList;
 
 
 
@@ -1254,7 +1273,7 @@ end;
 function TID3v1Tag.GetGenre: String;
 begin
   if FGenre <= 125 then
-    result := Genres[FGenre]
+    result := ID3Genres[FGenre]
   else
     result := '';
 end;
@@ -1349,7 +1368,7 @@ procedure TID3v1Tag.SetGenre(Value: String);
 var
   i: integer;
 begin
-  i := Genres.IndexOf(Value);
+  i := ID3Genres.IndexOf(Value);
   if i in [0..125] then
     FGenre := i
   else
@@ -2755,8 +2774,8 @@ end;
 function TID3v2Tag.BuildID3v2Genre(value: UnicodeString): UnicodeString;
 begin
   // (<Index>)<Name>
-  if Genres.IndexOf(value) > -1 then
-    result := '(' + inttostr(Genres.IndexOf(value)) + ')' + value
+  if ID3Genres.IndexOf(value) > -1 then
+    result := '(' + inttostr(ID3Genres.IndexOf(value)) + ')' + value
   else
     result := value;
 end;
@@ -2876,8 +2895,8 @@ begin
   if posauf<poszu then
   begin
     GenreID := StrTointDef(copy(value,posauf+1, poszu-posauf-1),255);
-    if GenreID < Genres.Count then
-      result := Genres[GenreID];
+    if GenreID < ID3Genres.Count then
+      result := ID3Genres[GenreID];
   end;
 end;
 function TID3v2Tag.GetGenre: UnicodeString;
@@ -3266,7 +3285,7 @@ begin
         // check Xing-header and next MPEG-header
         try
           tmpXingHeader := GetXingHeader(tmpMpegheader, smallbuffer1, 0);
-          if not tmpXingheader.valid then
+          if (not tmpXingheader.valid) and (not tmpXingheader.corrupted) then
           begin
               // try VBRI
               tmpXingHeader := GetVBRIHeader(tmpMpegheader, smallBuffer1, 0);
@@ -3278,12 +3297,19 @@ begin
               if tmpXingHeader.valid then
                   tmp2MpegHeader.Valid := True
               else
+                  // no Xing, no VBRI, probably "normal" MPEG-Frame
                   tmp2MpegHeader := GetValidatedHeader(smallBuffer1, tmpMpegHeader.framelength );
           end else
-              // no Xing, no VBRI, probably "normal" MPEG-Frame
-              tmp2MpegHeader := GetValidatedHeader(smallBuffer1, tmpMpegHeader.framelength );
+          begin
+              if tmpXingHeader.corrupted then
+                  // valid, but corrupted Xing-Frame. Calculate stuff by the NEXT MPEG-Frame, therefore: continue
+                  tmp2MpegHeader.valid := False
+              else
+                  // no valid and intact Xing, no VBRI
+                  tmp2MpegHeader := GetValidatedHeader(smallBuffer1, tmpMpegHeader.framelength );
+          end;
         except
-          tmp2MpegHeader.valid := false;
+            tmp2MpegHeader.valid := false;
         end;
         Stream.Position := PositionInStream;
     end else
@@ -3294,7 +3320,7 @@ begin
         end;
         // read XingHeader and next Mpeg-header from buffer
         tmpXingHeader := GetXingHeader(tmpMpegheader, buffer, bufferpos );
-        if not tmpXingheader.valid then
+        if (not tmpXingheader.valid) and (not tmpXingheader.corrupted) then
         begin
             // try VBRI
             tmpXingHeader := GetVBRIHeader(tmpMpegheader, buffer, bufferpos );
@@ -3305,7 +3331,13 @@ begin
                 // no Xing, no VBRI, probably "normal" MPEG-Frame
                 tmp2MpegHeader := GetValidatedHeader(buffer, bufferpos + tmpMpegHeader.framelength);
         end else
-            tmp2MpegHeader := GetValidatedHeader(buffer, bufferpos + tmpMpegHeader.framelength);
+        begin
+            if tmpXingHeader.corrupted then
+                // valid, but corrupted Xing-Frame. Calculate stuff by the NEXT MPEG-Frame, therefore: continue
+                tmp2MpegHeader.valid := False
+            else
+                tmp2MpegHeader := GetValidatedHeader(buffer, bufferpos + tmpMpegHeader.framelength);
+        end;
     end;
 
     // if next header is invalid something is wrong - search further. :(
@@ -3355,15 +3387,23 @@ begin
 
     if tmpXingHeader.valid then
       try
-        Fbitrate := trunc((tmpMpegheader.samplerate/1000 *
-          (max - PositionInStream - tmpXingHeader.Size))  /   (tmpXingHeader.frames*144));
+        // change 13.03.2016: round instead of trunc
+        if Version = 1 then
+            Fbitrate := round((tmpMpegheader.samplerate/1000 *
+              (max - PositionInStream - tmpXingHeader.Size))  / (tmpXingHeader.frames*144))
+        else
+            Fbitrate := round((tmpMpegheader.samplerate/1000 *
+              (max - PositionInStream - tmpXingHeader.Size))  / (tmpXingHeader.frames*72));
+
+        Fvbr := tmpXingHeader.vbr;
         // note: Data at the beginning of the file are not audiodata (e.g. ID3v2Tag).
         // these bytes must be subducted from the filesize
         // it would be better, to subduct also the length of id3v1tag,
         // and other tags at the end of the file.
         // But I think, that this would be overkill, and would make only  +/-1 frames in most cases
-        Fvbr := True;
-        Fdauer := ((max-PositionInStream-tmpXingHeader.Size)*8) div ((Fbitrate)*1000);
+        // change 13.03.2016: "round /" instead of DIV
+        Fdauer := round( ((max-PositionInStream-tmpXingHeader.Size)*8) / ((Fbitrate)*1000));
+
         FFrames := tmpXingHeader.Frames;
       except
         continue;
@@ -3526,6 +3566,7 @@ begin
     else
       xing_offset := 9+4;
 
+  Result.corrupted := False; // think positive!
   // --->
   // bugfix by terryk from delphi-forum.de
   if Length(abuffer) <= (position + xing_offset + 11) then
@@ -3535,10 +3576,16 @@ begin
   end;
   // <---
 
-  if (abuffer[position+xing_offset]=$58)        {'Xing'}
+  if ((abuffer[position+xing_offset]=$58)        {'Xing', vbr}
      AND (abuffer[position+xing_offset+1]=$69)
      AND (abuffer[position+xing_offset+2]=$6E)
-     AND (abuffer[position+xing_offset+3]=$67)
+     AND (abuffer[position+xing_offset+3]=$67))
+     OR
+     ((abuffer[position+xing_offset]=$49)        {'Info', cbr}
+     AND (abuffer[position+xing_offset+1]=$6E)
+     AND (abuffer[position+xing_offset+2]=$66)
+     AND (abuffer[position+xing_offset+3]=$6F))
+
      then // Xing Tag found
   begin
           // the next 4 bytes are flags, the 4th (= pos+7) is interesting here
@@ -3559,7 +3606,11 @@ begin
           // Note 2: I never found a mp3file with such a corrupted xing-header.
           //      So this should be no problem. ;-)
           result.Size := aMpegHeader.framelength;
-          result.valid := True;
+          result.vbr := (abuffer[position+xing_offset]=$58); //'X'
+          // change 20.03.2016: Valid only if frames > 0.
+          //                    There actually ARE files with a cleared INFO-Frame (nothing left but "Info")
+          result.valid := result.frames > 0;
+          result.corrupted := result.frames = 0;
   end else
     result.valid := False;
 end;
@@ -3567,6 +3618,10 @@ end;
 function TMpegInfo.GetVBRIHeader(aMpegheader: TMpegHeader; aBuffer: TBuffer; position: integer): TVBRIHeader;
 var vbriOffset: Integer;
 begin
+    // Set the new variables for the Xing/Info-Frame to the default values here
+    result.corrupted := False;
+    result.vbr := True;
+
     vbriOffset := 4 + 32; // constant offset
     if Length(abuffer) <= (position + vbriOffset + 16) then
     begin
@@ -3608,163 +3663,6 @@ end;
 
 
 initialization
-
-  Genres := TStringList.Create;
-  Genres.CaseSensitive := False;
-  // Standard-Genres (ID3v1 Standard)
-  Genres.Add('Blues');
-  Genres.Add('Classic Rock');
-  Genres.Add('Country');
-  Genres.Add('Dance');
-  Genres.Add('Disco');
-  Genres.Add('Funk');
-  Genres.Add('Grunge');
-  Genres.Add('Hip-Hop');
-  Genres.Add('Jazz');
-  Genres.Add('Metal');
-  Genres.Add('New Age');
-  Genres.Add('Oldies');
-  Genres.Add('Other');
-  Genres.Add('Pop');
-  Genres.Add('R&B');
-  Genres.Add('Rap');
-  Genres.Add('Reggae');
-  Genres.Add('Rock');
-  Genres.Add('Techno');
-  Genres.Add('Industrial');
-  Genres.Add('Alternative');
-  Genres.Add('Ska');
-  Genres.Add('Death Metal');
-  Genres.Add('Pranks');
-  Genres.Add('Soundtrack');
-  Genres.Add('Euro-Techno');
-  Genres.Add('Ambient');
-  Genres.Add('Trip-Hop');
-  Genres.Add('Vocal');
-  Genres.Add('Jazz+Funk');
-  Genres.Add('Fusion');
-  Genres.Add('Trance');
-  Genres.Add('Classical');
-  Genres.Add('Instrumental');
-  Genres.Add('Acid');
-  Genres.Add('House');
-  Genres.Add('Game');
-  Genres.Add('Sound Clip');
-  Genres.Add('Gospel');
-  Genres.Add('Noise');
-  Genres.Add('AlternRock');
-  Genres.Add('Bass');
-  Genres.Add('Soul');
-  Genres.Add('Punk');
-  Genres.Add('Space');
-  Genres.Add('Meditative');
-  Genres.Add('Instrumental Pop');
-  Genres.Add('Instrumental Rock');
-  Genres.Add('Ethnic');
-  Genres.Add('Gothic');
-  Genres.Add('Darkwave');
-  Genres.Add('Techno-Industrial');
-  Genres.Add('Electronic');
-  Genres.Add('Pop-Folk');
-  Genres.Add('Eurodance');
-  Genres.Add('Dream');
-  Genres.Add('Southern Rock');
-  Genres.Add('Comedy');
-  Genres.Add('Cult');
-  Genres.Add('Gangsta');
-  Genres.Add('Top 40');
-  Genres.Add('Christian Rap');
-  Genres.Add('Pop/Funk');
-  Genres.Add('Jungle');
-  Genres.Add('Native American');
-  Genres.Add('Cabaret');
-  Genres.Add('New Wave');
-  Genres.Add('Psychadelic');
-  Genres.Add('Rave');
-  Genres.Add('Showtunes');
-  Genres.Add('Trailer');
-  Genres.Add('Lo-Fi');
-  Genres.Add('Tribal');
-  Genres.Add('Acid Punk');
-  Genres.Add('Acid Jazz');
-  Genres.Add('Polka');
-  Genres.Add('Retro');
-  Genres.Add('Musical');
-  Genres.Add('Rock & Roll');
-  Genres.Add('Hard Rock');
-
-  // WinAmp-genres
-  Genres.Add('Folk');
-  Genres.Add('Folk-Rock');
-  Genres.Add('National Folk');
-  Genres.Add('Swing');
-  Genres.Add('Fast Fusion');
-  Genres.Add('Bebob');
-  Genres.Add('Latin');
-  Genres.Add('Revival');
-  Genres.Add('Celtic');
-  Genres.Add('Bluegrass');
-  Genres.Add('Avantgarde');
-  Genres.Add('Gothic Rock');
-  Genres.Add('Progessive Rock');
-  Genres.Add('Psychedelic Rock');
-  Genres.Add('Symphonic Rock');
-  Genres.Add('Slow Rock');
-  Genres.Add('Big Band');
-  Genres.Add('Chorus');
-  Genres.Add('Easy Listening');
-  Genres.Add('Acoustic');
-  Genres.Add('Humour');
-  Genres.Add('Speech');
-  Genres.Add('Chanson');
-  Genres.Add('Opera');
-  Genres.Add('Chamber Music');
-  Genres.Add('Sonata');
-  Genres.Add('Symphony');
-  Genres.Add('Booty Bass');
-  Genres.Add('Primus');
-  Genres.Add('Porn Groove');
-  Genres.Add('Satire');
-  Genres.Add('Slow Jam');
-  Genres.Add('Club');
-  Genres.Add('Tango');
-  Genres.Add('Samba');
-  Genres.Add('Folklore');
-  Genres.Add('Ballad');
-  Genres.Add('Power Ballad');
-  Genres.Add('Rhythmic Soul');
-  Genres.Add('Freestyle');
-  Genres.Add('Duet');
-  Genres.Add('Punk Rock');
-  Genres.Add('Drum Solo');
-  Genres.Add('A capella');
-  Genres.Add('Euro-House');
-  Genres.Add('Dance Hall');
-  // some more genres, source: http://www.steffen-hanske.de/mp3_genre.htm
-  Genres.Add('Goa');
-  Genres.Add('Drum & Bass');
-  Genres.Add('Club-House');
-  Genres.Add('Hardcore');
-  Genres.Add('Terror');
-  Genres.Add('Indie');
-  Genres.Add('BritPop');
-  Genres.Add('Negerunk');
-  Genres.Add('Polsk Punk');
-  Genres.Add('Beat');
-  Genres.Add('Christian Gangsta Rap');
-  Genres.Add('Heavy Metal');
-  Genres.Add('Black Metal');
-  Genres.Add('Crossover');
-  Genres.Add('Contemporary Christian');
-  Genres.Add('Christian Rock');
-  Genres.Add('Merengue');
-  Genres.Add('Salsa');
-  Genres.Add('Trash Metal');
-  Genres.Add('Anime');
-  Genres.Add('JPop');
-  Genres.Add('Synthpop');
-
-
 
   // source:
   // http://www.id3.org/iso639-2.html
@@ -4202,7 +4100,6 @@ initialization
 
 finalization
 
- Genres.Free;
  LanguageCodes.Free;
  LanguageNames.Free;
 

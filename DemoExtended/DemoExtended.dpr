@@ -22,7 +22,10 @@ uses
   U_CharCode in '..\source\U_CharCode.pas',
   AudioFiles in '..\source\AudioFiles.pas',
   WmaFiles in '..\source\WmaFiles.pas',
-  WavFiles in '..\source\WavFiles.pas';
+  WavFiles in '..\source\WavFiles.pas',
+  M4aAtoms in '..\source\M4aAtoms.pas',
+  M4aFiles in '..\source\M4aFiles.pas',
+  ID3GenreList in '..\source\ID3GenreList.pas';
 
 {$R *.res}
 

@@ -58,15 +58,16 @@
 			<DCCReference Include="..\source\Mp3FileUtils.pas"/>
 			<DCCReference Include="..\source\MusePackFiles.pas"/>
 			<DCCReference Include="..\source\OggVorbisFiles.pas"/>
-			<DCCReference Include="..\source\ptimFrogFiles.pas">
-				<ModuleName>OptimFrogFiles</ModuleName>
-			</DCCReference>
+			<DCCReference Include="..\source\OptimFrogFiles.pas"/>
 			<DCCReference Include="..\source\TrueAudioFiles.pas"/>
 			<DCCReference Include="..\source\U_CharCode.pas"/>
 			<DCCReference Include="..\source\VorbisComments.pas"/>
 			<DCCReference Include="..\source\WavPackFiles.pas"/>
 			<DCCReference Include="..\source\WavFiles.pas"/>
 			<DCCReference Include="..\source\WmaFiles.pas"/>
+			<DCCReference Include="..\source\ID3GenreList.pas"/>
+			<DCCReference Include="..\source\M4aAtoms.pas"/>
+			<DCCReference Include="..\source\M4aFiles.pas"/>
 			<BuildConfiguration Include="Basis">
 				<Key>Base</Key>
 			</BuildConfiguration>

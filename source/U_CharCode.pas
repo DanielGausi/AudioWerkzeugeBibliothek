@@ -90,7 +90,6 @@ type
       // If you want to store user settings for Unicode/Ansi-Handling,
       // the following two settings may be useful as well.
       // Use the settings from here in your ID3v*Tag-Objects
-      AlwaysWriteUnicode : Boolean;
       AutoDetectCodePage : Boolean;
   end;
 
