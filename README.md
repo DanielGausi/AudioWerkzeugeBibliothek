@@ -96,27 +96,27 @@ case MainAudioFile.FileType of
           lbKeys.AddItem(iFrame.FrameTypeDescription, iFrame);
       end;
 
-      MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [AudioFile.MP3File.ID3v1TagSize]));
-      MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [AudioFile.MP3File.ID3v2TagSize]));
+      MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [MainAudioFile.MP3File.ID3v1TagSize]));
+      MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [MainAudioFile.MP3File.ID3v2TagSize]));
   end;
 
   at_Ogg: begin
-      AudioFile.OggFile.GetAllFields(lbKeys.Items);      
+      MainAudioFile.OggFile.GetAllFields(lbKeys.Items);      
   end;
 
 // ...
 
 // display of the selected frame, e.g. in OnClick of lbKeys 
-case AudioFile.FileType of
+case MainAudioFile.FileType of
     at_Invalid: ;
     at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
-    at_Ogg: MemoValue.Text := AudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-    at_Flac: MemoValue.Text := AudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_Ogg: MemoValue.Text := MainAudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_Flac: MemoValue.Text := MainAudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
     at_Monkey,
     at_WavPack,
     at_MusePack,
     at_OptimFrog,
-    at_TrueAudio: MemoValue.Text := AudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
+    at_TrueAudio: MemoValue.Text := AudioMainAudioFileFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
 end;
 ```
 You may also have access to other information like Cover Art here. See demo "DemoExtended" for details.
