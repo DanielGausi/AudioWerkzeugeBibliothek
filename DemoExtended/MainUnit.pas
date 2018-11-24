@@ -412,6 +412,7 @@ begin
         at_Mp3: AudioFile.MP3File.ID3v2Tag.DeleteFrame(TID3v2Frame(cbPictures.Items.Objects[cbPictures.ItemIndex]));
         at_Ogg: ;
         at_Flac: AudioFile.FlacFile.DeletePicture(TFlacPictureBlock(FlacPictureFrames[cbPictures.ItemIndex]));
+        at_M4A: AudioFile.M4aFile.SetPicture(Nil, M4A_Invalid);
         at_Monkey,
         at_WavPack,
         at_MusePack,

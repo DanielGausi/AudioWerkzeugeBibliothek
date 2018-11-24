@@ -2,10 +2,12 @@ unit Unit1;
 
 interface
 
+{$DEFINE USE_PNG}
+
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, ContNrs,
-  Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG, PNGImage, Mp3FileUtils, ID3v2Frames,
-  ExtDlgs, ShellApi;
+  Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG,  Mp3FileUtils, ID3v2Frames,
+  ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage{$ENDIF};
 
 type
   TForm1 = class(TForm)
@@ -157,7 +159,7 @@ end;
 
 function PicStreamToImage(aStream: TStream; Mime: AnsiString; aBmp: TBitmap): Boolean;
 var jp: TJPEGImage;
-    png: TPNGImage;
+    {$IFDEF USE_PNG}png: TPNGImage; {$ENDIF}
 begin
     result := True;
     if (mime = 'image/jpeg') or (mime = 'image/jpg') or (AnsiUpperCase(String(Mime)) = 'JPG') then
@@ -179,7 +181,9 @@ begin
     except
         result := False;
         aBmp.Assign(NIL);
-    end else
+    end
+    {$IFDEF USE_PNG}
+    else
         if (mime = 'image/png') or (Uppercase(String(Mime)) = 'PNG') then
         try
             aStream.Seek(0, soFromBeginning);
@@ -198,7 +202,9 @@ begin
         except
             result := False;
             aBmp.Assign(NIL);
-        end else
+        end
+        {$ENDIF}
+        else
         if (mime = 'image/bmp') or (Uppercase(String(Mime)) = 'BMP') then
             try
                 aStream.Seek(0, soFromBeginning);

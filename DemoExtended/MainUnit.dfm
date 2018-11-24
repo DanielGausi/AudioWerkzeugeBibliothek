@@ -128,7 +128,6 @@ object MainFormAPE: TMainFormAPE
       Width = 201
       Height = 21
       Style = csDropDownList
-      ItemHeight = 13
       TabOrder = 0
       OnChange = cbPicturesChange
     end
