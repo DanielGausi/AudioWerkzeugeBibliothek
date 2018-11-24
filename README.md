@@ -18,6 +18,38 @@ Limitations:
 * no support for Cover Art (and other binary data) in Ogg Vorbis comments
 * no support for compression and encryption in ID3Tags.
 
+## Unicode and compatibility to older Delphi versions
+
+This library should work with all Delphi versions from **Delphi 7** to **Delphi 10.2** (Tokyo). However, there are some things to keep in mind with older versions without built-in Unicode support (= before Delphi 2009).
+
+*Note*: I use "Unicode" here in the meaning of "more than ANSI". That's not 100% accurate, but I hope you know what I'm saying. ;-)
+
+### The VCL and filenames with Unicode characters
+
+Before Delphi 2009, the VCL was ANSI-only and did not support Unicode. This includes the display of strings with Unicode characters and opening files with Unicode characters in their filenames. For that, there has been a collection of components called "TNTUnicodeControls". Older versions of this collection were available under a Creative Commons license, and should still be found somewhere.
+
+This library can make use of these controls by activating a compiler switch in the file `config.inc`. Just remove the "." in the line `{.$DEFINE USE_TNT_COMPOS}`.
+
+Within the library itself the TNTs are used for the class `TNTFileStream`. Of course you can use other Unicode capable filestream classes as well. Just adjust these lines of code according to your needs: (files: AudioFileBasics.pas, Mp3FileUtils.pas and ID3v2Frames.pas)
+```
+{$IFDEF USE_TNT_COMPOS}
+	TAudioFileStream = TTNTFileStream;  
+{$ELSE}
+	TAudioFileStream = TFileStream;
+{$ENDIF}
+```
+
+If you are using an older Delphi Version without TNTUnicodeControls, this library will still work, but you can't open files with filenames like "จักรพรรณ์ อาบครบุรี - 10 เท่านี้ก็ตรม.mp3". When you try to display information about title and artist from such a file (after renaming it), you will see only some "?????" instead of the actual title. Note that rewriting the ID3-Tag under such conditions could lead to data loss.
+
+*Note*: The sample projects do not use the TNTControls (like TTNTEdit instead of TEdit). Be careful there with older Delphis. ;-)
+
+Newer Delphi versions (2009 and later) have built-in Unicode support, and therefore the use of these TNTUnicodeControls is not needed. In addtion, the definition of the type `UnicodeString` is not needed there. This is the reason for this compiler switch, which can be found in some of the files as well.
+```
+{$IFNDEF UNICODE}
+	UnicodeString = WideString;
+{$ENDIF}
+```
+
 ## General concept of this library
 
 You can use this library on different "levels". There is not a real differentiation between these levels. You can just use more or less from the features of this library. Depending on what you want to do, it is recommended to know more or less about the inner structure of "audio files".
