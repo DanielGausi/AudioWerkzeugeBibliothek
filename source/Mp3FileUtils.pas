@@ -244,6 +244,7 @@ interface
 
 uses
   SysUtils, Classes, Windows, Contnrs, dialogs, U_CharCode
+  {$IFDEF USE_SYSTEM_TYPES}}, System.Types{$ENDIF}
   {$IFDEF USE_TNT_COMPOS}, TntSysUtils, TntClasses{$ENDIF}, Id3v2Frames;
 
 type
@@ -763,7 +764,7 @@ const
      ('IS:off, MS:off','IS:on, MS:off','IS:off, MS:on','IS:on, MS:on'));
   emphasis_values: array[0..3] of string = ('None', '50/15ms','reserved','CCIT J.17');
 
-  {$Message Hint 'You should change the default rating description for your projects'}
+  {.$Message Hint 'You should change the default rating description for your projects'}
 var
   DefaultRatingDescription: AnsiString = 'Mp3ileUtils, www.gausi.de';
   // Changig this should be done e.g. in MainFormCreate or in the initialization-part
@@ -1012,7 +1013,7 @@ begin
   result := MP3ERR_None;
   FExists := False;
   try
-    Stream.Seek(-128, soFromEnd);
+    Stream.Seek(-128, soEnd);
     if (Stream.Read(RawTag, 128) = 128) then
       if (RawTag.ID = 'TAG') then
       begin
@@ -1073,12 +1074,12 @@ begin
     RawTag.Genre := FGenre;
 
     // Search for an existing tag and set position to write the new one
-    Stream.Seek(-128, soFromEnd);
+    Stream.Seek(-128, soEnd);
     Stream.Read(Buffer[1], 3);
     if (Buffer[1]='T') AND (Buffer[2]='A') AND (Buffer[3]='G') then
-      Stream.Seek(-128, soFromEnd)
+      Stream.Seek(-128, soEnd)
     else
-      Stream.Seek(0, soFromEnd);
+      Stream.Seek(0, soEnd);
 
     if Stream.Write(RawTag, 128) <> 128 then
       result := MP3ERR_SWrite;
@@ -1098,11 +1099,11 @@ var
 begin
   result := MP3ERR_NONE;
   try
-    Stream.Seek(-128, soFromEnd);
+    Stream.Seek(-128, soEnd);
     Stream.Read(Buffer[1], 3);
     if (Buffer[1]='T') AND (Buffer[2]='A') AND (Buffer[3]='G') then
     begin
-      Stream.Seek(-128, soFromEnd);
+      Stream.Seek(-128, soEnd);
       SetStreamEnd(Stream);
     end
     else
@@ -1606,7 +1607,7 @@ var
 begin
   result := MP3ERR_None;
   try
-    Stream.Seek(0, soFromBeginning);
+    Stream.Seek(0, soBeginning);
     Stream.ReadBuffer(RawHeader, 10);
     if RawHeader.ID = 'ID3' then
       if RawHeader.Version in  [2,3,4] then
@@ -1664,7 +1665,7 @@ begin
                 + 256 * ExtendedHeader[2]
                 + ExtendedHeader[3];
 
-            Stream.Seek(ExtendedHeaderSize, soFromCurrent);
+            Stream.Seek(ExtendedHeaderSize, soCurrent);
             // ExtendedHeaderSize is the size _Excluding_ the 4 Size-Bytes
             // thanks to Jürgen vom Projekt inEx information explorer
         end;
@@ -1898,7 +1899,7 @@ begin
           ExistingID3Tag.ReadHeader(Stream);
 
           // jump to the end of this tag
-          Stream.Seek(ExistingID3Tag.FTagSize, soFromBeginning);
+          Stream.Seek(ExistingID3Tag.FTagSize, soBeginning);
 
           // CacheAudio: If the new Tag is bigger than the existing or no padding is wanted,
           // then the whole file must be rewritten. -> Cache Audiodata in this case.
@@ -1914,7 +1915,7 @@ begin
             TmpName := GetTempFile;
             try
                 TmpStream := TMPFUFileStream.Create(TmpName, fmCreate or fmShareDenyWrite);
-                TmpStream.Seek(0, soFromBeginning);
+                TmpStream.Seek(0, soBeginning);
 
                 AudioDataSize := Stream.Size - Stream.Position;
                 if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> AudioDataSize then
@@ -1926,7 +1927,7 @@ begin
 
                 // Check for ID3v1Tag
                 // adjust paddingsize, so that an id3v1Tag will not need another cluster on disk
-                Stream.Seek(-128, soFromEnd);
+                Stream.Seek(-128, soEnd);
                 v1Tag := '   ';
                 if (Stream.Read(v1Tag[1], 3) = 3) then
                 begin
@@ -1969,12 +1970,12 @@ begin
 
           // Correct the Headersize
           aHeader.TagSize := Int32ToInt28(FTagSize - 10);
-          ID3v2Stream.Seek(0, soFromBeginning);
+          ID3v2Stream.Seek(0, soBeginning);
           ID3v2Stream.WriteBuffer(aHeader,10);
 
           // Finally, write all the new stuff into the stream
-          Stream.Seek(0, soFromBeginning);
-          ID3v2Stream.Seek(0, soFromBeginning);
+          Stream.Seek(0, soBeginning);
+          ID3v2Stream.Seek(0, soBeginning);
 
           // write new tag
           Stream.CopyFrom(ID3v2Stream, ID3v2Stream.Size);
@@ -1991,7 +1992,7 @@ begin
             try
               TmpStream := TMPFUFileStream.Create(TmpName, fmOpenRead);
               try
-                TmpStream.Seek(0, soFromBeginning);
+                TmpStream.Seek(0, soBeginning);
                 Stream.CopyFrom(TmpStream, TmpStream.Size);
                 SetStreamEnd(Stream);
               finally
@@ -2045,14 +2046,14 @@ begin
       if ExistingID3Tag.FExists then
       begin
           // ...jump to its end...
-          Stream.Seek(ExistingID3Tag.FTagSize, soFromBeginning);
+          Stream.Seek(ExistingID3Tag.FTagSize, soBeginning);
 
           // ...cache Audiodat to temporary file...
           TmpName := GetTempFile;
           try
               TmpStream := TMPFUFileStream.Create(TmpName, fmCreate);
               try
-                  TmpStream.Seek(0, soFromBeginning);
+                  TmpStream.Seek(0, soBeginning);
                   tmpsize := Stream.Size - Stream.Position;
                   if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> tmpsize then
                   begin
@@ -2062,12 +2063,12 @@ begin
                       Exit;
                   end;
                   // ...cut the stream...
-                  Stream.Seek(-ExistingID3Tag.FTagSize, soFromEnd);
+                  Stream.Seek(-ExistingID3Tag.FTagSize, soEnd);
                   SetStreamEnd(Stream);
                   ExistingID3Tag.Free;
                   // ...and write the audiodata back.
-                  Stream.Seek(0, soFromBeginning);
-                  TmpStream.Seek(0, soFromBeginning);
+                  Stream.Seek(0, soBeginning);
+                  TmpStream.Seek(0, soBeginning);
                   if Stream.CopyFrom(TmpStream, TmpStream.Size) <> TmpStream.Size then
                   begin
                       TmpStream.Free;

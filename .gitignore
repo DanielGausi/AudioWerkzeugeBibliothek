@@ -11,3 +11,4 @@ DemoExtended/__history/
 *.stat
 *.mp3
 *.bak
+/source/__history

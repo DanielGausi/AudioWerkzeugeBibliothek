@@ -47,11 +47,14 @@
 
 unit FlacFiles;
 
+{$I config.inc}
+
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, ContNrs, Classes,
-  AudioFileBasics, VorbisComments, Id3Basics , winsock;
+  Windows, Messages, SysUtils, Variants, ContNrs, Classes
+  {$IFDEF USE_SYSTEM_TYPES}}, System.Types{$ENDIF}
+  , AudioFileBasics, VorbisComments, Id3Basics , winsock;
 
 const
     FLAC_MARKER = 'fLaC';

@@ -343,7 +343,7 @@ begin
                 fs.Seek(0, sobeginning);
                 tmp2 := id3v2tag.ReadFromStream(fs);
                 if fID3v2Tag.exists then
-                    fs.Seek(id3v2tag.size, soFromBeginning)
+                    fs.Seek(id3v2tag.size, soBeginning)
                 else
                     fs.Seek(0, sobeginning);
 
