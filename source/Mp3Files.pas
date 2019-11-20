@@ -153,7 +153,8 @@ begin
     fID3v2Tag := TID3v2Tag.Create;
     fMpegInfo := TMpegInfo.create;
 
-    fTagWriteMode   := id3_both;
+    // fTagWriteMode   := id3_both;
+    fTagWriteMode   := id3_existing;
     fTagDefaultMode := id3_def_both;
     fTagDeleteMode  := id3_del_both;
 end;
@@ -418,13 +419,11 @@ begin
             if fId3v1Tag.Exists then
             begin
                 tmp := fId3v1Tag.WriteToFile(aFilename);
-                showmessage('1');
                 TagWritten := True;
             end;
             if fId3v2Tag.Exists then
             begin
                 tmp := fId3v2Tag.WriteToFile(aFilename);
-                showmessage('1');
                 TagWritten := True;
             end;
 

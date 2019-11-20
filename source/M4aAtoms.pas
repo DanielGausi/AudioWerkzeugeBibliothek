@@ -52,7 +52,7 @@ unit M4aAtoms;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFileBasics {$IFDEF USE_SYSTEM_TYPES}}, System.Types{$ENDIF};
+     AudioFileBasics {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
 
 
 type
@@ -228,7 +228,10 @@ type
             procedure SetSpecialData(aMean, aName: AnsiString; aValue: UnicodeString);
 
             procedure GetAllTextAtomDescriptions(dest: TStrings);
+            procedure GetAllTextAtoms(dest: TObjectList);
 
+            procedure GetAllAtoms(dest: TObjectList);
+            procedure RemoveAtom(aAtom: TMetaAtom);
 
             function PrepareDataForSaving: TAudioError;
     end;
@@ -397,7 +400,14 @@ begin
         else
             fData.Seek(newSize-8, soCurrent);
 
-        inc(bytesProcessed, newSize);
+        // inc(bytesProcessed, newSize);
+        if newSize > 0 then
+            inc(bytesProcessed, newSize)
+        else
+        begin
+            bytesProcessed := fData.Size;
+            result := M4aErr_Invalid_TRAK;
+        end;
     end;
 end;
 
@@ -427,7 +437,14 @@ begin
         if tmp <> FileErr_None then
             result := tmp;
 
-        inc(bytesProcessed, newSize);
+        // inc(bytesProcessed, newSize);
+        if newSize > 0 then
+            inc(bytesProcessed, newSize)
+        else
+        begin
+            bytesProcessed := fData.Size;
+            result := M4aErr_Invalid_MDIA;
+        end;
     end;
 end;
 
@@ -482,7 +499,15 @@ begin
             result := Parse4_STBL(newSize)
         else
             fData.Seek(newSize-8, soCurrent);
-        inc(bytesProcessed, newSize);
+
+        //inc(bytesProcessed, newSize);
+        if newSize > 0 then
+            inc(bytesProcessed, newSize)
+        else
+        begin
+            bytesProcessed := fData.Size;
+            result := M4aErr_Invalid_MINF;
+        end;
     end;
 end;
 
@@ -511,7 +536,14 @@ begin
         if tmp <> FileErr_None then
             result := tmp;
 
-        inc(bytesProcessed, newSize);
+        if newSize > 0 then
+            inc(bytesProcessed, newSize)
+        else
+        begin
+            bytesProcessed := aSize;
+            result := M4aErr_Invalid_STBL;
+        end;
+
     end;
 end;
 
@@ -567,7 +599,7 @@ begin
     end else
     begin
         fOffsetPosition := fData.Position - 1 ;
-        /// NOTE: At this poition:
+        /// NOTE: At this position:
         ///  4 Bytes Version/Flags
         ///  4 Bytes Offset Count : X
         ///  X times 4 Bytes Offset Values
@@ -718,7 +750,16 @@ begin
                AtomList.Add(newAtom);
             end;
 
-        inc(bytesProcessed, newSize);
+        //inc(bytesProcessed, newSize);
+        if newSize > 0 then
+            inc(bytesProcessed, newSize)
+        else
+        begin
+            bytesProcessed := fData.Size;
+            result := M4aErr_Invalid_MOOV;
+        end;
+
+
     end;
 
     if not assigned(UdtaAtom) then
@@ -1080,6 +1121,29 @@ begin
             dest.Add(TMetaAtom(fMetaAtoms[i]).GetListDescription);
 end;
 
+procedure TUdtaAtom.GetAllTextAtoms(dest: TObjectList);
+var i: Integer;
+begin
+    dest.Clear;
+    for i := 0 to self.fMetaAtoms.Count - 1 do
+        if TMetaAtom(fMetaAtoms[i]).ContainsTextData then
+            dest.Add(TMetaAtom(fMetaAtoms[i]));
+end;
+
+procedure TUdtaAtom.GetAllAtoms(dest: TObjectList);
+var i: Integer;
+begin
+    dest.Clear;
+    for i := 0 to self.fMetaAtoms.Count - 1 do
+        dest.Add(TMetaAtom(fMetaAtoms[i]));
+end;
+
+procedure TUdtaAtom.RemoveAtom(aAtom: TMetaAtom);
+begin
+    fMetaAtoms.Remove(aAtom);
+end;
+
+
 
 function TUdtaAtom.ParseData: TAudioError;
 var bytesProcessed, IlstProcessed, MetaProcessed: DWord;
@@ -1131,17 +1195,40 @@ begin
                         newAtom := TMetaAtom.Create(newName);
                         newAtom.ReadFromStream(fData, newSize);
                         fMetaAtoms.Add(newAtom);
-                        inc(IlstProcessed, newSize);
+
+                        if newSize > 0 then
+                            inc(IlstProcessed, newSize)
+                        else
+                        begin
+                            IlstProcessed := IlstSize;
+                            result := M4aErr_Invalid_UDTA;
+                        end;
                     end;
-                    inc(bytesProcessed, IlstProcessed);
-                    inc(MetaProcessed, IlstProcessed);
+                    if IlstProcessed > 0 then
+                    begin
+                        inc(bytesProcessed, IlstProcessed);
+                        inc(MetaProcessed, IlstProcessed);
+                    end else
+                    begin
+                        bytesProcessed := fData.Size;
+                        MetaProcessed := MetaSize;
+                        result := M4aErr_Invalid_UDTA;
+                    end;
                 end else
                 begin
                     // some other atom, skip it
                     // probably "hdlr" or "free"
-                    fData.Seek(newSize-8, soCurrent);  // skip this atom
-                    inc(bytesProcessed, newSize-8);
-                    inc(MetaProcessed, newSize-8);
+                    if newSize > 8 then
+                    begin
+                        fData.Seek(newSize-8, soCurrent);  // skip this atom
+                        inc(bytesProcessed, newSize-8);
+                        inc(MetaProcessed, newSize-8);
+                    end else
+                    begin
+                        bytesProcessed := fData.Size;
+                        MetaProcessed := MetaSize;
+                        result := M4aErr_Invalid_UDTA;
+                    end;
                 end;
             end; // parsing ILST
         end // parse META
@@ -1149,8 +1236,15 @@ begin
         begin
             // other udta.[..]-atom
             // probably FREE-Atom
-            fData.Seek(newSize-8, soCurrent);
-            inc(bytesProcessed, newSize-8);
+            if newSize > 8 then
+            begin
+                fData.Seek(newSize-8, soCurrent);
+                inc(bytesProcessed, newSize-8);
+            end else
+            begin
+                bytesProcessed := fData.Size;
+                result := M4aErr_Invalid_UDTA;
+            end;
         end;
     end;
 
@@ -1332,7 +1426,7 @@ begin
             fData.Read(dataString[1], length(dataString));
             result := ConvertUTF8ToString(dataString);
         end else
-            result := ''
+            result := '';
     end else
         result := '';
 end;
@@ -1642,14 +1736,26 @@ begin
         GetSpecialData(aMean, aName);
         result := UnicodeString(aName + '::' + aMean);  // Dont change this!! (Used in TM4AFile.GetTextDataByDescription)
     end else
-    begin
-        for i := 0 to length(KnownMetaAtoms) - 1 do
-            if KnownMetaAtoms[i].AtomName = self.Name then
-            begin
-                result := KnownMetaAtoms[i].Description;
-                break;
-            end;
-    end;
+        if self.Name = 'trkn' then
+            result := 'Track number'
+        else
+            if self.Name = 'disk' then
+                result := 'Disk number'
+            else
+                if self.Name = 'gnre' then
+                    result := 'Genre (index)'
+                else
+                    if self.Name = 'covr' then
+                        result := 'Cover art'
+                    else
+                    begin
+                        for i := 0 to length(KnownMetaAtoms) - 1 do
+                            if KnownMetaAtoms[i].AtomName = self.Name then
+                            begin
+                                result := KnownMetaAtoms[i].Description;
+                                break;
+                            end;
+                    end;
 end;
 
 

@@ -244,7 +244,7 @@ interface
 
 uses
   SysUtils, Classes, Windows, Contnrs, dialogs, U_CharCode
-  {$IFDEF USE_SYSTEM_TYPES}}, System.Types{$ENDIF}
+  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF}
   {$IFDEF USE_TNT_COMPOS}, TntSysUtils, TntClasses{$ENDIF}, Id3v2Frames;
 
 type
@@ -729,7 +729,7 @@ type
 
   // Get a TrackNr. from a ID3v2-Tag-trackstring
   // e.g.: 3/15 => 3
-  function GetTrackFromV2TrackString(value: string): Byte;
+  function GetTrackFromV2TrackString(value: string): Integer;
 
 const
 
@@ -933,7 +933,7 @@ end;
 //--------------------------------------------------------------------
 // Get Track-Nr. from track-string
 //--------------------------------------------------------------------
-function GetTrackFromV2TrackString(value: string): Byte;
+function GetTrackFromV2TrackString(value: string): Integer;
 var
   del: Integer;
   Track: String;
@@ -1468,7 +1468,7 @@ begin
         if (TID3v2Frame(Frames[i]).FrameType = FT_UserTextFrame) then
         begin
             TID3v2Frame(Frames[i]).GetUserText(iDescription);
-            If aDescription = iDescription then
+            If AnsiSameText(aDescription, iDescription) then
             begin
                 result := i;
                 break;
@@ -1901,12 +1901,16 @@ begin
           // jump to the end of this tag
           Stream.Seek(ExistingID3Tag.FTagSize, soBeginning);
 
-          // CacheAudio: If the new Tag is bigger than the existing or no padding is wanted,
-          // then the whole file must be rewritten. -> Cache Audiodata in this case.
-          if FUsePadding and (ExistingID3Tag.FTagSize > (ID3v2Stream.Size + 30)) then
-              CacheAudio := False
-          else
-              CacheAudio := True;
+          // 2019: new decision for CacheAudio:
+          // Rewrite the File also when the old existing Tag is WAY BIGGER than the new one
+          // - for example after removing a huge CoverArt from the Tag
+          CacheAudio :=
+              // user wants no padding
+              (not FUsePadding) OR
+              // ExistingTag too small
+              ((ID3v2Stream.Size + 30) >= ExistingID3Tag.FTagSize) OR
+              // ExistingTag is way too large (max. padding Size: 500k)
+              (ExistingID3Tag.FTagSize > ID3v2Stream.Size + 512000);
 
           if CacheAudio then
           begin

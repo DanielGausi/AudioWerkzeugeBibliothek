@@ -53,7 +53,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, ContNrs, Classes
-  {$IFDEF USE_SYSTEM_TYPES}}, System.Types{$ENDIF} ;
+  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF} ;
 
 const
     VORBIS_ID = 'vorbis';

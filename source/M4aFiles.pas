@@ -166,6 +166,12 @@ type
             procedure SetSpecialData(mean, name: AnsiString; aValue: UnicodeString);
 
             procedure GetAllTextAtomDescriptions(dest: TStrings);
+            procedure GetAllTextAtoms(dest: TObjectList);
+
+            procedure GetAllAtoms(dest: TObjectList);
+            procedure RemoveMetaAtom(aAtom: TMetaAtom);
+
+
     end;
 
 implementation
@@ -371,6 +377,21 @@ end;
 procedure TM4AFile.GetAllTextAtomDescriptions(dest: TStrings);
 begin
     MOOV.UdtaAtom.GetAllTextAtomDescriptions(dest);
+end;
+
+procedure TM4AFile.GetAllTextAtoms(dest: TObjectList);
+begin
+    MOOV.UdtaAtom.GetAllTextAtoms(dest);
+end;
+
+procedure TM4AFile.GetAllAtoms(dest: TObjectList);
+begin
+    MOOV.UdtaAtom.GetAllAtoms(dest);
+end;
+
+procedure TM4AFile.RemoveMetaAtom(aAtom: TMetaAtom);
+begin
+    MOOV.UdtaAtom.RemoveAtom(aAtom);
 end;
 
 function TM4AFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
@@ -580,9 +601,15 @@ begin
                     if (tmpMetaStream.Size + 8 < ExistingTag.fBytesBeforeMDTA) and UsePadding then
                     begin
                         FreeAtom := TFreeAtom.CreateFree('free', ExistingTag.fBytesBeforeMDTA - tmpMetaStream.Size);
-                        FreeAtom.SaveToStream(tmpMetaStream);
-                        // (and we are done)
-                        result := WriteData;
+                        try
+                            FreeAtom.SaveToStream(tmpMetaStream);
+                            // (and we are done)
+                            result := WriteData;
+                        finally
+                            FreeAtom.Free;
+                        end
+
+
                     end else
                     begin
                         // we do not have enough space for writing our data,
@@ -591,7 +618,12 @@ begin
                         if UsePadding then
                         begin
                             FreeAtom := TFreeAtom.CreateFree('free', 2048);
-                            FreeAtom.SaveToStream(tmpMetaStream);
+                            try
+                                FreeAtom.SaveToStream(tmpMetaStream);
+                            finally
+                                FreeAtom.Free;
+                            end;
+
                         end;
 
                         fFixAudioOffsets(tmpMetaStream, tmpMetaStream.Size - ExistingTag.fBytesBeforeMDTA);
