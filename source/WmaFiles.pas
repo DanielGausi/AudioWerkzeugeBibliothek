@@ -58,7 +58,7 @@ unit WmaFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFileBasics;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
 
 const
   // Channel modes
@@ -105,10 +105,12 @@ type
             function fGetYear             : UnicodeString; override;
             function fGetTrack            : UnicodeString; override;
             function fGetGenre            : UnicodeString; override;
+            function fGetFileType            : TAudioFileType; override;
+            function fGetFileTypeDescription : String;         override;
 
         public
             { Public declarations }
-            constructor Create;                                     { Create object }
+            constructor Create;  override;                        { Create object }
             function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
@@ -289,6 +291,22 @@ end;
 
 { --------------------------------------------------------------------------- }
 
+constructor TWMAfile.Create;
+begin
+  { Create object }
+  inherited;
+  FResetData;
+end;
+
+function TWMAfile.fGetFileType: TAudioFileType;
+begin
+  result := at_Wma;
+end;
+
+function TWMAfile.fGetFileTypeDescription: String;
+begin
+  result := TAudioFileNames[at_Wma];
+end;
 
 { ********************** Private functions & procedures ********************* }
 
@@ -417,12 +435,7 @@ end;
 
 { ********************** Public functions & procedures ********************** }
 
-constructor TWMAfile.Create;
-begin
-  { Create object }
-  inherited;
-  FResetData;
-end;
+
 
 { --------------------------------------------------------------------------- }
 
@@ -433,6 +446,7 @@ var
   ID: ObjectID;
   Iterator, ObjectCount, ObjectSize, Position: Integer;
 begin
+    inherited;
     // Reset variables and load file data
     fResetData;
     FillChar(Data, SizeOf(Data), 0);
@@ -503,12 +517,18 @@ end;
 
 function TWMAfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
+    inherited;
     result := WmaErr_WritingNotSupported;
 end;
 
 function TWMAfile.WriteToFile(aFilename: UnicodeString): TAudioError;
 begin
+    inherited;
     result := WmaErr_WritingNotSupported;
 end;
+
+initialization
+
+  AudioFileFactory.RegisterClass(TWMAfile, '.wma');
 
 end.

@@ -57,7 +57,8 @@ unit MonkeyFiles;
 
 interface
 
-uses Windows, Messages, SysUtils,  Classes, Apev2Tags, Dialogs;
+uses Windows, Messages, SysUtils,  Classes, Apev2Tags, Dialogs,
+    AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
 
 const
     // Compression level codes
@@ -107,6 +108,8 @@ type
 
         protected
             function ReadAudioDataFromStream(aStream: TStream): Boolean; override;
+            function fGetFileType            : TAudioFileType; override;
+            function fGetFileTypeDescription : String;         override;
 
         public
             property Version           : Integer  read fVersion;
@@ -122,6 +125,8 @@ type
             property HasSeekElements 	 : Boolean	read fHasSeekElements;
             property WavNotStored 	   : Boolean	read fWavNotStored;
             property Bits              : Integer read fBits;
+
+            constructor Create; override;
     end;
 
 
@@ -191,6 +196,21 @@ begin
   fHasPeakLevel       := False;
   fHasSeekElements    := False;
   fWavNotStored       := False;
+end;
+
+constructor TMonkeyFile.Create;
+begin
+    inherited;
+end;
+
+function TMonkeyFile.fGetFileType: TAudioFileType;
+begin
+    result := at_Monkey;
+end;
+
+function TMonkeyFile.fGetFileTypeDescription: String;
+begin
+    result := TAudioFileNames[at_Monkey];
 end;
 
 function TMonkeyFile.fGetVersionStr: String;
@@ -305,6 +325,11 @@ begin
         end
     end;
 end;
+
+initialization
+
+  AudioFileFactory.RegisterClass(TMonkeyFile, '.ape');
+  AudioFileFactory.RegisterClass(TMonkeyFile, '.mac');
 
 
 end.

@@ -49,7 +49,7 @@ unit ApeTagItem;
 
 interface
 
-uses Windows, Messages, SysUtils, Variants, ContNrs, Classes, AudioFileBasics;
+uses Windows, Messages, SysUtils, Variants, ContNrs, Classes, AudioFiles.Declarations;
 
 type
     TApePictureTypes = (

@@ -58,7 +58,7 @@ unit WavFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFileBasics;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
 
 
 type
@@ -87,16 +87,35 @@ type
             function fGetYear             : UnicodeString; override;
             function fGetTrack            : UnicodeString; override;
             function fGetGenre            : UnicodeString; override;
+            function fGetFileType            : TAudioFileType; override;
+            function fGetFileTypeDescription : String;         override;
 
         public
             { Public declarations }
-            constructor Create;
+            constructor Create; override;
             function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
         end;
 
 implementation
+
+constructor TWavfile.Create;
+begin
+    inherited;
+    fResetData;
+end;
+
+function Twavfile.fGetFileType: TAudioFileType;
+begin
+    result := at_Wav;
+
+end;
+
+function Twavfile.fGetFileTypeDescription: String;
+begin
+    result := TAudioFileNames[at_Wav];
+end;
 
 procedure TWavfile.FResetData;
 begin
@@ -209,11 +228,6 @@ end;
 
 { ********************** Public functions & procedures ********************** }
 
-constructor TWavfile.Create;
-begin
-    inherited;
-    fResetData;
-end;
 
 { --------------------------------------------------------------------------- }
 
@@ -252,6 +266,8 @@ var fs: TFileStream;
 
 
 begin
+    inherited;
+
     // Reset variables and load file data
     fResetData;
     result := FileErr_None;
@@ -317,12 +333,19 @@ end;
 
 function TWavfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
+    inherited;
     result := WavErr_WritingNotSupported;
 end;
 
 function TWavfile.WriteToFile(aFilename: UnicodeString): TAudioError;
 begin
+    inherited;
     result := WavErr_WritingNotSupported;
 end;
+
+initialization
+
+  AudioFileFactory.RegisterClass(TWavfile, '.wav');
+
 
 end.

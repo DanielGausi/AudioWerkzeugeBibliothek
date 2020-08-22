@@ -5,8 +5,8 @@ uses
   SimpleMain in 'SimpleMain.pas' {SimpleTagger},
   ApeTagItem in '..\source\ApeTagItem.pas',
   Apev2Tags in '..\source\Apev2Tags.pas',
-  AudioFileBasics in '..\source\AudioFileBasics.pas',
-  AudioFiles in '..\source\AudioFiles.pas',
+  AudioFiles.Base in '..\source\AudioFiles.Base.pas',
+  AudioFiles.Factory in '..\source\AudioFiles.Factory.pas',
   FlacFiles in '..\source\FlacFiles.pas',
   Id3Basics in '..\source\Id3Basics.pas',
   Id3v2Frames in '..\source\Id3v2Frames.pas',
@@ -24,7 +24,8 @@ uses
   WmaFiles in '..\source\WmaFiles.pas',
   ID3GenreList in '..\source\ID3GenreList.pas',
   M4aAtoms in '..\source\M4aAtoms.pas',
-  M4aFiles in '..\source\M4aFiles.pas';
+  M4aFiles in '..\source\M4aFiles.pas',
+  AudioFiles.Declarations in '..\source\AudioFiles.Declarations.pas';
 
 {$R *.res}
 

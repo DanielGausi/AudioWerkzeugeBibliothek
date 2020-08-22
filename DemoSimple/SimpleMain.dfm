@@ -42,7 +42,6 @@ object SimpleTagger: TSimpleTagger
       Height = 162
       Anchors = [akLeft, akTop, akBottom]
       FileList = FileListBox1
-      ItemHeight = 16
       TabOrder = 1
     end
     object FileListBox1: TFileListBox

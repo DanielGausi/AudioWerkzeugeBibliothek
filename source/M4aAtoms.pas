@@ -52,7 +52,7 @@ unit M4aAtoms;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFileBasics {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
+     AudioFiles.Declarations {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
 
 
 type

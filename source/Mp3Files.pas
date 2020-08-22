@@ -50,12 +50,40 @@ unit Mp3Files;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFileBasics, Mp3FileUtils, ID3v2Frames, dialogs;
+     AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations,
+     Mp3FileUtils, ID3v2Frames;
 
 type
+
     TTagWriteMode = (id3_both, id3_v1, id3_v2, id3_existing);
     TTagDefaultMode = (id3_def_both, id3_def_v1, id3_def_v2);
     TTagDeleteMode = (id3_del_both, id3_del_v1, id3_del_v2);
+
+    ///  TTagReadMode
+    ///  Purpose is to speed up reading file information while building up a media library (or something like that)
+    ///  Often the ID3v1Tag is not needed, as everything is already covered by the ID3v2Tag.
+    ///  * id3_read_complete : Always check for both versions
+    ///  * id3_read_smart    : Check for ID3v2Tag first. If some "relevant data" is missing, try ID3v1tag as well
+    ///  * id3_read_v2       : read only v2
+    ///    (note: only v1 doesn't make much sense for faster reading)
+    TTagReadMode = (id3_read_complete, id3_read_smart, id3_read_v2_only );
+
+    ///  Notes:
+    ///  - Defining what "relevant data" for "id3_read_smart" means
+    ///    All possible fields in the ID3v1-Tag are rather useful and could add something
+    ///    useful. However, "Comment" is rarely used. if this is not contained in the v2Tag,
+    ///    we should not look for it on v1.
+    ///    * use property "SmartRead_IgnoreComment" (default: True)
+    ///  - Avoiding inconsistent Data
+    ///    When reading only one Tag from the file, the internal Tag Objects for the other one
+    ///    remains empty. But when we want to change the meta data in the file, it should be
+    ///    ensured, that these data remains consistently.
+    ///    * use private fields "v[x]Processed" , whether we've looked for the Tags in the file.
+    ///      The Setter-Methods should check for that, and look after the Tag in the file
+    ///      by re-reading it
+    ///    * To deactivate this feature, use property "SmartRead_AvoidInconsistentData" (default: True)
+
+
 
     TMP3File = class (TBaseAudioFile)
         private
@@ -63,15 +91,23 @@ type
             fID3v2Tag: TID3v2Tag;
             fMpegInfo: TMpegInfo;
 
-            fTagWriteMode: TTagWriteMode;
+            fTagReadMode   : TTagReadMode;
+            fTagWriteMode  : TTagWriteMode;
             fTagDefaultMode: TTagDefaultMode;
             fTagDeleteMode : TTagDeleteMode;
+
+            fSmartRead_IgnoreComment         : Boolean;
+            fSmartRead_AvoidInconsistentData : Boolean;
+            fTag1Processed                   : Boolean;
+            //fTag2Processed                   : Boolean;
 
             function Mp3ErrorToAudioError(aErr: TMP3Error): TAudioError;
 
             function fGetID3v1Size: Integer;
             function fGetID3v2Size: Integer;
 
+            procedure EnforceID3v1IsProcessed;
+            function ID3v1TagIsNeeded: Boolean;
 
         protected
 
@@ -97,6 +133,10 @@ type
             function fGetTrack            : UnicodeString; override;
             function fGetGenre            : UnicodeString; override;
             function fGetComment          : UnicodeString;
+
+            function fGetFileType            : TAudioFileType; override;
+            function fGetFileTypeDescription : String;         override;
+
         public
 
             property ID3v1Tag: TID3v1Tag read fID3v1Tag;
@@ -105,6 +145,12 @@ type
 
             property ID3v1TagSize: Integer read fGetID3v1Size;
             property ID3v2TagSize: Integer read fGetID3v2Size;
+
+            // Properties for "smart reading"
+            property TagReadMode   : TTagReadMode read fTagReadMode write fTagReadMode;
+            property SmartRead_IgnoreComment         : Boolean read fSmartRead_IgnoreComment          write fSmartRead_IgnoreComment;
+            property SmartRead_AvoidInconsistentData : Boolean read fSmartRead_AvoidInconsistentData  write fSmartRead_AvoidInconsistentData;
+            property Tag1Processed                   : Boolean read fTag1Processed;
 
             // WriteMode: Define which Tag should be Updated in the file when writing
             //           (Both, only v1, only v2, only existing)
@@ -119,7 +165,7 @@ type
 
             property Comment: UnicodeString read fGetComment write fSetComment;
 
-            constructor Create;
+            constructor Create; override;
             destructor Destroy; override;
 
             procedure Clear;
@@ -131,7 +177,7 @@ type
 
 implementation
 
-{ TBaseApeFile }
+{ TMP3File }
 
 procedure TMP3File.Clear;
 begin
@@ -145,6 +191,7 @@ begin
     fSamplerate := 0;
     fChannels   := 0;
     fValid      := False;
+    fTag1Processed := False;
 end;
 
 constructor TMP3File.Create;
@@ -157,6 +204,12 @@ begin
     fTagWriteMode   := id3_existing;
     fTagDefaultMode := id3_def_both;
     fTagDeleteMode  := id3_del_both;
+
+    fTagReadMode := id3_read_smart;
+    fTag1Processed                   := False;
+    fSmartRead_IgnoreComment         := True;
+    fSmartRead_AvoidInconsistentData := True;
+
 end;
 
 destructor TMP3File.Destroy;
@@ -166,6 +219,74 @@ begin
     fMpegInfo.Free;
 
     inherited;
+end;
+
+procedure TMP3File.EnforceID3v1IsProcessed;
+var fs: TAudioFileStream;
+    tmp1: TMP3Error;
+begin
+  if SmartRead_AvoidInconsistentData and (not fTag1Processed) then
+  begin
+    // try to read the v1Tag from the file
+    if AudioFileExists(self.Filename) then
+    begin
+      try
+        fs := TAudioFileStream.Create(self.Filename, fmOpenRead or fmShareDenyWrite);
+        try
+          tmp1 := fID3v1Tag.ReadFromStream(fs);
+          // if nothing wrong happens there, we will consider the ID3v1Tag "processed"
+          fTag1Processed := (tmp1 = MP3ERR_None) or (tmp1 = ID3ERR_NoTag);
+        finally
+          fs.Free;
+        end;
+      except
+        ; //nothing to do. Reading failed (again)
+      end;
+    end
+  end;
+end;
+
+function TMP3File.ID3v1TagIsNeeded: Boolean;
+var BasePropertiesOK, CommentOK: Boolean;
+begin
+    case fTagReadMode of
+
+        id3_read_complete: result := True;
+
+        id3_read_v2_only: result := False;
+
+        id3_read_smart: begin
+            if not ID3v2tag.Exists then
+                result := True
+            else
+            begin
+                BasePropertiesOK := (ID3v2tag.Artist <> '')
+                                AND (ID3v2tag.Title <> '')
+                                AND (ID3v2tag.Album <> '')
+                                AND (ID3v2tag.Track <> '')
+                                AND (ID3v2tag.Year <> '')
+                                AND (ID3v2tag.Genre <> '');
+                CommentOK := (ID3v2tag.Comment <> '');
+
+                if fSmartRead_IgnoreComment then
+                    result := NOT BasePropertiesOK
+                else
+                  result := not (BasePropertiesOK and CommentOK);
+            end;
+        end;
+    else
+      result := False;
+    end;
+end;
+
+function TMP3File.fGetFileType: TAudioFileType;
+begin
+    result := at_Mp3;
+end;
+
+function TMP3File.fGetFileTypeDescription: String;
+begin
+    result := TAudioFileNames[at_Mp3];
 end;
 
 
@@ -240,6 +361,7 @@ end;
 procedure TMP3File.fSetAlbum(aValue: UnicodeString);
 begin
   inherited;
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Album := aValue;
   fID3v2Tag.Album := aValue;
 end;
@@ -247,12 +369,14 @@ end;
 procedure TMP3File.fSetArtist(aValue: UnicodeString);
 begin
   inherited;
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Artist := aValue;
   fID3v2Tag.Artist := aValue;
 end;
 
 procedure TMP3File.fSetComment(aValue: UnicodeString);
 begin
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Comment := aValue;
   fID3v2Tag.Comment := aValue;
 end;
@@ -260,6 +384,7 @@ end;
 procedure TMP3File.fSetGenre(aValue: UnicodeString);
 begin
   inherited;
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Genre := aValue;
   fID3v2Tag.Genre := aValue;
 end;
@@ -267,6 +392,7 @@ end;
 procedure TMP3File.fSetTitle(aValue: UnicodeString);
 begin
   inherited;
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Title := aValue;
   fID3v2Tag.Title := aValue;
 end;
@@ -274,6 +400,7 @@ end;
 procedure TMP3File.fSetTrack(aValue: UnicodeString);
 begin
   inherited;
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Track := aValue;
   fID3v2Tag.Track := aValue;
 end;
@@ -281,6 +408,7 @@ end;
 procedure TMP3File.fSetYear(aValue: UnicodeString);
 begin
   inherited;
+  EnforceID3v1IsProcessed;
   fID3v1Tag.Year := ShortString(aValue);
   fID3v2Tag.Year := aValue;
 end;
@@ -332,6 +460,8 @@ function TMP3File.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
     tmp1, tmp2, tmpMpeg: TMP3Error;
 begin
+    inherited;
+
     Clear;
     if AudioFileExists(aFilename) then
     begin
@@ -339,7 +469,6 @@ begin
             fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
             try
                 fFileSize := fs.Size;
-                tmp1 := fID3v1Tag.ReadFromStream(fs);
 
                 fs.Seek(0, sobeginning);
                 tmp2 := id3v2tag.ReadFromStream(fs);
@@ -350,6 +479,14 @@ begin
 
                 tmpMpeg := fMpegInfo.LoadFromStream(fs);
                 result := Mp3ErrorToAudioError(tmpMpeg);
+
+                if ID3v1TagIsNeeded then
+                begin
+                    tmp1 := fID3v1Tag.ReadFromStream(fs);
+                    fTag1Processed := True;
+                end
+                else
+                    tmp1 := MP3ERR_None;
 
                 if result = FileErr_None then
                 begin
@@ -389,6 +526,8 @@ end;
 function TMP3File.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 var tmp: TMP3Error;
 begin
+    inherited;
+
     tmp := MP3ERR_None;
     if fTagDeleteMode in [id3_del_both, id3_del_v1] then
         tmp := fId3v1Tag.RemoveFromFile(aFilename);
@@ -401,6 +540,7 @@ function TMP3File.WriteToFile(aFilename: UnicodeString): TAudioError;
 var tmp: TMP3Error;
     TagWritten: Boolean;
 begin
+    inherited;
     tmp := MP3ERR_None;
 
     case fTagWriteMode of
@@ -446,6 +586,10 @@ begin
     result := Mp3ErrorToAudioError(tmp);
 end;
 
+initialization
 
+  AudioFileFactory.RegisterClass(TMP3File, '.mp3');
+  AudioFileFactory.RegisterClass(TMP3File, '.mp2');
+  AudioFileFactory.RegisterClass(TMP3File, '.mp1');
 
 end.

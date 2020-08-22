@@ -67,7 +67,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, ContNrs, Classes,
-  AudioFileBasics, VorbisComments, ID3Basics;
+  VorbisComments, ID3Basics,
+  AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
 
 
 const
@@ -283,6 +284,9 @@ type
             procedure fSetGenre       (value: UnicodeString);  override;
             procedure fSetYear        (value: UnicodeString);  override;
 
+            function fGetFileType            : TAudioFileType; override;
+            function fGetFileTypeDescription : String;         override;
+
         public
 
             FirstOggVorbisPage: TFirstOggVorbisPage;
@@ -314,7 +318,7 @@ type
             property Contact     : UnicodeString read fGetContact      write fSetContact     ;
             property ISRC        : UnicodeString read fGetISRC         write fSetISRC        ;
 
-            constructor Create;
+            constructor Create; override;
             destructor Destroy; override;
 
             procedure ClearData;
@@ -552,6 +556,16 @@ begin
     FirstOggVorbisPage.Free;
     SecondOggVorbisPage.Free;
     inherited;
+end;
+
+function TOggVorbisFile.fGetFileType: TAudioFileType;
+begin
+    result := at_Ogg;
+end;
+
+function TOggVorbisFile.fGetFileTypeDescription: String;
+begin
+    result := TAudioFileNames[at_Ogg];
 end;
 
 procedure TOggVorbisFile.ClearData;
@@ -844,6 +858,7 @@ end;
 function TOggVorbisFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TFileStream;
 begin
+    inherited;
     ClearData;
     if AudioFileExists(aFilename) then
     begin
@@ -894,6 +909,7 @@ var fs: TFileStream;
     tmpSegments: Integer;
 
 begin
+    inherited;
     if AudioFileExists(aFilename) then
     begin
         try
@@ -1037,7 +1053,14 @@ end;
 
 function TOggVorbisFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
+    inherited;
     result := OVErr_RemovingNotSupported;
 end;
+
+initialization
+
+  AudioFileFactory.RegisterClass(TOggVorbisFile, '.ogg');
+  AudioFileFactory.RegisterClass(TOggVorbisFile, '.oga');
+
 
 end.

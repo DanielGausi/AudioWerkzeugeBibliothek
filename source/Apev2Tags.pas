@@ -59,7 +59,8 @@ unit Apev2Tags;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFileBasics, Id3Basics, ApeTagItem;
+     AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations,
+     Id3Basics, ApeTagItem;
 
 const
     APE_PREAMBLE = 'APETAGEX';
@@ -191,6 +192,8 @@ type
 
 
             function ReadAudioDataFromStream(aStream: TStream): Boolean; virtual;
+            function fGetFileType            : TAudioFileType; override;
+            function fGetFileTypeDescription : String;         override;
 
 
         public
@@ -242,7 +245,7 @@ type
             property Introplay        : UnicodeString read fGetIntroplay         write fSetIntroplay        ;
 
 
-            constructor Create;
+            constructor Create; override;
             destructor Destroy; override;
 
             // Clear all Items and set Footer/Header to default values
@@ -292,6 +295,16 @@ begin
     inherited;
 end;
 
+function TBaseApeFile.fGetFileType: TAudioFileType;
+begin
+    result := at_AbstractApe;
+end;
+
+function TBaseApeFile.fGetFileTypeDescription: String;
+begin
+    result := TAudioFileNames[at_AbstractApe]
+end;
+
 {
     Clear
     Set default values
@@ -325,6 +338,8 @@ function TBaseApeFile.fGetFileSize: Int64;
 begin
     result := fFileSize;
 end;
+
+
 function TBaseApeFile.fGetDuration: Integer;
 begin
     result := fDuration;
@@ -904,6 +919,7 @@ end;
 function TBaseApeFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
 begin
+    inherited;
     Clear;
     if AudioFileExists(aFilename) then
     begin
@@ -953,6 +969,7 @@ var fs: TAudioFileStream;
     oldTag: TBaseApeFile;
     i: Integer;
 begin
+    inherited;
     result := FileErr_None;
 
     fPrepareFooterAndHeader;
@@ -1001,6 +1018,7 @@ function TBaseApeFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
     oldTag: TBaseApeFile;
 begin
+    inherited;
     result := FileErr_None;
 
     if AudioFileExists(aFilename) then

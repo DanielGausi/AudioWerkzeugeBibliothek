@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, FileCtrl, StdCtrls, AudioFiles;
+  Dialogs, FileCtrl, StdCtrls, AudioFiles.Factory, AudioFiles.Base, AudioFiles.Declarations;
 
 type
   TSimpleTagger = class(TForm)
@@ -31,7 +31,7 @@ type
     procedure BtnSaveClick(Sender: TObject);
   private
     { Private-Deklarationen }
-    MainAudioFile: TGeneralAudioFile;
+    MainAudioFile: TBaseAudioFile;
   public
     { Public-Deklarationen }
   end;
@@ -51,7 +51,9 @@ begin
     if assigned(MainAudioFile) then
         MainAudioFile.Free;
 
-    MainAudioFile := TGeneralAudioFile.Create(FileListBox1.FileName);
+    MainAudioFile := AudioFileFactory.CreateAudioFile(FileListBox1.FileName);
+    MainAudioFile.ReadFromFile(FileListBox1.FileName);
+
 
     EdtTitle.Text  := MainAudioFile.Title;
     EdtArtist.Text := MainAudioFile.Artist;
@@ -60,7 +62,7 @@ begin
     EdtYear.Text   := MainAudioFile.Year;
     EdtTrack.Text  := MainAudioFile.Track;
     Memo1.Clear;
-    Memo1.Lines.Add(Format('Type:      %s',       [MainAudioFile.FileTypeName] ));
+    Memo1.Lines.Add(Format('Type:      %s',       [MainAudioFile.FileTypeDescription] ));
     Memo1.Lines.Add(Format('FileSize   %d Bytes', [MainAudioFile.FileSize]     ));
     Memo1.Lines.Add(Format('Duration   %d sec',   [MainAudioFile.Duration]     ));
     Memo1.Lines.Add(Format('Btrate     %d kBit/s',[MainAudioFile.Bitrate div 1000]));
@@ -79,6 +81,10 @@ begin
         MainAudioFile.Year   := EdtYear.Text  ;
         MainAudioFile.Track  := EdtTrack.Text ;
         MainAudioFile.UpdateFile;
+
+        //MainAudioFile.WriteToFile(MainAudioFile.Filename);
+
+        //UpdateFile;
     end;
 end;
 
