@@ -64,6 +64,13 @@
   Version-History
   ========================================================================================================
 
+  August 2020: v0.7
+  ==========================
+    - added a complete scan of the file for all frames
+    - Property TMpegInfo.MpegScanMode
+    - Method TMpegInfo.StoreFrames to store all MpegFrames in Array TMpegInfo.fMpegFrames
+
+
   March 2016: v0.6c -> v0.6d
   ==========================
     - added support for the "Info"-variant of the XING-Header in some CBR-files
@@ -243,7 +250,7 @@ unit Mp3FileUtils;
 interface
 
 uses
-  SysUtils, Classes, Windows, Contnrs, dialogs, U_CharCode
+  SysUtils, Classes, Windows, Contnrs, U_CharCode
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF}
   {$IFDEF USE_TNT_COMPOS}, TntSysUtils, TntClasses{$ENDIF}, Id3v2Frames;
 
@@ -600,16 +607,16 @@ type
     //            Be careful with writing on this level
     //            These Methods gives you some lists with different types of frames
     //            See ID3v2Frames.pas how to edit these Frames
-    function GetAllFrames              : TObjectlist; overload;
-    function GetAllTextFrames          : TObjectlist; overload;
-    function GetAllUserTextFrames      : TObjectlist; overload;
-    function GetAllCommentFrames       : TObjectlist; overload;
-    function GetAllLyricFrames         : TObjectlist; overload;
-    function GetAllUserDefinedURLFrames: TObjectlist; overload;
-    function GetAllPictureFrames       : TObjectlist; overload;
-    function GetAllPopularimeterFrames : TObjectlist; overload;
-    function GetAllURLFrames           : TObjectlist; overload;
-    function GetAllPrivateFrames       : TObjectList; overload;
+    function GetAllFrames              : TObjectlist; overload; deprecated;
+    function GetAllTextFrames          : TObjectlist; overload; deprecated;
+    function GetAllUserTextFrames      : TObjectlist; overload; deprecated;
+    function GetAllCommentFrames       : TObjectlist; overload; deprecated;
+    function GetAllLyricFrames         : TObjectlist; overload; deprecated;
+    function GetAllUserDefinedURLFrames: TObjectlist; overload; deprecated;
+    function GetAllPictureFrames       : TObjectlist; overload; deprecated;
+    function GetAllPopularimeterFrames : TObjectlist; overload; deprecated;
+    function GetAllURLFrames           : TObjectlist; overload; deprecated;
+    function GetAllPrivateFrames       : TObjectList; overload; deprecated;
 
     procedure GetAllFrames(aList: TObjectlist); overload;
     procedure GetAllTextFrames          (aList: TObjectlist); overload;
@@ -660,6 +667,15 @@ type
     valid: boolean;
   end;
 
+  // two Types for a complete Analysis of the AudioData I use something like
+  // that every now and then, so I include it now officially here.
+  // Used by method TMpegInfo.StoreFrames
+  TMpegFrame = record
+    ParsedHeader: TMpegHeader;
+    FrameData: TBuffer;
+  end;
+  TMpegFrames = Array of TMpegFrame;
+
   TXingHeader = record
     Frames: integer;
     Size: integer;
@@ -668,6 +684,15 @@ type
     corrupted: boolean;
   end;
   TVBRIHeader = TXingHeader;
+
+  // TMpegScanMode
+  // Usually a quick scan of the first few Mpeg frames is enough to get all
+  // information like (average) bitrate and duration.
+  // However, on some files this result in wrong data, usually very low bitrates
+  // and therefore long durations.
+  // * The "smart" mode (default) tries a quick scan first, and performs a complete
+  //   scan, if the calculated bitrate is 32kbit/s or lower
+  TMpegScanMode = (MPEG_SCAN_Fast, MPEG_SCAN_Smart, MPEG_SCAN_Complete);
 
   TMpegInfo = class(TObject)
   Private
@@ -687,6 +712,10 @@ type
     Fvbr:boolean;
     Fvalid: boolean;
     FfirstHeaderPosition: int64;
+    fMpegScanMode: TMpegScanMode;
+    // Array with all mpeg frames of the file. Filled only by StoreFrames()
+    // Usually this is not needed, only for a more detailed analysis of the file.s
+    fMpegFrames: TMpegFrames;
 
     // Check, wether there is in aBuffer on position a valid MPEG-header
     function GetValidatedHeader(aBuffer: TBuffer; position: integer): TMpegHeader;
@@ -695,11 +724,20 @@ type
     function GetVBRIHeader(aMpegheader: TMpegHeader; aBuffer: TBuffer; position: integer ): TVBRIHeader;
 
     function GetFramelength(version:byte;layer:byte;bitrate:integer;Samplerate:integer;padding:boolean):integer;
-
+    // read frames for MPEG_SCAN_Smart (if needed) or MPEG_SCAN_Complete
+    function AnalyseStreamFrameByFrame(aStream: TStream; StartPosition: int64): Integer;
   public
+
     constructor create;
+    destructor Destroy; override;
     function LoadFromStream(stream: tStream): TMP3Error;
     function LoadFromFile(FileName: UnicodeString): TMP3Error;
+    // StoreFrames: This is only for a low level analysis of the file
+    //              It is mainly used by myself to have a closer look on "odd" mp3 files
+    //              which some properties leading to wrong results in bitrate, duration and stuff.
+    function StoreFrames(aStream: TStream): TMP3Error;
+    property MpegFrames: TMpegFrames read fMpegFrames;
+    // properties of an mp3file, most of them based on the properties of the MPEG frames
     property Filesize: int64          read   FFilesize;
     property Version: integer         read   Fversion;
     property Layer: integer           read   Flayer;
@@ -717,8 +755,10 @@ type
     property Vbr: boolean             read   Fvbr;
     property Valid: boolean           read   Fvalid;
     property FirstHeaderPosition: int64 read   FfirstHeaderPosition;
-  end;
 
+    property MpegScanMode: TMpegScanMode read fMpegScanMode write fMpegScanMode;
+
+  end;
 
 
   // Some useful functions.
@@ -3213,6 +3253,14 @@ end;
 constructor TMpegInfo.create;
 begin
   inherited create;
+  MpegScanMode := MPEG_SCAN_Smart;
+end;
+
+destructor TMpegInfo.Destroy;
+begin
+  if Length(fMpegFrames) > 0 then
+      SetLength(fMpegFrames, 0);
+  inherited;
 end;
 
 //------------------------------------------------------
@@ -3221,214 +3269,303 @@ end;
 function TMpegInfo.LoadFromStream(stream: tStream): TMP3Error;
 var buffer: TBuffer;
   erfolg, Skip3rdTest: boolean;
-  positionInStream: int64;  // position in the file/stream
-  max: int64;
-  c,bufferpos: integer;
+  positionInStream, CombinedFrameLength: int64;
+  positionInBuffer: integer;
   tmpMpegHeader, tmp2MpegHeader: TMpegHeader;
-  tmpXingHeader: tXingHeader;
+  tmpXingHeader: TXingHeader;
+  BLOCK_SIZE: Integer; // was 512, now it is set to 4096. This should lead to fewer calls to Stream.Read
 
-  smallBuffer1, smallBuffer2: TBuffer;
-  blocksize: integer;
+    function ReadMoreData(StartPosition: Int64; NeededSize: Integer): Integer;
+    begin
+        if BLOCK_SIZE < NeededSize then
+        begin
+            BLOCK_SIZE := NeededSize;
+            Setlength(Buffer, BLOCK_SIZE);
+        end;
+
+        Stream.Position := StartPosition;
+        result := Stream.Read(buffer[0], length(buffer));
+        if result < BLOCK_SIZE then
+            Setlength(Buffer, result);
+        positionInBuffer := 0;
+    end;
+
+
 begin
+  FFilesize := Stream.Size;
+
   // be pessimistic first. No mpeg-frame-header found.
   result := MPEGERR_NoFrame;
-
   Fvalid := False;
+  erfolg := False;
+
   FfirstHeaderPosition := -1;
-  blocksize := 512;
-  // position in the stream - will be the position of the first mpeg-header at the end of this method
-  positionInStream := Stream.Position-1 ;
-  // position in the buffer-array
-  bufferpos := -1 ;
+  positionInStream := Stream.Position - 1 ;
 
-  setlength(buffer, blocksize);
-  c := Stream.Read(buffer[0], length(buffer));
-  if c<blocksize then Setlength(Buffer, c);
-  max := Stream.Size;
-  erfolg :=False;
+  // read initial Chunk of Data from the Stream, starting at the current position
+  BLOCK_SIZE := 4096; // that should be always enough to avoid multiple read access to the file
+  setlength(buffer, BLOCK_SIZE);
+  ReadMoreData(Stream.Position, BLOCK_SIZE);
 
-  FFilesize := max;
+  // Initialize positionInStream and positionInBuffer with "-1",
+  // so we are at position 0 at first cycle of this while-loop
+  // * positionInStream will be the position of the first mpeg-header at the end of this method
+  // * positionInBuffer is the same, but relative to the little buffer, not the whole stream
+  positionInBuffer := -1 ;
 
-  while ( (NOT erfolg) AND (positionInStream + 3 < max ) )
-  do begin
-    inc(bufferpos);
-    inc(positionInStream);
-    // so we are at position 0 at first run
+  while ((NOT erfolg) AND (positionInStream + 3 < FFilesize)) do
+  begin
+      inc(positionInBuffer);
+      inc(positionInStream);
 
-    // on the next cycle we have eventually to read some more data
-    // to fill the buffer again
-    if (bufferpos+3) = (length(buffer)-1) then
-    begin
-      Stream.Position := PositionInStream;
-      c := Stream.Read(buffer[0], length(buffer));
-      if c<blocksize then
-        Setlength(Buffer, c);
-      bufferpos := 0;
-    end;
+      // after a few cycles we may need to to read more data
+      if (positionInBuffer+3) = (length(buffer)-1) then
+        ReadMoreData(PositionInStream, BLOCK_SIZE);
 
-    tmpXingHeader.valid := False;
+      tmpXingHeader.valid := False;
 
-    // Step 1: Check, wether mpeg-header is on current position
-    // ---------------------------------------------------------------------------
-    tmpMpegHeader := GetValidatedHeader(Buffer, bufferpos);
-    if not tmpMpegHeader.valid then continue;
+      // Step 1: Check for a valid MPEG Header on the current position
+      // ---------------------------------------------------------------------------
+      tmpMpegHeader := GetValidatedHeader(Buffer, positionInBuffer);
+      if (not tmpMpegHeader.valid)
+        or (positionInStream + tmpMpegHeader.framelength + 3 > FFilesize) // length exceeds the filesize
+      then
+          continue;
 
-    Skip3rdTest := False;
-    // Step 2: Check, wether frame is a XING-Header
-    // ---------------------------------------------------------------------------
-    // therefor: eventually read more data into the buffer
-    if (bufferpos + tmpMpegHeader.framelength + 3 > length(buffer)-1)  // next header not in buffer
-       AND
-       (positionInStream + tmpMpegHeader.framelength + 3 < max) // but in stream
-       then
-    begin
-        // set streamposition to the beginning of the current header
-        Stream.Position := PositionInStream;
-        setlength(smallBuffer1,tmpMpegHeader.framelength + 4);
-        // read data
-        Stream.Read(smallBuffer1[0],length(smallBuffer1));
-        // check Xing-header and next MPEG-header
-        try
-          tmpXingHeader := GetXingHeader(tmpMpegheader, smallbuffer1, 0);
-          if (not tmpXingheader.valid) and (not tmpXingheader.corrupted) then
-          begin
-              // try VBRI
-              tmpXingHeader := GetVBRIHeader(tmpMpegheader, smallBuffer1, 0);
-              // Note: Some files with VBRI-Header seem to be invalid
-              //       i.e. after the MPEG-Frame containing the VBRI-Header
-              //       does not follow directly another MPEG-Frame.
-              //       So I skip this test here.
-              Skip3rdTest := tmpXingHeader.valid;
-              if tmpXingHeader.valid then
-                  tmp2MpegHeader.Valid := True
-              else
-                  // no Xing, no VBRI, probably "normal" MPEG-Frame
-                  tmp2MpegHeader := GetValidatedHeader(smallBuffer1, tmpMpegHeader.framelength );
-          end else
-          begin
-              if tmpXingHeader.corrupted then
-                  // valid, but corrupted Xing-Frame. Calculate stuff by the NEXT MPEG-Frame, therefore: continue
-                  tmp2MpegHeader.valid := False
-              else
-                  // no valid and intact Xing, no VBRI
-                  tmp2MpegHeader := GetValidatedHeader(smallBuffer1, tmpMpegHeader.framelength );
-          end;
-        except
-            tmp2MpegHeader.valid := false;
-        end;
-        Stream.Position := PositionInStream;
-    end else
-    begin
-        if (positionInStream + tmpMpegHeader.framelength + 3 > max) then
-        begin
-            continue;
-        end;
-        // read XingHeader and next Mpeg-header from buffer
-        tmpXingHeader := GetXingHeader(tmpMpegheader, buffer, bufferpos );
-        if (not tmpXingheader.valid) and (not tmpXingheader.corrupted) then
-        begin
-            // try VBRI
-            tmpXingHeader := GetVBRIHeader(tmpMpegheader, buffer, bufferpos );
-            Skip3rdTest := tmpXingHeader.valid;     // see Note above
-            if tmpXingHeader.valid then
-                tmp2MpegHeader.Valid := True
-            else
-                // no Xing, no VBRI, probably "normal" MPEG-Frame
-                tmp2MpegHeader := GetValidatedHeader(buffer, bufferpos + tmpMpegHeader.framelength);
-        end else
-        begin
-            if tmpXingHeader.corrupted then
-                // valid, but corrupted Xing-Frame. Calculate stuff by the NEXT MPEG-Frame, therefore: continue
-                tmp2MpegHeader.valid := False
-            else
-                tmp2MpegHeader := GetValidatedHeader(buffer, bufferpos + tmpMpegHeader.framelength);
-        end;
-    end;
-
-    // if next header is invalid something is wrong - search further. :(
-    if not tmp2MpegHeader.valid then begin
-        continue;
-    end;
-
-    // Step 3. Search a third Mpeg-Header
-    // ---------------------------------------------------------------------------
-    if Not Skip3rdTest then
-    begin
-        // eventually: load more data
-        if (bufferpos + tmpMpegHeader.framelength + tmp2MpegHeader.framelength + 3 > length(buffer)-1)
-           AND
-           (positionInStream + tmpMpegHeader.framelength + tmp2MpegHeader.framelength + 3 < max)
-        then
-        begin
-            Stream.Position := PositionInStream + tmpMpegHeader.framelength + tmp2MpegHeader.framelength;
-            setlength(smallBuffer2,4);
-            Stream.Read(smallBuffer2[0],length(smallBuffer2));
-            Stream.Position := PositionInStream;
-            if (smallbuffer2[0]<>$FF) OR (smallbuffer2[1]<$E0) then continue;
-        end
-        else
-        begin
-            if (positionInStream + tmpMpegHeader.framelength + tmp2MpegHeader.framelength + 3 > max)
-            then continue;
-
-            if (buffer[bufferpos + tmpMpegHeader.framelength + tmp2MpegHeader.framelength] <> $FF)
-            OR (buffer[bufferpos + tmpMpegHeader.framelength + tmp2MpegHeader.framelength+1] < $E0)
-            then continue;
-        end;
-    end;
-
-
-    // Step 4. Success! - Set data!
-    // ---------------------------------------------------------------------------
-    Fversion := tmpMpegHeader.version;
-    Flayer := tmpMpegHeader.layer;
-    Fprotection := tmpMpegHeader.protection;
-    Fsamplerate := tmpMpegHeader.samplerate;
-    Fchannelmode := tmpMpegHeader.channelmode;
-    Fextension := tmpMpegHeader.extension;
-    Fcopyright := tmpMpegHeader.copyright;
-    Foriginal := tmpMpegHeader.original;
-    Femphasis := tmpMpegHeader.emphasis;
-
-    if tmpXingHeader.valid then
-      try
-        // change 13.03.2016: round instead of trunc
-        if Version = 1 then
-            Fbitrate := round((tmpMpegheader.samplerate/1000 *
-              (max - PositionInStream - tmpXingHeader.Size))  / (tmpXingHeader.frames*144))
-        else
-            Fbitrate := round((tmpMpegheader.samplerate/1000 *
-              (max - PositionInStream - tmpXingHeader.Size))  / (tmpXingHeader.frames*72));
-
-        Fvbr := tmpXingHeader.vbr;
-        // note: Data at the beginning of the file are not audiodata (e.g. ID3v2Tag).
-        // these bytes must be subducted from the filesize
-        // it would be better, to subduct also the length of id3v1tag,
-        // and other tags at the end of the file.
-        // But I think, that this would be overkill, and would make only  +/-1 frames in most cases
-        // change 13.03.2016: "round /" instead of DIV
-        Fdauer := round( ((max-PositionInStream-tmpXingHeader.Size)*8) / ((Fbitrate)*1000));
-
-        FFrames := tmpXingHeader.Frames;
-      except
-        continue;
-      end
-    else
-      try
-        Fframes := trunc((max - PositionInStream)/tmpMpegheader.framelength);
-        FBitrate := tmpMpegHeader.bitrate;
-        Fvbr := False;
-        Fdauer := ((max - PositionInStream)*8) div ((Fbitrate)*1000);
-      except
-        continue;
+      // Step 2: Check, wether frame is a XING-Header
+      // ---------------------------------------------------------------------------
+      // read more data if neccessary
+      if (positionInBuffer + tmpMpegHeader.framelength + 3 > length(buffer)-1) then // next header not in buffer yet
+          ReadMoreData(PositionInStream, tmpMpegHeader.framelength + 4);
+      // read XingHeader and next MPEG-Header from buffer
+      tmpXingHeader := GetXingHeader(tmpMpegheader, buffer, positionInBuffer );
+      Skip3rdTest := False;
+      if (not tmpXingheader.valid) and (not tmpXingheader.corrupted) then
+      begin
+          // try VBRI
+          tmpXingHeader := GetVBRIHeader(tmpMpegheader, buffer, positionInBuffer );
+          // Note: Some files with VBRI-Header seem to be invalid
+          //       i.e. after the MPEG-Frame containing the VBRI-Header
+          //       does not follow directly another MPEG-Frame.
+          //       So I skip the "3rd test" in that case.
+          Skip3rdTest := tmpXingHeader.valid;
+          if tmpXingHeader.valid then
+              tmp2MpegHeader.Valid := True
+          else
+              // no Xing, no VBRI, probably "normal" MPEG-Frame
+              tmp2MpegHeader := GetValidatedHeader(buffer, positionInBuffer + tmpMpegHeader.framelength);
+      end else
+      begin
+          if tmpXingHeader.corrupted then
+              // technically valid MPEG, but corrupted Xing-Frame. Calculate stuff by the NEXT MPEG-Frame, therefore: continue
+              tmp2MpegHeader.valid := False
+          else
+              tmp2MpegHeader := GetValidatedHeader(buffer, positionInBuffer + tmpMpegHeader.framelength);
       end;
 
-    Fvalid := True;
-    FfirstHeaderPosition := PositionInStream;
-    result := MP3ERR_None;
-    erfolg := True;
+      // if following header is invalid something is wrong - search further. :(
+      if not tmp2MpegHeader.valid then
+          continue;
+
+      // Step 3. Check for a 3rd MPEG-Header in a row
+      // ---------------------------------------------------------------------------
+      if Not Skip3rdTest then
+      begin
+          CombinedFrameLength := tmpMpegHeader.framelength + tmp2MpegHeader.framelength;
+          if (positionInStream + CombinedFrameLength + 3 > FFilesize) then
+              continue;
+
+          if (positionInBuffer + CombinedFrameLength + 3 > length(buffer)-1) then // next header not in buffer yet
+              ReadMoreData(PositionInStream, CombinedFrameLength + 4);
+          // only a very basic test here, just check the first 2 bytes of the 3rd header
+          if (buffer[positionInBuffer + CombinedFrameLength] <> $FF)
+              OR (buffer[positionInBuffer + CombinedFrameLength + 1] < $E0)
+          then
+              continue;
+      end;
+
+      // Step 4. Success! - Set data!
+      // ---------------------------------------------------------------------------
+      Fversion     := tmpMpegHeader.version;
+      Flayer       := tmpMpegHeader.layer;
+      Fprotection  := tmpMpegHeader.protection;
+      Fsamplerate  := tmpMpegHeader.samplerate;
+      Fchannelmode := tmpMpegHeader.channelmode;
+      Fextension   := tmpMpegHeader.extension;
+      Fcopyright   := tmpMpegHeader.copyright;
+      Foriginal    := tmpMpegHeader.original;
+      Femphasis    := tmpMpegHeader.emphasis;
+
+      if tmpXingHeader.valid then
+        try
+            // change 13.03.2016: round instead of trunc
+            if Version = 1 then
+                Fbitrate := round((tmpMpegheader.samplerate/1000 *
+                  (FFilesize - PositionInStream - tmpXingHeader.Size))  / (tmpXingHeader.frames*144))
+            else
+                Fbitrate := round((tmpMpegheader.samplerate/1000 *
+                  (FFilesize - PositionInStream - tmpXingHeader.Size))  / (tmpXingHeader.frames*72));
+
+            Fvbr := tmpXingHeader.vbr;
+            // note: Data at the beginning of the file are not audiodata (e.g. ID3v2Tag).
+            // these bytes must be subducted from the filesize
+            // it would be better, to subduct also the length of id3v1tag (and others?) at the end of the file.
+            // But I think, that this would be overkill, and would make only  +/-1 frames in most cases
+            // change 13.03.2016: "round /" instead of DIV
+            Fdauer := round( ((FFilesize-PositionInStream-tmpXingHeader.Size)*8) / ((Fbitrate)*1000));
+
+            FFrames := tmpXingHeader.Frames;
+        except
+            continue;
+        end
+      else
+        try
+            Fframes := trunc((FFilesize - PositionInStream)/tmpMpegheader.framelength);
+            FBitrate := tmpMpegHeader.bitrate;
+            Fvbr := False;
+            Fdauer := ((FFilesize - PositionInStream)*8) div ((Fbitrate)*1000);
+        except
+            continue;
+        end;
+
+      Fvalid := True;
+      FfirstHeaderPosition := PositionInStream;
+      result := MP3ERR_None;
+      erfolg := True;
+  end;
+
+  // 2020: correct VBR/Bitrate/Duration if wanted
+  // DefaultMode is MPEG_SCAN_Smart
+  case MpegScanMode of
+      MPEG_SCAN_Fast:     ; // nothing to do
+      MPEG_SCAN_Complete: begin
+            AnalyseStreamFrameByFrame(stream, FfirstHeaderPosition);;
+      end;
+      MPEG_SCAN_Smart: begin
+            if fBitrate <= 32 then
+              AnalyseStreamFrameByFrame(stream, FfirstHeaderPosition);;
+      end;
   end;
 end;
+
+
+//------------------------------------------------------
+// AnalyseStreamFrameByFrame
+//------------------------------------------------------
+function TMpegInfo.AnalyseStreamFrameByFrame(aStream: TStream; StartPosition: int64): Integer;
+var c, bufpos: Integer;
+    buffer: TBuffer;
+    aMpegHeader: TMpegHeader;
+    BitrateSum, lastBitrate, BitrateChanges: Integer;
+begin
+  if StartPosition >= aStream.Size then
+  begin
+      result := 0;
+      exit;
+  end;
+
+  setlength(buffer, aStream.Size - StartPosition);
+  aStream.Position := StartPosition;
+
+  c := aStream.Read(buffer[0], length(buffer));
+  if c < aStream.Size then
+      Setlength(Buffer, c);
+
+  bufpos := 0;
+  Result := 0;
+  BitrateSum := 0;
+  lastBitrate := 0;
+  BitrateChanges := 0;
+  repeat
+      aMpegHeader := GetValidatedHeader(buffer, bufpos);
+      if aMpegHeader.valid then
+      begin
+          inc(Result);
+          if lastBitrate <> aMpegHeader.bitrate then
+          begin
+              lastBitrate := aMpegHeader.bitrate;
+              inc(BitrateChanges);
+          end;
+          BitrateSum := BitrateSum + aMpegHeader.bitrate;
+          bufpos := bufpos + aMpegHeader.framelength;
+      end else
+      begin
+          // No valid MPEG-Frame found => Something is wrong here
+          // possibly the beginning of APE or ID3v1Tag,
+          // but maybe it's just an invalid file
+      end;
+  until not aMpegHeader.valid;
+
+  // Fill relevant Data fields with our collected data
+  Fframes := result;
+  FBitrate := round(BitrateSum/result) ;
+  Fvbr := BitrateChanges > 2; // We allow 2 changes here
+  Fdauer := ((FFilesize - StartPosition)*8) div (FBitrate*1000);
+end;
+
+//------------------------------------------------------
+//  StoreFrames
+//  Analyse the file completely and store all mpeg frames into the fMpegFrames-array
+//------------------------------------------------------
+function TMpegInfo.StoreFrames(aStream: TStream): TMP3Error;
+var bufpos, i: Integer;
+    buffer: TBuffer;
+    aMpegHeader: TMpegHeader;
+    StoredScanMode: TMpegScanMode;
+begin
+    // first: Analyse the stream to get the exact number of frames
+    StoredScanMode := fMpegScanMode;
+    fMpegScanMode := MPEG_SCAN_Complete; // perform a complete scan of the file
+    result := LoadFromStream(aStream);   // AnalyseStreamFrameByFrame will be called from there
+    fMpegScanMode := StoredScanMode;     // restore the ScanMode
+
+    if FfirstHeaderPosition = -1 then
+    begin
+        result := MPEGERR_NoFrame;
+        exit;
+    end;
+
+    // then: reread the stream, starting at the first header position
+    // and store the frame data
+    aStream.Position := FfirstHeaderPosition ;
+    setlength(buffer, aStream.Size - FfirstHeaderPosition);
+    aStream.Read(buffer[0], length(buffer));
+
+    bufpos := 0;
+    setlength(fMpegFrames, Fframes);
+    for i := 0 to Fframes-1 do
+    begin
+        aMpegHeader := GetValidatedHeader(buffer, bufpos);
+        if aMpegHeader.valid then
+        begin
+            // Copy Header-Data
+            fMpegFrames[i].ParsedHeader.version     := aMpegHeader.version      ;
+            fMpegFrames[i].ParsedHeader.layer       := aMpegHeader.layer        ;
+            fMpegFrames[i].ParsedHeader.protection  := aMpegHeader.protection   ;
+            fMpegFrames[i].ParsedHeader.bitrate     := aMpegHeader.bitrate      ;
+            fMpegFrames[i].ParsedHeader.samplerate  := aMpegHeader.samplerate   ;
+            fMpegFrames[i].ParsedHeader.channelmode := aMpegHeader.channelmode  ;
+            fMpegFrames[i].ParsedHeader.extension   := aMpegHeader.extension    ;
+            fMpegFrames[i].ParsedHeader.copyright   := aMpegHeader.copyright    ;
+            fMpegFrames[i].ParsedHeader.original    := aMpegHeader.original     ;
+            fMpegFrames[i].ParsedHeader.emphasis    := aMpegHeader.emphasis     ;
+            fMpegFrames[i].ParsedHeader.padding     := aMpegHeader.padding      ;
+            fMpegFrames[i].ParsedHeader.framelength := aMpegHeader.framelength  ;
+            fMpegFrames[i].ParsedHeader.valid       := aMpegHeader.valid        ;
+            // Copy actual Frame-Data (including the 4 Bytes "unparsed" Header)
+            Setlength(fMpegFrames[i].FrameData, aMpegHeader.framelength);
+            Move(buffer[bufpos], fMpegFrames[i].FrameData[0], aMpegHeader.framelength);
+            bufpos := bufpos + aMpegHeader.framelength;
+        end else
+        begin
+            // No valid MPEG-Frame found => Something is wrong here
+            // possibly the beginning of APE or ID3v1Tag,
+            // but maybe it's just an invalid file
+            break;
+        end;
+    end;
+end;
+
 
 function TMpegInfo.LoadFromFile(FileName: UnicodeString): TMP3Error;
 var Stream: TMPFUFileStream;

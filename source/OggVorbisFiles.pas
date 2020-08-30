@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2010-2012, Daniel Gaussmann
+    (c) 2010-2020, Daniel Gaussmann
                    Website : www.gausi.de
                    EMail   : mail@gausi.de
     -----------------------------------

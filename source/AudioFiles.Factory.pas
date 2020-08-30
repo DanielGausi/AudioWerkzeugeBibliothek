@@ -11,12 +11,12 @@
 
     "Factory class" for all types of Audiofiles
            * Use "AudioFileFactory.CreateAudioFile(aFileName)" to create
-             a proper AudioFile-Object
+             a proper AudioFile-Object. Relevant is the FileName Extension (like ".mp3")
 
     Notes: * This Unit uses a TDictionary for registering the different
              types auf audiofiles (like mp3, ogg, whatever).
            * If you want to use it with an older Delphi version, undef the
-             Compiler Directive "$DEFINE USE_DICTIONARY" below.
+             Compiler Directive "$DEFINE USE_DICTIONARY" in config.inc
              Then, a simple ObjectList is used for the registered FileClasses
              Access to a FileClass within in ths ObjectList will move this entry
              upwards. Thus, successive access to the same FileClass will be faster.
@@ -58,7 +58,7 @@
 
 unit AudioFiles.Factory;
 
-{$DEFINE USE_DICTIONARY}
+{$I config.inc}
 
 interface
 

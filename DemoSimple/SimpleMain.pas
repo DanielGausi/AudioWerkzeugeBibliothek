@@ -52,22 +52,33 @@ begin
         MainAudioFile.Free;
 
     MainAudioFile := AudioFileFactory.CreateAudioFile(FileListBox1.FileName);
-    MainAudioFile.ReadFromFile(FileListBox1.FileName);
+    if assigned(MainAudioFile) then
+    begin
+        MainAudioFile.ReadFromFile(FileListBox1.FileName);
 
-
-    EdtTitle.Text  := MainAudioFile.Title;
-    EdtArtist.Text := MainAudioFile.Artist;
-    EdtAlbum.Text  := MainAudioFile.Album;
-    EdtGenre.Text  := MainAudioFile.Genre;
-    EdtYear.Text   := MainAudioFile.Year;
-    EdtTrack.Text  := MainAudioFile.Track;
-    Memo1.Clear;
-    Memo1.Lines.Add(Format('Type:      %s',       [MainAudioFile.FileTypeDescription] ));
-    Memo1.Lines.Add(Format('FileSize   %d Bytes', [MainAudioFile.FileSize]     ));
-    Memo1.Lines.Add(Format('Duration   %d sec',   [MainAudioFile.Duration]     ));
-    Memo1.Lines.Add(Format('Btrate     %d kBit/s',[MainAudioFile.Bitrate div 1000]));
-    Memo1.Lines.Add(Format('Samplerate %d Hz',    [MainAudioFile.Samplerate]   ));
-    Memo1.Lines.Add(Format('Channels:  %d',       [MainAudioFile.Channels]     ));
+        EdtTitle.Text  := MainAudioFile.Title;
+        EdtArtist.Text := MainAudioFile.Artist;
+        EdtAlbum.Text  := MainAudioFile.Album;
+        EdtGenre.Text  := MainAudioFile.Genre;
+        EdtYear.Text   := MainAudioFile.Year;
+        EdtTrack.Text  := MainAudioFile.Track;
+        Memo1.Clear;
+        Memo1.Lines.Add(Format('Type:      %s',       [MainAudioFile.FileTypeDescription] ));
+        Memo1.Lines.Add(Format('FileSize   %d Bytes', [MainAudioFile.FileSize]     ));
+        Memo1.Lines.Add(Format('Duration   %d sec',   [MainAudioFile.Duration]     ));
+        Memo1.Lines.Add(Format('Bitrate    %d kBit/s',[MainAudioFile.Bitrate div 1000]));
+        Memo1.Lines.Add(Format('Samplerate %d Hz',    [MainAudioFile.Samplerate]   ));
+        Memo1.Lines.Add(Format('Channels:  %d',       [MainAudioFile.Channels]     ));
+    end else
+    begin
+        EdtTitle.Text  := '';
+        EdtArtist.Text := '';
+        EdtAlbum.Text  := '';
+        EdtGenre.Text  := '';
+        EdtYear.Text   := '';
+        EdtTrack.Text  := '';
+        Memo1.Clear;
+    end;
 end;
 
 procedure TSimpleTagger.BtnSaveClick(Sender: TObject);
@@ -81,10 +92,6 @@ begin
         MainAudioFile.Year   := EdtYear.Text  ;
         MainAudioFile.Track  := EdtTrack.Text ;
         MainAudioFile.UpdateFile;
-
-        //MainAudioFile.WriteToFile(MainAudioFile.Filename);
-
-        //UpdateFile;
     end;
 end;
 

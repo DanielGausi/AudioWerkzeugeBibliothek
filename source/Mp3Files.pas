@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2012, Daniel Gaussmann
+    (c) 2012-2020, Daniel Gaussmann
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
@@ -62,28 +62,28 @@ type
     ///  TTagReadMode
     ///  Purpose is to speed up reading file information while building up a media library (or something like that)
     ///  Often the ID3v1Tag is not needed, as everything is already covered by the ID3v2Tag.
+    ///  I assume that file access is the bottleneck, so NOT searching for some more data at the very end of the file
+    ///  may increase the overall speed.
     ///  * id3_read_complete : Always check for both versions
     ///  * id3_read_smart    : Check for ID3v2Tag first. If some "relevant data" is missing, try ID3v1tag as well
-    ///  * id3_read_v2       : read only v2
+    ///  * id3_read_v2_only  : read only v2
     ///    (note: only v1 doesn't make much sense for faster reading)
-    TTagReadMode = (id3_read_complete, id3_read_smart, id3_read_v2_only );
+    TTagScanMode = (id3_read_complete, id3_read_smart, id3_read_v2_only );
 
     ///  Notes:
     ///  - Defining what "relevant data" for "id3_read_smart" means
     ///    All possible fields in the ID3v1-Tag are rather useful and could add something
-    ///    useful. However, "Comment" is rarely used. if this is not contained in the v2Tag,
+    ///    useful. However, "Comment" is rarely used. If this is not contained in the v2Tag,
     ///    we should not look for it on v1.
     ///    * use property "SmartRead_IgnoreComment" (default: True)
     ///  - Avoiding inconsistent Data
-    ///    When reading only one Tag from the file, the internal Tag Objects for the other one
+    ///    When reading only one Tag from the file, the internal Tag-Objects for the other one
     ///    remains empty. But when we want to change the meta data in the file, it should be
     ///    ensured, that these data remains consistently.
-    ///    * use private fields "v[x]Processed" , whether we've looked for the Tags in the file.
-    ///      The Setter-Methods should check for that, and look after the Tag in the file
+    ///    * use private field "v1Processed" , whether we've looked for that Tag in the file.
+    ///      The Setter-Methods should check for that, and look after the v1Tag in the file
     ///      by re-reading it
     ///    * To deactivate this feature, use property "SmartRead_AvoidInconsistentData" (default: True)
-
-
 
     TMP3File = class (TBaseAudioFile)
         private
@@ -91,7 +91,7 @@ type
             fID3v2Tag: TID3v2Tag;
             fMpegInfo: TMpegInfo;
 
-            fTagReadMode   : TTagReadMode;
+            fTagScanMode   : TTagScanMode;
             fTagWriteMode  : TTagWriteMode;
             fTagDefaultMode: TTagDefaultMode;
             fTagDeleteMode : TTagDeleteMode;
@@ -99,7 +99,10 @@ type
             fSmartRead_IgnoreComment         : Boolean;
             fSmartRead_AvoidInconsistentData : Boolean;
             fTag1Processed                   : Boolean;
-            //fTag2Processed                   : Boolean;
+
+            // a private field for performing a complete analysis in ReadFromFile,
+            // including storing all the MPEG-Frames in the fMpegInfo
+            ReadWithCompleteAnalysis: Boolean;
 
             function Mp3ErrorToAudioError(aErr: TMP3Error): TAudioError;
 
@@ -108,6 +111,9 @@ type
 
             procedure EnforceID3v1IsProcessed;
             function ID3v1TagIsNeeded: Boolean;
+
+            function GetMpegScanMode: TMpegScanMode;
+            procedure SetMpegScanMode(const Value: TMpegScanMode);
 
         protected
 
@@ -147,10 +153,14 @@ type
             property ID3v2TagSize: Integer read fGetID3v2Size;
 
             // Properties for "smart reading"
-            property TagReadMode   : TTagReadMode read fTagReadMode write fTagReadMode;
+            property TagScanMode   : TTagScanMode read fTagScanMode write fTagScanMode;
             property SmartRead_IgnoreComment         : Boolean read fSmartRead_IgnoreComment          write fSmartRead_IgnoreComment;
             property SmartRead_AvoidInconsistentData : Boolean read fSmartRead_AvoidInconsistentData  write fSmartRead_AvoidInconsistentData;
             property Tag1Processed                   : Boolean read fTag1Processed;
+            // ScanMode: "Fast", "Complete" or "Smart" scan of the file to get Bitrate and Duration
+            //    * "Smart" does a "Complete" scan, if the "Fast" scan result is "32 kbit/s" (or even lower)
+            //       This is often the case for vbr files without a decent VBR-Header
+            property MpegScanMode: TMpegScanMode read GetMpegScanMode write SetMpegScanMode;
 
             // WriteMode: Define which Tag should be Updated in the file when writing
             //           (Both, only v1, only v2, only existing)
@@ -172,6 +182,12 @@ type
             function ReadFromFile(aFilename: UnicodeString): TAudioError;    override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;     override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  override;
+
+            // AnalyseFile: This is only for a low level analysis of the file
+            //              It is mainly used by myself to have a closer look on "odd" mp3 files
+            //              which some properties leading to wrong results in bitrate, duration and stuff.
+            function AnalyseFile(aFilename: UnicodeString): TAudioError;
+
     end;
 
 
@@ -200,16 +216,15 @@ begin
     fID3v2Tag := TID3v2Tag.Create;
     fMpegInfo := TMpegInfo.create;
 
-    // fTagWriteMode   := id3_both;
     fTagWriteMode   := id3_existing;
     fTagDefaultMode := id3_def_both;
     fTagDeleteMode  := id3_del_both;
 
-    fTagReadMode := id3_read_smart;
+    fTagScanMode := id3_read_smart;
     fTag1Processed                   := False;
     fSmartRead_IgnoreComment         := True;
     fSmartRead_AvoidInconsistentData := True;
-
+    ReadWithCompleteAnalysis         := False;
 end;
 
 destructor TMP3File.Destroy;
@@ -247,9 +262,9 @@ begin
 end;
 
 function TMP3File.ID3v1TagIsNeeded: Boolean;
-var BasePropertiesOK, CommentOK: Boolean;
+var BasePropertyMissing, CommentMissing: Boolean;
 begin
-    case fTagReadMode of
+    case fTagScanMode of
 
         id3_read_complete: result := True;
 
@@ -260,23 +275,33 @@ begin
                 result := True
             else
             begin
-                BasePropertiesOK := (ID3v2tag.Artist <> '')
-                                AND (ID3v2tag.Title <> '')
-                                AND (ID3v2tag.Album <> '')
-                                AND (ID3v2tag.Track <> '')
-                                AND (ID3v2tag.Year <> '')
-                                AND (ID3v2tag.Genre <> '');
-                CommentOK := (ID3v2tag.Comment <> '');
+                BasePropertyMissing := (ID3v2tag.Artist = '')
+                                OR (ID3v2tag.Title = '')
+                                OR (ID3v2tag.Album = '')
+                                OR (ID3v2tag.Track = '')
+                                OR (ID3v2tag.Year = '')
+                                OR (ID3v2tag.Genre = '');
+                CommentMissing := (ID3v2tag.Comment = '');
 
                 if fSmartRead_IgnoreComment then
-                    result := NOT BasePropertiesOK
+                    result :=  BasePropertyMissing
                 else
-                  result := not (BasePropertiesOK and CommentOK);
+                  result := BasePropertyMissing or CommentMissing;
             end;
         end;
     else
-      result := False;
+        result := False;
     end;
+end;
+
+function TMP3File.GetMpegScanMode: TMpegScanMode;
+begin
+    result := fMpegInfo.MpegScanMode;
+end;
+
+procedure TMP3File.SetMpegScanMode(const Value: TMpegScanMode);
+begin
+    fMpegInfo.MpegScanMode := Value;
 end;
 
 function TMP3File.fGetFileType: TAudioFileType;
@@ -288,7 +313,6 @@ function TMP3File.fGetFileTypeDescription: String;
 begin
     result := TAudioFileNames[at_Mp3];
 end;
-
 
 function TMP3File.fGetFileSize: Int64;
 begin
@@ -413,6 +437,7 @@ begin
   fID3v2Tag.Year := aValue;
 end;
 
+
 function TMP3File.Mp3ErrorToAudioError(aErr: TMP3Error): TAudioError;
 begin
     case aErr of
@@ -477,10 +502,14 @@ begin
                 else
                     fs.Seek(0, sobeginning);
 
-                tmpMpeg := fMpegInfo.LoadFromStream(fs);
+                if ReadWithCompleteAnalysis then
+                    tmpMpeg := fMpegInfo.StoreFrames(fs)
+                else
+                    tmpMpeg := fMpegInfo.LoadFromStream(fs);
+
                 result := Mp3ErrorToAudioError(tmpMpeg);
 
-                if ID3v1TagIsNeeded then
+                if ID3v1TagIsNeeded or ReadWithCompleteAnalysis then
                 begin
                     tmp1 := fID3v1Tag.ReadFromStream(fs);
                     fTag1Processed := True;
@@ -522,6 +551,15 @@ begin
     end else
         result := FileErr_NoFile;
 end;
+
+
+function TMP3File.AnalyseFile(aFilename: UnicodeString): TAudioError;
+begin
+    ReadWithCompleteAnalysis := True;
+    result := ReadFromFile(aFileName);
+    ReadWithCompleteAnalysis := False;
+end;
+
 
 function TMP3File.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 var tmp: TMP3Error;

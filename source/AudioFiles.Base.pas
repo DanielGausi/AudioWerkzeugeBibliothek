@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2012, Daniel Gaussmann
+    (c) 2012-2020, Daniel Gaussmann
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
@@ -103,7 +103,6 @@ type
             fChannels   : Integer;
             fValid      : Boolean;
             fFileName   : UnicodeString;
-            // fFileType   : TAudioFileType;   // should be set properly by the constructor of the derived Classes
 
             function fGetFileSize   : Int64;    virtual; abstract;
             function fGetDuration   : Integer;  virtual; abstract;
@@ -152,12 +151,10 @@ type
 
             constructor Create; virtual; abstract;
 
-
             function ReadFromFile(aFilename: UnicodeString): TAudioError;    virtual;
             function WriteToFile(aFilename: UnicodeString): TAudioError;     virtual;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  virtual;
             function UpdateFile: TAudioError;
-
     end;
 
     TBaseAudioFileClass = class of TBaseAudioFile;

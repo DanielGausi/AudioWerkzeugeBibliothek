@@ -6,14 +6,14 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, Jpeg, ContNrs,
-  AudioFileBasics, Apev2Tags, ApeTagItem, ID3v2Frames,
-  Mp3Files, FlacFiles, OggVorbisFiles,MonkeyFiles, WavPackFiles, MusePackFiles,
-  OptimFrogFiles, TrueAudioFiles, AudioFiles, M4aAtoms
+  Dialogs, StdCtrls, ExtCtrls, Jpeg, ContNrs, AudioFiles.Base,
+  AudioFiles.Factory,  AudioFiles.Declarations, Apev2Tags, ApeTagItem, ID3v2Frames,
+  Mp3Files, FlacFiles, OggVorbisFiles, MonkeyFiles, WavPackFiles, MusePackFiles,
+  OptimFrogFiles, TrueAudioFiles, M4aAtoms, M4AFiles
   {$IFDEF USE_PNG}, PNGImage{$ENDIF} ;
 
 type
-  TMainFormAPE = class(TForm)
+  TMainFormAWB = class(TForm)
     OpenDialog1: TOpenDialog;
     GroupBox1: TGroupBox;
     EdtArtist: TEdit;
@@ -57,7 +57,7 @@ type
     procedure BtnRemoveTagClick(Sender: TObject);
   private
     { Private-Deklarationen }
-    AudioFile: TGeneralAudioFile;
+    AudioFile: TBaseAudioFile;
 
     FlacPictureFrames: TObjectList;
     ID3v2Frames: TObjectList;
@@ -73,7 +73,7 @@ type
   end;
 
 var
-  MainFormAPE: TMainFormAPE;
+  MainFormAWB: TMainFormAWB;
 
 implementation
 
@@ -81,7 +81,7 @@ uses NewPicture;
 
 {$R *.dfm}
 
-procedure TMainFormAPE.FormDestroy(Sender: TObject);
+procedure TMainFormAWB.FormDestroy(Sender: TObject);
 begin
     if assigned(AudioFile) then
         AudioFile.Free;
@@ -95,7 +95,7 @@ end;
 
 
 
-procedure TMainFormAPE.BtnLoadClick(Sender: TObject);
+procedure TMainFormAWB.BtnLoadClick(Sender: TObject);
 begin
     if OpenDialog1.Execute then
     begin
@@ -103,7 +103,12 @@ begin
             AudioFile.Free;
         EdtFilename.Text := OpenDialog1.FileName;
 
-        AudioFile := TGeneralAudioFile.Create(OpenDialog1.FileName);
+        AudioFile := AudioFileFactory.CreateAudioFile(OpenDialog1.FileName);
+
+        if not assigned(AudioFile) then
+          exit;
+
+        AudioFile.ReadFromFile(OpenDialog1.FileName);
 
         EdtArtist.Text := AudioFile.Artist;
         EdtTitle.Text  := AudioFile.Title;
@@ -114,7 +119,7 @@ begin
 
         MemoAudio.Clear;
         MemoSpecific.Clear;
-        MemoAudio.Lines.Add(AudioFile.FileTypeName);
+        MemoAudio.Lines.Add(AudioFile.FileTypeDescription);
         MemoAudio.Lines.Add(Format('Filesize : %d Bytes', [AudioFile.FileSize]));
         MemoAudio.Lines.Add('');
         MemoAudio.Lines.Add(Format('Duration   : %d seconds', [AudioFile.Duration]));
@@ -131,33 +136,33 @@ begin
               end;
               at_Mp3: begin
                   RefreshID3Frames;
-                  MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [AudioFile.MP3File.ID3v1TagSize]));
-                  MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [AudioFile.MP3File.ID3v2TagSize]));
+                  MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [TMP3File(AudioFile).ID3v1TagSize]));
+                  MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [TMP3File(AudioFile).ID3v2TagSize]));
               end;
               at_Ogg: begin
-                  AudioFile.OggFile.GetAllFields(lbKeys.Items);
+                  TOggVorbisFile(AudioFile).GetAllFields(lbKeys.Items);
                   if lbKeys.Items.Count > 0 then
                   begin
                       lbKeys.ItemIndex := 0;
-                      MemoValue.Text := AudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+                      MemoValue.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
                   end else
                       MemoValue.Text := '';
               end;
               at_Flac: begin
-                  AudioFile.FlacFile.GetAllFields(lbKeys.Items);
+                  TFlacFile(AudioFile).GetAllFields(lbKeys.Items);
                   if lbKeys.Items.Count > 0 then
                   begin
                       lbKeys.ItemIndex := 0;
-                      MemoValue.Text := AudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+                      MemoValue.Text := TFlacFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
                   end else
                       MemoValue.Text := '';
               end;
               at_M4a: begin
-                  AudioFile.M4aFile.GetAllTextAtomDescriptions(lbKeys.Items);
+                  TM4AFile(AudioFile).GetAllTextAtomDescriptions(lbKeys.Items);
                    if lbKeys.Items.Count > 0 then
                   begin
                       lbKeys.ItemIndex := 0;
-                      MemoValue.Text := AudioFile.M4aFile.GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
+                      MemoValue.Text := TM4AFile(AudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
                   end else
                       MemoValue.Text := '';
               end;
@@ -166,42 +171,42 @@ begin
               at_MusePack,
               at_OptimFrog,
               at_TrueAudio: begin
-                  AudioFile.BaseApeFile.GetAllFrames(lbKeys.Items);
+                  TBaseApeFile(AudioFile).GetAllFrames(lbKeys.Items);
                   if lbKeys.Items.Count > 0 then
                   begin
                       lbKeys.ItemIndex := 0;
-                      MemoValue.Text := AudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
+                      MemoValue.Text := TBaseApeFile(AudioFile).GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
                   end else
                       MemoValue.Text := '';
-                  MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [AudioFile.BaseApeFile.ID3v1TagSize]));
-                  MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [AudioFile.BaseApeFile.ID3v2TagSize]));
-                  MemoSpecific.Lines.Add(Format('ApeV2    : %d Bytes', [AudioFile.BaseApeFile.Apev2TagSize]));
+                  MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [TBaseApeFile(AudioFile).ID3v1TagSize]));
+                  MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [TBaseApeFile(AudioFile).ID3v2TagSize]));
+                  MemoSpecific.Lines.Add(Format('ApeV2    : %d Bytes', [TBaseApeFile(AudioFile).Apev2TagSize]));
               end;
         end;
 
         case AudioFile.FileType of
               at_Monkey  : begin
-                  MemoSpecific.Lines.Add(Format('Version     %s', [AudioFile.MonkeyFile.VersionStr]));
-                  MemoSpecific.Lines.Add(Format('Compression %s', [AudioFile.MonkeyFile.CompressionModeStr]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample: %d',[AudioFile.MonkeyFile.Bits]));
+                  MemoSpecific.Lines.Add(Format('Version     %s', [TMonkeyFile(AudioFile).VersionStr]));
+                  MemoSpecific.Lines.Add(Format('Compression %s', [TMonkeyFile(AudioFile).CompressionModeStr]));
+                  MemoSpecific.Lines.Add(Format('Bits/Sample: %d',[TMonkeyFile(AudioFile).Bits]));
               end;
               at_WavPack : begin
-                  MemoSpecific.Lines.Add(Format('Enoder      %s', [AudioFile.WavPackFile.Encoder]));
-                  MemoSpecific.Lines.Add(Format('Channelmode %s', [AudioFile.WavPackFile.ChannelMode]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample: %d',[AudioFile.WavPackFile.Bits]));
+                  MemoSpecific.Lines.Add(Format('Enoder      %s', [TWavPackFile(AudioFile).Encoder]));
+                  MemoSpecific.Lines.Add(Format('Channelmode %s', [TWavPackFile(AudioFile).ChannelMode]));
+                  MemoSpecific.Lines.Add(Format('Bits/Sample: %d',[TWavPackFile(AudioFile).Bits]));
               end;
               at_MusePack: begin
-                  MemoSpecific.Lines.Add(Format('Version     %s', [AudioFile.MusePackFile.VersionString]));
-                  MemoSpecific.Lines.Add(Format('Channelmode %s', [AudioFile.MusePackFile.ChannelMode]));
+                  MemoSpecific.Lines.Add(Format('Version     %s', [TMusePackFile(AudioFile).VersionString]));
+                  MemoSpecific.Lines.Add(Format('Channelmode %s', [TMusePackFile(AudioFile).ChannelMode]));
               end;
               at_OptimFrog: begin
-                  MemoSpecific.Lines.Add(Format('Version     %s', [AudioFile.OptimFrogFile.Version]));
-                  MemoSpecific.Lines.Add(Format('Compression %s', [AudioFile.OptimFrogFile.Compression]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample %d', [AudioFile.OptimFrogFile.Bits]));
+                  MemoSpecific.Lines.Add(Format('Version     %s', [TOptimFrogFile(AudioFile).Version]));
+                  MemoSpecific.Lines.Add(Format('Compression %s', [TOptimFrogFile(AudioFile).Compression]));
+                  MemoSpecific.Lines.Add(Format('Bits/Sample %d', [TOptimFrogFile(AudioFile).Bits]));
               end;
               at_TrueAudio: begin
-                  MemoSpecific.Lines.Add(Format('AudioFormat %d', [AudioFile.TrueAudioFile.AudioFormat]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample %d', [AudioFile.TrueAudioFile.Bits]));
+                  MemoSpecific.Lines.Add(Format('AudioFormat %d', [TTrueAudioFile(AudioFile).AudioFormat]));
+                  MemoSpecific.Lines.Add(Format('Bits/Sample %d', [TTrueAudioFile(AudioFile).Bits]));
               end;
         end;
 
@@ -209,7 +214,7 @@ begin
     end;
 end;
 
-procedure TMainFormAPE.RefreshID3Frames;
+procedure TMainFormAWB.RefreshID3Frames;
 var iFrame: TID3v2Frame;
     i: Integer;
 begin
@@ -219,7 +224,7 @@ begin
             ID3v2Frames:= TObjectList.Create(False);
 
         lbKeys.Items.Clear;
-        AudioFile.MP3File.ID3v2Tag.GetAllTextFrames(ID3v2Frames);
+        TMP3File(AudioFile).ID3v2Tag.GetAllTextFrames(ID3v2Frames);
         for i := 0 to ID3v2Frames.Count - 1 do
         begin
             iFrame := TID3v2Frame(ID3v2Frames[i]);
@@ -228,7 +233,7 @@ begin
     end;
 end;
 
-procedure TMainFormAPE.RefreshImageList;
+procedure TMainFormAWB.RefreshImageList;
 var i: Integer;
     PicType: Integer;
     Description: UnicodeString;
@@ -245,7 +250,7 @@ begin
                   ID3v2PictureFrames := TObjectList.Create(False);
 
               cbPictures.Items.Clear;
-              AudioFile.MP3File.ID3v2Tag.GetAllPictureFrames(ID3v2PictureFrames);
+              TMP3File(AudioFile).ID3v2Tag.GetAllPictureFrames(ID3v2PictureFrames);
               for i := 0 to ID3v2PictureFrames.Count - 1 do
               begin
                   iFrame := TID3v2Frame(ID3v2PictureFrames[i]);
@@ -283,7 +288,7 @@ begin
             cbPictures.Items.Clear;
             stream := TMemoryStream.Create;
             try
-                if AudioFile.M4aFile.GetPictureStream(stream, m4aPicType) then
+                if TM4aFile(AudioFile).GetPictureStream(stream, m4aPicType) then
                 begin
                     StreamToBitmap(stream, Image1.Picture.Bitmap);
                     cbPictures.Items.Add('Cover');
@@ -298,7 +303,7 @@ begin
         at_Flac: begin
             if not assigned(FlacPictureFrames) then
                     FlacPictureFrames := TObjectList.Create(False);
-            AudioFile.FlacFile.GetAllPictureBlocks(FlacPictureFrames);
+            TFlacFile(AudioFile).GetAllPictureBlocks(FlacPictureFrames);
 
             cbPictures.Items.Clear;
             for i := FlacPictureFrames.Count - 1 downto 0 do
@@ -328,7 +333,7 @@ begin
         at_MusePack,
         at_OptimFrog,
         at_TrueAudio: begin
-            AudioFile.BaseApeFile.GetAllPictureFrames(cbPictures.Items);
+            TBaseApeFile(AudioFile).GetAllPictureFrames(cbPictures.Items);
             if cbPictures.Items.Count > 0 then
             begin
                 cbPictures.ItemIndex := cbPictures.Items.Count - 1;
@@ -340,7 +345,7 @@ begin
     end;
 end;
 
-procedure TMainFormAPE.BtnNewPictureClick(Sender: TObject);
+procedure TMainFormAWB.BtnNewPictureClick(Sender: TObject);
 var fs: TFileStream;
 begin
     if (NewPic.ShowModal = mrOK) and AudioFileExists(NewPic.OpenPictureDialog1.FileName) then
@@ -354,10 +359,10 @@ begin
                         if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
                             or (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpeg')
                         then
-                            AudioFile.Mp3File.ID3v2Tag.SetPicture('image/jpeg', NewPic.cbPicType.ItemIndex, NewPic.EdtDescription.Text, fs)
+                            TMp3File(AudioFile).ID3v2Tag.SetPicture('image/jpeg', NewPic.cbPicType.ItemIndex, NewPic.EdtDescription.Text, fs)
                         else
                             if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.png') then
-                                AudioFile.Mp3File.ID3v2Tag.SetPicture('image/png', NewPic.cbPicType.ItemIndex, NewPic.EdtDescription.Text, fs)
+                                TMp3File(AudioFile).ID3v2Tag.SetPicture('image/png', NewPic.cbPicType.ItemIndex, NewPic.EdtDescription.Text, fs)
                             else
                                 ShowMessage('Image type not supported. Operation cancelled');
                     end;
@@ -366,10 +371,10 @@ begin
                         if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
                             or (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpeg')
                         then
-                            AudioFile.FlacFile.AddPicture(fs, NewPic.cbPicType.ItemIndex, 'image/jpeg', NewPic.EdtDescription.Text)
+                            TFlacFile(AudioFile).AddPicture(fs, NewPic.cbPicType.ItemIndex, 'image/jpeg', NewPic.EdtDescription.Text)
                         else
                             if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.png') then
-                                AudioFile.FlacFile.AddPicture(fs, NewPic.cbPicType.ItemIndex, 'image/png', NewPic.EdtDescription.Text)
+                                TFlacFile(AudioFile).AddPicture(fs, NewPic.cbPicType.ItemIndex, 'image/png', NewPic.EdtDescription.Text)
                             else
                                 ShowMessage('Image type not supported. Operation cancelled')
                     end;
@@ -377,10 +382,10 @@ begin
                         if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
                             or (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpeg')
                         then
-                            AudioFile.M4aFile.SetPicture(fs, M4A_JPG)
+                            TM4aFile(AudioFile).SetPicture(fs, M4A_JPG)
                         else
                             if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.png') then
-                                AudioFile.M4aFile.SetPicture(fs, M4A_PNG)
+                                TM4aFile(AudioFile).SetPicture(fs, M4A_PNG)
                             else
                                 ShowMessage('Image type not supported. Operation cancelled');
                     end;
@@ -388,7 +393,7 @@ begin
                     at_WavPack,
                     at_MusePack,
                     at_OptimFrog,
-                    at_TrueAudio: AudioFile.BaseApeFile.SetPicture(AnsiString(NewPic.cbPicType.Text), NewPic.EdtDescription.Text, fs);
+                    at_TrueAudio: TBaseApeFile(AudioFile).SetPicture(AnsiString(NewPic.cbPicType.Text), NewPic.EdtDescription.Text, fs);
                 end;
                 RefreshImageList;
             finally
@@ -400,29 +405,29 @@ begin
     end;
 end;
 
-procedure TMainFormAPE.BtnRemoveTagClick(Sender: TObject);
+procedure TMainFormAWB.BtnRemoveTagClick(Sender: TObject);
 begin
-    AudioFile.RemoveFromFile;
+    AudioFile.RemoveFromFile(AudioFile.Filename);
 end;
 
-procedure TMainFormAPE.BtnDeletePictureClick(Sender: TObject);
+procedure TMainFormAWB.BtnDeletePictureClick(Sender: TObject);
 begin
     case AudioFile.FileType of
         at_Invalid: ;
-        at_Mp3: AudioFile.MP3File.ID3v2Tag.DeleteFrame(TID3v2Frame(cbPictures.Items.Objects[cbPictures.ItemIndex]));
+        at_Mp3: TMP3File(AudioFile).ID3v2Tag.DeleteFrame(TID3v2Frame(cbPictures.Items.Objects[cbPictures.ItemIndex]));
         at_Ogg: ;
-        at_Flac: AudioFile.FlacFile.DeletePicture(TFlacPictureBlock(FlacPictureFrames[cbPictures.ItemIndex]));
-        at_M4A: AudioFile.M4aFile.SetPicture(Nil, M4A_Invalid);
+        at_Flac: TFlacFile(AudioFile).DeletePicture(TFlacPictureBlock(FlacPictureFrames[cbPictures.ItemIndex]));
+        at_M4A: TM4aFile(AudioFile).SetPicture(Nil, M4A_Invalid);
         at_Monkey,
         at_WavPack,
         at_MusePack,
         at_OptimFrog,
-        at_TrueAudio: AudioFile.BaseApeFile.SetPicture(AnsiString(cBPictures.Text), '', NIL) ;
+        at_TrueAudio: TBaseApeFile(AudioFile).SetPicture(AnsiString(cBPictures.Text), '', NIL) ;
     end;
     RefreshImageList;
 end;
 
-procedure TMainFormAPE.BtnSaveClick(Sender: TObject);
+procedure TMainFormAWB.BtnSaveClick(Sender: TObject);
 begin
     AudioFile.Artist := EdtArtist.Text ;
     AudioFile.Title  := EdtTitle.Text  ;
@@ -434,7 +439,7 @@ begin
     AudioFile.UpdateFile;
 end;
 
-procedure TMainFormAPE.cbPicturesChange(Sender: TObject);
+procedure TMainFormAWB.cbPicturesChange(Sender: TObject);
 var stream: TMemoryStream;
     iFrame: TID3v2Frame;
     Mime: AnsiString;
@@ -473,26 +478,23 @@ begin
     end;
 end;
 
-procedure TMainFormAPE.lbKeysClick(Sender: TObject);
+procedure TMainFormAWB.lbKeysClick(Sender: TObject);
 begin
     case AudioFile.FileType of
         at_Invalid: ;
         at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
-        at_Ogg: MemoValue.Text := AudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-        at_Flac: MemoValue.Text := AudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-        at_M4a:  MemoValue.Text := AudioFile.M4aFile.GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
+        at_Ogg: MemoValue.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+        at_Flac: MemoValue.Text := TFlacFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+        at_M4a:  MemoValue.Text := TM4aFile(AudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
         at_Monkey,
         at_WavPack,
         at_MusePack,
         at_OptimFrog,
-        at_TrueAudio: MemoValue.Text := AudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
-
-
+        at_TrueAudio: MemoValue.Text := TBaseApeFile(AudioFile).GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
     end;
-
 end;
 
-function TMainFormAPE.StreamToBitmap(aStream: TStream; aBitmap: TBitmap): Boolean;
+function TMainFormAWB.StreamToBitmap(aStream: TStream; aBitmap: TBitmap): Boolean;
 var jp: TJPEGImage;
     {$IFDEF USE_PNG}png: TPNGImage; {$ENDIF}
     LoadingFailed: Boolean;
@@ -538,7 +540,7 @@ begin
     result := NOT LoadingFailed;
 end;
 
-procedure TMainFormAPE.LoadImage(aKey: AnsiString);
+procedure TMainFormAWB.LoadImage(aKey: AnsiString);
 var picStream: TMemoryStream;
     picDescription: UnicodeString;
 begin
@@ -547,7 +549,7 @@ begin
         picDescription := '';
         picStream := tMemoryStream.Create;
         try
-            if AudioFile.BaseApeFile.GetPicture(aKey, picStream, picDescription) then
+            if TBaseApeFile(AudioFile).GetPicture(aKey, picStream, picDescription) then
             begin
                 if not StreamToBitmap(picStream, Image1.Picture.Bitmap) then
                     Image1.Picture.Assign(NIL);

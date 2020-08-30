@@ -1,6 +1,6 @@
-# AudioWerkzeugeBibliothek
+# AudioWerkzeugeBibliothek (v2.0)
 
-A delphi library for audio files.
+A delphi library for audio files. 
 
 Read and write meta tags from audio files like mp3, ogg (Ogg-Vorbis), flac, m4a, 
 ape (Monkey), wv (WavPack), mpc (Musepack), ofr (OptimFrog), tta (TrueAudio). Also, 
@@ -18,49 +18,21 @@ Limitations:
 * no support for Cover Art (and other binary data) in Ogg Vorbis comments
 * no support for compression and encryption in ID3Tags.
 
-## Unicode and compatibility to older Delphi versions
+## Important changes in version 2.0
 
-This library should work with all Delphi versions from **Delphi 7** to **Delphi 10.2** (Tokyo). However, there are some things to keep in mind with older versions without built-in Unicode support (= before Delphi 2009).
-
-*Note*: I use "Unicode" here in the meaning of "more than ANSI". That's not 100% accurate, but I hope you know what I'm saying. ;-)
-
-### The VCL and filenames with Unicode characters
-
-Before Delphi 2009, the VCL was ANSI-only and did not support Unicode. This includes the display of strings with Unicode characters and opening files with Unicode characters in their filenames. For that, there has been a collection of components called "TNTUnicodeControls". Older versions of this collection were available under a Creative Commons license, and should still be found somewhere.
-
-This library can make use of these controls by activating a compiler switch in the file `config.inc`. Just remove the "." in the line `{.$DEFINE USE_TNT_COMPOS}`.
-
-Within the library itself the TNTs are used for the class `TNTFileStream`. Of course you can use other Unicode capable filestream classes as well. Just adjust these lines of code according to your needs: (files: AudioFileBasics.pas, Mp3FileUtils.pas and ID3v2Frames.pas)
-```
-{$IFDEF USE_TNT_COMPOS}
-	TAudioFileStream = TTNTFileStream;  
-{$ELSE}
-	TAudioFileStream = TFileStream;
-{$ENDIF}
-```
-
-If you are using an older Delphi Version without TNTUnicodeControls, this library will still work, but you can't open files with filenames like "จักรพรรณ์ อาบครบุรี - 10 เท่านี้ก็ตรม.mp3". When you try to display information about title and artist from such a file (after renaming it), you will see only some "?????" instead of the actual title. Note that rewriting the ID3-Tag under such conditions could lead to data loss.
-
-*Note*: The sample projects do not use the TNTControls (like TTNTEdit instead of TEdit). Be careful there with older Delphis. ;-)
-
-Newer Delphi versions (2009 and later) have built-in Unicode support, and therefore the use of these TNTUnicodeControls is not needed. In addtion, the definition of the type `UnicodeString` is not needed there. This is the reason for this compiler switch, which can be found in some of the files as well.
-```
-{$IFNDEF UNICODE}
-	UnicodeString = WideString;
-{$ENDIF}
-```
+* Instead of a "super class" TGeneralAudioFile I use now a Factory Pattern
+  This has some effect on how you create instances of `TAudioFiles`, and how you access file-type-specific class methods.
+* The Constructor does NOT automatically read information from the file now. This has to be done by `ReadfromFile(filename)`now
+  The reason for this change is, that some classes (= TMP3File) have now some options how exactly the information is gathered from the file
+  
 
 ## General concept of this library
 
-You can use this library on different "levels". There is not a real differentiation between these levels. You can just use more or less from the features of this library. Depending on what you want to do, it is recommended to know more or less about the inner structure of "audio files".
+You can use this library on different "levels", but there is not a real differentiation between these levels. You can just use more or less from the features of this library. Depending on what you want to do, it is recommended to know more or less about the inner structure of "audio files".
 
-* The first level is super easy to use, but limited in what you can get from the audio files, 
-and what you can do with them. You just need to know that there are exist some file types containing "music", which also may
-contain some "meta data" (like Artist or Title).
-* The second level is little bit more complicated to use, but you'll get more information from the
-audio files. You should know that there are different types of audio files like mp3 and ogg files, and that these different kind of files use different ways to store the meta data (like ID3-Tags or Vorbis Comments), and you should try to get an overwiew about how these ways look like.
-* And there is (for mp3) a third level, where you can do some crazy stuff with your files. Like, 
-storing another mp3-file within the ID3-tag of another mp3-file. For this, you should understand a little bit more about the inner structure of ID3Tags on the frame level. This means, that you should know that an ID3Tag contains a list of ID3Frames, where each frame consist of a header and the actual data.
+* The first level is super easy to use, but limited in what you can get from the audio files, and what you can do with them. You just need to know that there do exist some file types containing "music", which also may contain some "meta data" (like Artist or Title).
+* The second level is little bit more complicated to use, but you'll get more information from the audio files. You should know that there are different types of audio files like mp3 and ogg files, and that these different kind of files use different ways to store the meta data (like ID3-Tags or Vorbis Comments), and you should try to get an overwiew about how these ways look like.
+* And there is (for mp3) a third level, where you can do some crazy stuff with your files. Like, storing another mp3-file within the ID3-tag of another mp3-file. For this, you should understand a little bit more about the inner structure of ID3Tags on the frame level. This means, that you should know that an ID3Tag contains a list of ID3Frames, where each frame consist of a header and the actual data.
 
 ### Possibilities on these levels:
 
@@ -72,38 +44,38 @@ See the demo projects for examples.
 
 ## Class structure
 
-* Class `TBaseAudioFile` (file AudioFilebasics.pas): An abstract class that declares some basic properties 
-like Title, Artist, Album, Duration and some others.
-* Classes `TMP3File`, `TOggVorbisFile`, `TFlacFile`, ... (seperate files): Classes for the several 
-filetypes, which implement the abstract methods declared in TBaseAudioFile, and may define some more
-methods. These classes are meant for use on "level 2". Some of these "file classes" are not inherited
-directly from TBaseAudioFile, but from a "BaseTagTypeClass" like `TBaseApeFile`
-* Class `TGeneralAudioFile` (file Audiofiles.pas): A "super class" for use on "level 1". Based on the
-filename extension, an instance of one of the previous classes is created. Thus, the programmer (=you)
-doesn't need to care about different file formats, when you just want to display the artist and title of
-an audio file. 
+* Class `TBaseAudioFile` (unit AudioFiles.Base.pas): An abstract class that declares some basic properties  like Title, Artist, Album, Duration and some others.
+* Classes `TMP3File`, `TOggVorbisFile`, `TFlacFile`, ... (seperate units): Classes for the several filetypes, which implement the abstract methods declared in TBaseAudioFile, and may define some more methods. These classes are meant for use on "level 2". Some of these "file classes" are not inherited directly from TBaseAudioFile, but from a "BaseTagTypeClass" like `TBaseApeFile`
+* Factory class `TAudioFileFactory` (unit AudioFiles.Factory.pas): The factory for use on "level 1". Based on the filename extension, an instance of one of the previous classes is created. Thus, the programmer (=you) doesn't need to care about different file formats, when you just want to display the artist and title of an audio file. 
 
 ## Usage, short overview
 
 ### Level 1
-On "level 1", the usage of this library is super easy. Just create an object of type `TGeneralAudioFile` 
-display some of the properties, let the user edit some of the values and update the file. Thats all. Works 
-on all supported file formats - mp3, ogg, flac, m4a, it doesn't matter. Same code for all.
+On "level 1", the usage of this library is super easy. Just use the Factory to create an object of type `TBaseAudioFile` to display some of the properties, let the user edit some of the values and update the file. Thats all. Works  on all supported file formats - mp3, ogg, flac, m4a, it doesn't matter. Same code for all.
+The AudioFileFactory will make sure, that the correct actual class is created. 
+
 ```pascal
-MainAudioFile := TGeneralAudioFile.Create(someFileName);
+var
+  MainAudioFile: TBaseAudioFile;
+// ...
+MainAudioFile := AudioFileFactory.CreateAudioFile(someFileName);
 EditTitle.Text := MainAudioFile.Title;
 // ... and for editing the file:
 MainAudioFile.Title := EditTitle.Text;
 MainAudioFile.UpdateFile;
 ```
+Note that you don't need to create the AudioFileFactory-Object. This is handled by the unit `AudioFiles.Factory.pas` automatically.
+
 See demo "DemoSimple" for details.
 
 ### Level 2
+
+** TODO **
 On the second level, you have access to some more information, but you need to understand that there are 
 different types of audio file, and each type contains a different structure. You start with the same code
 as above, but after this you need to access the hidden type of the file
 ```pascal
-MainAudioFile := TGeneralAudioFile.Create(someFileName);
+MainAudioFile := AudioFileFactory.CreateAudioFile(someFileName);
 EditTitle.Text := MainAudioFile.Title;
 
 case MainAudioFile.FileType of
@@ -165,3 +137,45 @@ other programs. A lot of mp3-players do that, and these private frames are meant
 
 See demo "DemoMp3" for more details of what is possible (but not always recommended, some players 
 may stumble about these files then).
+  
+
+## Unicode and compatibility to older Delphi versions
+
+This library should work with all Delphi versions from **Delphi 7** to **Delphi 10.3** (probably 10.4 as well). However, there are some things to keep in mind with older versions without built-in Unicode support (= before Delphi 2009).
+
+*Note*: I use "Unicode" here in the meaning of "more than ANSI". That's not 100% accurate, but I hope you know what I'm saying. ;-)
+
+### The VCL and filenames with Unicode characters
+
+Before Delphi 2009, the VCL was ANSI-only and did not support Unicode. This includes the display of strings with Unicode characters and opening files with Unicode characters in their filenames. For that, there has been a collection of components called "TNTUnicodeControls". Older versions of this collection were available under a Creative Commons license, and should still be found somewhere.
+
+This library can make use of these controls by activating a compiler switch in the file `config.inc`. Just remove the "." in the line `{.$DEFINE USE_TNT_COMPOS}`.
+
+Within the library itself the TNTs are used for the class `TNTFileStream`. Of course you can use other Unicode capable filestream classes as well. Just adjust these lines of code according to your needs: (files: AudioFileBasics.pas, Mp3FileUtils.pas and ID3v2Frames.pas)
+```
+{$IFDEF USE_TNT_COMPOS}
+	TAudioFileStream = TTNTFileStream;  
+{$ELSE}
+	TAudioFileStream = TFileStream;
+{$ENDIF}
+```
+
+If you are using an older Delphi Version without TNTUnicodeControls, this library will still work, but you can't open files with filenames like "จักรพรรณ์ อาบครบุรี - 10 เท่านี้ก็ตรม.mp3". When you try to display information about title and artist from such a file (after renaming it), you will see only some "?????" instead of the actual title. Note that rewriting the ID3-Tag under such conditions could lead to data loss.
+
+*Note*: The sample projects do not use the TNTControls (like TTNTEdit instead of TEdit). Be careful there with older Delphis. ;-)
+
+Newer Delphi versions (2009 and later) have built-in Unicode support, and therefore the use of these TNTUnicodeControls is not needed. In addtion, the definition of the type `UnicodeString` is not needed there. This is the reason for this compiler switch, which can be found in some of the files as well.
+```
+{$IFNDEF UNICODE}
+	UnicodeString = WideString;
+{$ENDIF}
+```
+
+### TDictionary vs. TObjectList
+
+In version 2.0 of this library, I use a factory pattern for the different types of audiofiles. A class for a specific audio file format is registered in the factory class. For managing all registered classes, the factory class uses a TDictionary by default. If your Delphi version doesn't support TDictionary, undefine its usage in the `confic.inc`. In that case, a regular TObjectList will be used for that.
+
+```
+{$DEFINE USE_DICTIONARY}
+```
+

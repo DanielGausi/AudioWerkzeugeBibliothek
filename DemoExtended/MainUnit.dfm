@@ -1,4 +1,4 @@
-object MainFormAPE: TMainFormAPE
+object MainFormAWB: TMainFormAWB
   Left = 0
   Top = 0
   BorderStyle = bsSingle
