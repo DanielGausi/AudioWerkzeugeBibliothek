@@ -20,10 +20,8 @@ Limitations:
 
 ## Important changes in version 2.0
 
-* Instead of a "super class" TGeneralAudioFile I use now a Factory Pattern
-  This has some effect on how you create instances of `TAudioFiles`, and how you access file-type-specific class methods.
-* The Constructor does NOT automatically read information from the file now. This has to be done by `ReadfromFile(filename)`now
-  The reason for this change is, that some classes (= TMP3File) have now some options how exactly the information is gathered from the file
+* Instead of a "super class" TGeneralAudioFile I use now a Factory Pattern.  This has some effect on how you create instances of `TAudioFiles`, and how you access file-type-specific class methods.
+* The Constructor does NOT automatically read information from the file any longer. This has to be done by `ReadfromFile(filename)`now. The reason for this change is, that some classes (= TMP3File) have now some options how exactly the information is gathered from the file.
   
 
 ## General concept of this library
