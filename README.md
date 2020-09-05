@@ -59,6 +59,7 @@ var
   MainAudioFile: TBaseAudioFile;
 // ...
 MainAudioFile := AudioFileFactory.CreateAudioFile(someFileName);
+MainAudioFile.ReadFromFile(someFileName);
 EditTitle.Text := MainAudioFile.Title;
 // ... and for editing the file:
 MainAudioFile.Title := EditTitle.Text;
@@ -76,21 +77,19 @@ different types of audio file, and each type contains a different structure. You
 as above, but after this you need to access the hidden type of the file
 ```pascal
 MainAudioFile := AudioFileFactory.CreateAudioFile(someFileName);
+MainAudioFile.ReadFromFile(someFileName);
 EditTitle.Text := MainAudioFile.Title;
 
 case MainAudioFile.FileType of
   
-  at_Invalid: begin
-      ShowMessage('Invalid AudioFile');
-  end;
+  at_Invalid: ShowMessage('Invalid AudioFile'); 
   
   at_Mp3: begin
       if not assigned(ID3v2Frames) then  // a TObjectList storing all "Frames" of the ID3Tag
-          ID3v2Frames:= TObjectList.Create(False);
+          ID3v2Frames := TObjectList.Create(False);
 
-      // note that ".mp3File" only exists, if the file type is actual mp3!
-      // note also, that we get only all TEXT frames here, not really all frames (with binary data)
-      MainAudioFile.MP3File.ID3v2Tag.GetAllTextFrames(ID3v2Frames);
+      // Cast the TBaseAudioFile to TMP3File to access mp3-specific data      
+      TMP3File(MainAudioFile).ID3v2Tag.GetAllTextFrames(ID3v2Frames);
 
       // display all frames on the form
       lbKeys.Items.Clear; // a TListBox on the Form
@@ -100,12 +99,12 @@ case MainAudioFile.FileType of
           lbKeys.AddItem(iFrame.FrameTypeDescription, iFrame);
       end;
 
-      MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [MainAudioFile.MP3File.ID3v1TagSize]));
-      MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [MainAudioFile.MP3File.ID3v2TagSize]));
+      MemoSpecific.Lines.Add(Format('ID3v1    : %d Bytes', [TMP3File(MainAudioFile).ID3v1TagSize]));
+      MemoSpecific.Lines.Add(Format('ID3v2    : %d Bytes', [TMP3File(MainAudioFile).ID3v2TagSize]));
   end;
 
   at_Ogg: begin
-      MainAudioFile.OggFile.GetAllFields(lbKeys.Items);      
+      TOggFile(MainAudioFile).GetAllFields(lbKeys.Items);      
   end;
 
 // ...
@@ -114,16 +113,17 @@ case MainAudioFile.FileType of
 case MainAudioFile.FileType of
     at_Invalid: ;
     at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
-    at_Ogg: MemoValue.Text := MainAudioFile.OggFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-    at_Flac: MemoValue.Text := MainAudioFile.FlacFile.GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_Ogg: MemoValue.Text := TOggVorbisFile(MainAudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_Flac: MemoValue.Text := TFlacFile(MainAudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
+    at_M4a:  MemoValue.Text := TM4aFile(MainAudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
     at_Monkey,
     at_WavPack,
     at_MusePack,
     at_OptimFrog,
-    at_TrueAudio: MemoValue.Text := MainAudioFile.BaseApeFile.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
+    at_TrueAudio: MemoValue.Text := TBaseApeFile(MainAudioFile).GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
 end;
 ```
-You may also have access to other information like Cover Art here. See demo "DemoExtended" for details.
+You may also have access to other information like Cover-Art here. See demo "DemoExtended" for details.
 
 ### Level 3
 
@@ -137,6 +137,40 @@ other programs. A lot of mp3-players do that, and these private frames are meant
 
 See demo "DemoMp3" for more details of what is possible (but not always recommended, some players 
 may stumble about these files then).
+
+## Remarks about different kinds of meta data in audio files
+
+Several audio formats may contain different kinds of meta data within the file. This library uses the following assumptions
+
+* Mp3 files may contain ID3v1 and ID3v2-Tags when using the class TMP3File, it is usually ensured that both versions stay constistent in the file. 
+* Mp3 files sometimes also contain an APEv2-Tag. This Tag is completely ignored so far by this library.
+* All audio formats using APEv2-Tags (Monkey, WavPack, Musepack, OprimFrog, TrueAidio) as default may also contain ID3v1- and ID3v2-Tags. The class `TBaseApeFile` will provide you with information about the existence of these Tags, but otherwise they're ignored.
+
+### mp3 specific remarks
+
+When using the class TMP3File, you may use properties `TagWriteMode`, `TagDefaultMode` and `TagDeleteMode` which versions of the ID3-Tag are written into the file when using the method `UpdateFile`. However, you can alwways use classes `TID3v2Tag` and `TID3v1Tag` directly to read/write/delete these Tags.
+
+If you're scanning multiple files for meta data (for example to store the data into a media library), you may want just the "title". To speed up the scanning (at least this is the hope), the new property `TagScanMode`is introduced. Possible values are
+```
+TTagScanMode = (id3_read_complete, id3_read_smart, id3_read_v2_only );
+```
+Default value is `id3_read_smart`, where the ID3v2-Tag is checked first. This Tag is more complex, but it needs to be read anyway to get to the audio meta data like bitrate, duration and other stuff. The ID3v1-Tag is only read from the file, if there is no proper ID3v2-Tag containing Artist, Title, Album, Track, Year and Genre. If you also want the "Comment" field included, set  `fSmartRead_IgnoreComment` to `False`.
+
+If you change one of these properties through the setters of class `TMP3File`, the property `fSmartRead_AvoidInconsistentData` (default: `True`) will ensure that also the ID3v1-Tag is properly processed, so that `UpdateFile` will write both ID3v1- and ID3v2-Tag with consistent data (according to the setting of `TagWriteMode`).
+
+## Duration and Bitrate with VBR files
+
+Usually, mp3 files encoded with variable bitrate contain a so-called XING-Header containing additional data needed for a quick calculation of the duration of the file. Recently I found files without such a XING-Header, resulting in much longer displayed durations, and way too low bitrates (i.e. 32 kbit/s). This is not an issue for this library, but also for many other libraries.
+
+For such files, the new property `TMP3File.MpegScanMode` is introduced. Possible values are
+```
+TMpegScanMode = (MPEG_SCAN_Fast, MPEG_SCAN_Smart, MPEG_SCAN_Complete);
+```
+* `MPEG_SCAN_Fast` scans the file just as before, in good faith that a VBR file contains a XING-Header (or something equivalent). This works very well for most cases.
+* `MPEG_SCAN_Smart` checks, whether the result from the fast scan does make sense. If the calculated bitrate is 32 kbit/s or even lower, then there is probably something wrong. Therefore, the file is completely processed, scanning each and every MPEG-Frame. Note that most mp3 files start with a little moment of silence. An encoder set to "VBR" will likely use the minimum possible amount of space to encode this - which is 32kbit/s.
+* `MPEG_SCAN_Complete` always sans the complete file. This leads to the most accurate durations, but also require much more time.
+
+The default mode is `MPEG_SCAN_Smart`.
   
 
 ## Unicode and compatibility to older Delphi versions
