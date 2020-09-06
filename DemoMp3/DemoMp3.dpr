@@ -6,7 +6,7 @@ uses
   UNewFrame in 'UNewFrame.pas' {FormNewFrame},
   ID3GenreList in '..\source\ID3GenreList.pas',
   Id3v2Frames in '..\source\Id3v2Frames.pas',
-  Mp3FileUtils in '..\source\Mp3FileUtils.pas',
+  MpegFrames in '..\source\MpegFrames.pas',
   U_CharCode in '..\source\U_CharCode.pas';
 
 {$R *.res}

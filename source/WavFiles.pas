@@ -232,7 +232,7 @@ end;
 { --------------------------------------------------------------------------- }
 
 function TWavfile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TFileStream;
+var fs: TAudioFileStream;
     groupID: array[0..3] of AnsiChar;
     riffType: array[0..3] of AnsiChar;
     BytesPerSec: Integer;
@@ -266,7 +266,7 @@ var fs: TFileStream;
 
 
 begin
-    inherited;
+    inherited ReadFromFile(aFilename);
 
     // Reset variables and load file data
     fResetData;
@@ -333,13 +333,13 @@ end;
 
 function TWavfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited RemoveFromFile(aFilename);
     result := WavErr_WritingNotSupported;
 end;
 
 function TWavfile.WriteToFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited WriteToFile(aFilename);
     result := WavErr_WritingNotSupported;
 end;
 

@@ -414,7 +414,7 @@ var fs: TAudioFileStream;
     AtomSize: DWord;
     AtomName: TAtomName;
 begin
-    inherited;
+    inherited ReadFromFile(aFilename);
     Clear;
     // result := FileErr_None;
 
@@ -494,7 +494,7 @@ end;
 
 function TM4AFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited RemoveFromFile(aFilename);
     result := M4aErr_RemovingNotSupported;
 end;
 
@@ -596,7 +596,7 @@ var ExistingTag: TM4AFile;
 
 begin
     // result := FileErr_None;
-    inherited;
+    inherited WriteToFile(aFilename);;
 
     ExistingTag := TM4AFile.Create;
     try

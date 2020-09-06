@@ -11,15 +11,6 @@
 
     Manipulate Apev2Tags
 
-    This is the base class for
-        MonkeyFiles
-        MusePackFiles
-        OptimFrogFiles
-        TrueAudioFiles
-        WavePackFiles
-
-    Use an instance of these classes to colelct data from the files.
-
     ---------------------------------------------------------------------------
 
     This library is free software; you can redistribute it and/or
@@ -87,7 +78,7 @@ type
         Reserved: Array[1..8] of Byte;
     end;
 
-    TBaseApeFile = class (TBaseAudioFile)
+    TApeTag = class
         private
             fApev2TagFooter: TApeHeader;
             fApev2TagHeader: TApeHeader;
@@ -95,12 +86,10 @@ type
 
             fID3v1Present: Boolean;
             fID3v1TagSize: Cardinal;
-            fID3v2TagSize: Cardinal;
+            // fID3v2TagSize: Cardinal;
 
             fOffset: DWord;   // Position (from End of File) where the Apev2Tag begins
             fItemList: TObjectList;
-
-            // function fTagContainsFooter: Boolean;
 
             function fIsValidHeader(aApeHeader: TApeHeader): Boolean;
             function fTagContainsHeader: Boolean;
@@ -154,47 +143,30 @@ type
             procedure fSetIntroplay       (aValue: UnicodeString);
 
             function fComputeNewTagSize: Integer;  // Used to get the new ApeTag size before writing (EXcluding the Header)
-
-            function fGetTagSize: Cardinal;          // The Size of the ApeTag in the File. Including Header AND Footer.
-            function fGetCombinedTagSize: Cardinal;  // The Size of Ape, ID3v and ID3v2 together. Used for Bitrate calculation
+            function fGetTagSize: Cardinal;        // The Size of the ApeTag in the File. Including Header AND Footer.
 
             procedure fPrepareFooterAndHeader;
             function CheckForID3Tag(aStream: TStream): Boolean;
-            function ReadTagFromStream(aStream: TStream; ReadItems: Boolean = True): TAudioError;
 
       protected
-            // Audio properties
-            //fDuration   : Integer;
-            //fBitrate    : Integer;
-            //fSamplerate : Integer;
-            //fChannels   : Integer;
-            //fValid      : Boolean;
-            function fGetFileSize   : Int64;    override;
-            function fGetDuration   : Integer;  override;
-            function fGetBitrate    : Integer;  override;
-            function fGetSamplerate : Integer;  override;
-            function fGetChannels   : Integer;  override;
-            function fGetValid      : Boolean;  override;
+            fValid      : Boolean;                // ???
+            function fGetValid      : Boolean;    // ???
 
-            procedure fSetTitle           (aValue: UnicodeString); override;
-            procedure fSetArtist          (aValue: UnicodeString); override;
-            procedure fSetAlbum           (aValue: UnicodeString); override;
-            procedure fSetYear            (aValue: UnicodeString); override;
-            procedure fSetTrack           (aValue: UnicodeString); override;
-            procedure fSetGenre           (aValue: UnicodeString); override;
+            procedure fSetTitle  (aValue: UnicodeString);
+            procedure fSetArtist (aValue: UnicodeString);
+            procedure fSetAlbum  (aValue: UnicodeString);
+            procedure fSetYear   (aValue: UnicodeString);
+            procedure fSetTrack  (aValue: UnicodeString);
+            procedure fSetGenre  (aValue: UnicodeString);
 
-            function fGetTitle            : UnicodeString; override;
-            function fGetArtist           : UnicodeString; override;
-            function fGetAlbum            : UnicodeString; override;
-            function fGetYear             : UnicodeString; override;
-            function fGetTrack            : UnicodeString; override;
-            function fGetGenre            : UnicodeString; override;
+            function fGetTitle   : UnicodeString;
+            function fGetArtist  : UnicodeString;
+            function fGetAlbum   : UnicodeString;
+            function fGetYear    : UnicodeString;
+            function fGetTrack   : UnicodeString;
+            function fGetGenre   : UnicodeString;
 
-
-            function ReadAudioDataFromStream(aStream: TStream): Boolean; virtual;
-            function fGetFileType            : TAudioFileType; override;
-            function fGetFileTypeDescription : String;         override;
-
+            function ReadTagFromStream(aStream: TStream; ReadItems: Boolean): TAudioError;
 
         public
             property ContainsHeader: Boolean read fTagContainsHeader;
@@ -203,23 +175,17 @@ type
             // Size of the Tag in Bytes
             property Apev2TagSize   : Cardinal read fGetTagSize;
             property ID3v1TagSize   : Cardinal read fID3v1TagSize;
-            property ID3v2TagSize   : Cardinal read fID3v2TagSize;
+            // property ID3v2TagSize   : Cardinal read fID3v2TagSize;
 
-            property CombinedTagSize: Cardinal read fGetCombinedTagSize;
-
-            //property Valid      : Boolean read fValid;
-            //property Duration   : Integer read fDuration;
-            //property Bitrate    : Integer read fBitrate;
-            //property Samplerate : Integer read fSamplerate;
-            //property Channels   : Integer read fChannels;
+            property Valid      : Boolean read fValid;
 
             // These properties are defined in the Apev2Tag-Standard
-            //property Title            : UnicodeString read fGetTitle             write fSetTitle            ;
-            //property Artist           : UnicodeString read fGetArtist            write fSetArtist           ;
-            //property Album            : UnicodeString read fGetAlbum             write fSetAlbum            ;
-            //property Year             : UnicodeString read fGetYear              write fSetYear             ;
-            //property Track            : UnicodeString read fGetTrack             write fSetTrack            ;
-            //property Genre            : UnicodeString read fGetGenre             write fSetGenre            ;
+            property Title            : UnicodeString read fGetTitle             write fSetTitle            ;
+            property Artist           : UnicodeString read fGetArtist            write fSetArtist           ;
+            property Album            : UnicodeString read fGetAlbum             write fSetAlbum            ;
+            property Year             : UnicodeString read fGetYear              write fSetYear             ;
+            property Track            : UnicodeString read fGetTrack             write fSetTrack            ;
+            property Genre            : UnicodeString read fGetGenre             write fSetGenre            ;
             property Comment          : UnicodeString read fGetComment           write fSetComment          ;
             property SubTitle         : UnicodeString read fGetSubTitle          write fSetSubTitle         ;
             property DebutAlbum       : UnicodeString read fGetDebutAlbum        write fSetDebutAlbum       ;
@@ -245,7 +211,7 @@ type
             property Introplay        : UnicodeString read fGetIntroplay         write fSetIntroplay        ;
 
 
-            constructor Create; override;
+            constructor Create;
             destructor Destroy; override;
 
             // Clear all Items and set Footer/Header to default values
@@ -275,97 +241,63 @@ type
             // Get all available CoverArt-TagItems (e.g. for use in a TComboBox)
             procedure GetAllPictureFrames(dest: TStrings);
 
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
-            function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
-            function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
+            function ReadFromStream(aStream: TStream): TAudioError;
+
+            function ReadFromFile(aFilename: UnicodeString): TAudioError;
+            function WriteToFile(aFilename: UnicodeString): TAudioError;
+            function RemoveFromFile(aFilename: UnicodeString): TAudioError;
     end;
 
 implementation
 
 { TApeFile }
 
-constructor TBaseApeFile.Create;
+constructor TApeTag.Create;
 begin
     fItemList := TObjectList.Create;
 end;
 
-destructor TBaseApeFile.Destroy;
+destructor TApeTag.Destroy;
 begin
     fItemList.Free;
     inherited;
 end;
 
-function TBaseApeFile.fGetFileType: TAudioFileType;
-begin
-    result := at_AbstractApe;
-end;
-
-function TBaseApeFile.fGetFileTypeDescription: String;
-begin
-    result := TAudioFileNames[at_AbstractApe]
-end;
 
 {
     Clear
     Set default values
 }
-procedure TBaseApeFile.Clear;
+procedure TApeTag.Clear;
 begin
     fItemList.Clear;
     fOffset := 0;
     fPrepareFooterAndHeader;
-    FFileSize := 0;
     fID3v1TagSize := 0;
-    fID3v2TagSize := 0;
+    // fID3v2TagSize := 0;
 
-    fDuration   := 0;
-    fBitrate    := 0;
-    fSamplerate := 0;
-    fChannels   := 0;
     fValid      := False;
 end;
 
-
-function TBaseApeFile.fGetBitrate: Integer;
+function TApeTag.fGetValid: Boolean;
 begin
-    result := fBitrate;
-end;
-function TBaseApeFile.fGetValid: Boolean;
-begin
-    result := fValid;
-end;
-function TBaseApeFile.fGetFileSize: Int64;
-begin
-    result := fFileSize;
+  result := fValid;
 end;
 
 
-function TBaseApeFile.fGetDuration: Integer;
-begin
-    result := fDuration;
-end;
-function TBaseApeFile.fGetChannels: Integer;
-begin
-    result := fChannels;
-end;
-function TBaseApeFile.fGetSamplerate: Integer;
-begin
-    result := fSamplerate;
-end;
 
-
-function TBaseApeFile.fIsValidHeader(aApeHeader: TApeHeader): Boolean;
+function TApeTag.fIsValidHeader(aApeHeader: TApeHeader): Boolean;
 begin
     result := aApeHeader.Preamble = AnsiString('APETAGEX');
 end;
 
 
-function TBaseApeFile.fTagContainsHeader: Boolean;
+function TApeTag.fTagContainsHeader: Boolean;
 begin
     result := ((fApev2TagFooter.Flags shr 31) and 1) = 1;
 end;
 
-function TBaseApeFile.fComputeNewTagSize: Integer;
+function TApeTag.fComputeNewTagSize: Integer;
 var s, i: Integer;
 
 begin
@@ -376,7 +308,7 @@ begin
     result := s + 32;
 end;
 
-function TBaseApeFile.fGetTagSize: Cardinal;
+function TApeTag.fGetTagSize: Cardinal;
 begin
     if fIsValidHeader(fApev2TagFooter) then
     begin
@@ -388,11 +320,6 @@ begin
         result := 0;
 end;
 
-function TBaseApeFile.fGetCombinedTagSize: Cardinal;
-begin
-    result := Apev2TagSize + ID3v1TagSize + ID3v2TagSize;
-end;
-
 {
     fSetValueByKey
     Set the matching TagItem in the List to the given Value
@@ -400,7 +327,7 @@ end;
       - If no matching Item can be found, a new one is created
     Used for property setters for Artist, Album, etc.
 }
-procedure TBaseApeFile.SetValueByKey(aKey: AnsiString; aValue: UnicodeString);
+procedure TApeTag.SetValueByKey(aKey: AnsiString; aValue: UnicodeString);
 var i: Integer;
     aTagItem: TApeTagItem;
     success: Boolean;
@@ -429,119 +356,119 @@ begin
     end;
 end;
 
-procedure TBaseApeFile.fSetAbstract(aValue: UnicodeString);
+procedure TApeTag.fSetAbstract(aValue: UnicodeString);
 begin
     SetValueByKey('Abstract', aValue);
 end;
-procedure TBaseApeFile.fSetAlbum(aValue: UnicodeString);
+procedure TApeTag.fSetAlbum(aValue: UnicodeString);
 begin
     SetValueByKey('Album', aValue);
 end;
-procedure TBaseApeFile.fSetArtist(aValue: UnicodeString);
+procedure TApeTag.fSetArtist(aValue: UnicodeString);
 begin
     SetValueByKey('Artist', aValue);
 end;
-procedure TBaseApeFile.fSetBibliography(aValue: UnicodeString);
+procedure TApeTag.fSetBibliography(aValue: UnicodeString);
 begin
     SetValueByKey('Bibliography', aValue);
 end;
-procedure TBaseApeFile.fSetCatalog(aValue: UnicodeString);
+procedure TApeTag.fSetCatalog(aValue: UnicodeString);
 begin
     SetValueByKey('Catalog', aValue);
 end;
-procedure TBaseApeFile.fSetComment(aValue: UnicodeString);
+procedure TApeTag.fSetComment(aValue: UnicodeString);
 begin
     SetValueByKey('Comment', aValue);
 end;
-procedure TBaseApeFile.fSetComposer(aValue: UnicodeString);
+procedure TApeTag.fSetComposer(aValue: UnicodeString);
 begin
     SetValueByKey('Composer', aValue);
 end;
-procedure TBaseApeFile.fSetConductor(aValue: UnicodeString);
+procedure TApeTag.fSetConductor(aValue: UnicodeString);
 begin
     SetValueByKey('Conductor', aValue);
 end;
-procedure TBaseApeFile.fSetCopyright(aValue: UnicodeString);
+procedure TApeTag.fSetCopyright(aValue: UnicodeString);
 begin
     SetValueByKey('Copyright', aValue);
 end;
-procedure TBaseApeFile.fSetDebutAlbum(aValue: UnicodeString);
+procedure TApeTag.fSetDebutAlbum(aValue: UnicodeString);
 begin
     SetValueByKey('Debut album', aValue);
 end;
-procedure TBaseApeFile.fSetEAN(aValue: UnicodeString);
+procedure TApeTag.fSetEAN(aValue: UnicodeString);
 begin
     SetValueByKey('EAN/UBC', aValue);
 end;
-procedure TBaseApeFile.fSetFile(aValue: UnicodeString);
+procedure TApeTag.fSetFile(aValue: UnicodeString);
 begin
     SetValueByKey('File', aValue);
 end;
-procedure TBaseApeFile.fSetGenre(aValue: UnicodeString);
+procedure TApeTag.fSetGenre(aValue: UnicodeString);
 begin
     SetValueByKey('Genre', aValue);
 end;
-procedure TBaseApeFile.fSetIndex(aValue: UnicodeString);
+procedure TApeTag.fSetIndex(aValue: UnicodeString);
 begin
     SetValueByKey('Index', aValue);
 end;
-procedure TBaseApeFile.fSetIntroplay(aValue: UnicodeString);
+procedure TApeTag.fSetIntroplay(aValue: UnicodeString);
 begin
     SetValueByKey('Introplay', aValue);
 end;
-procedure TBaseApeFile.fSetISBN(aValue: UnicodeString);
+procedure TApeTag.fSetISBN(aValue: UnicodeString);
 begin
    SetValueByKey('ISBN', aValue);
 end;
-procedure TBaseApeFile.fSetISRC(aValue: UnicodeString);
+procedure TApeTag.fSetISRC(aValue: UnicodeString);
 begin
     SetValueByKey('ISRC', aValue);
 end;
-procedure TBaseApeFile.fSetLanguage(aValue: UnicodeString);
+procedure TApeTag.fSetLanguage(aValue: UnicodeString);
 begin
     SetValueByKey('Language', aValue);
 end;
-procedure TBaseApeFile.fSetLC(aValue: UnicodeString);
+procedure TApeTag.fSetLC(aValue: UnicodeString);
 begin
     SetValueByKey('LC', aValue);
 end;
-procedure TBaseApeFile.fSetMedia(aValue: UnicodeString);
+procedure TApeTag.fSetMedia(aValue: UnicodeString);
 begin
     SetValueByKey('Media', aValue);
 end;
-procedure TBaseApeFile.fSetPublicationright(aValue: UnicodeString);
+procedure TApeTag.fSetPublicationright(aValue: UnicodeString);
 begin
     SetValueByKey('Publicationright', aValue);
 end;
-procedure TBaseApeFile.fSetPublisher(aValue: UnicodeString);
+procedure TApeTag.fSetPublisher(aValue: UnicodeString);
 begin
     SetValueByKey('Publisher', aValue);
 end;
-procedure TBaseApeFile.fSetRecordDate(aValue: UnicodeString);
+procedure TApeTag.fSetRecordDate(aValue: UnicodeString);
 begin
     SetValueByKey('Record Date', aValue);
 end;
-procedure TBaseApeFile.fSetRecordLocation(aValue: UnicodeString);
+procedure TApeTag.fSetRecordLocation(aValue: UnicodeString);
 begin
     SetValueByKey('Record Location', aValue);
 end;
-procedure TBaseApeFile.fSetRelated(aValue: UnicodeString);
+procedure TApeTag.fSetRelated(aValue: UnicodeString);
 begin
     SetValueByKey('Related', aValue);
 end;
-procedure TBaseApeFile.fSetSubTitle(aValue: UnicodeString);
+procedure TApeTag.fSetSubTitle(aValue: UnicodeString);
 begin
     SetValueByKey('Subtitle', aValue);
 end;
-procedure TBaseApeFile.fSetTitle(aValue: UnicodeString);
+procedure TApeTag.fSetTitle(aValue: UnicodeString);
 begin
     SetValueByKey('Title', aValue);
 end;
-procedure TBaseApeFile.fSetTrack(aValue: UnicodeString);
+procedure TApeTag.fSetTrack(aValue: UnicodeString);
 begin
     SetValueByKey('Track', aValue);
 end;
-procedure TBaseApeFile.fSetYear(aValue: UnicodeString);
+procedure TApeTag.fSetYear(aValue: UnicodeString);
 begin
     SetValueByKey('Year', aValue);
 end;
@@ -551,7 +478,7 @@ end;
     Get the matching TagItem in the List and returns its value
     Used for property getters for Artist, Album, etc.
 }
-function TBaseApeFile.GetValueByKey(aKey: AnsiString): UnicodeString;
+function TApeTag.GetValueByKey(aKey: AnsiString): UnicodeString;
 var i: Integer;
     aTagItem: TApeTagItem;
 begin
@@ -563,125 +490,125 @@ begin
             result := aTagItem.Value;
     end;
 end;
-function TBaseApeFile.fGetAbstract: UnicodeString;
+function TApeTag.fGetAbstract: UnicodeString;
 begin
     result := GetValueByKey('Abstract');
 end;
-function TBaseApeFile.fGetAlbum: UnicodeString;
+function TApeTag.fGetAlbum: UnicodeString;
 begin
     result := GetValueByKey('Album');
 end;
-function TBaseApeFile.fGetArtist: UnicodeString;
+function TApeTag.fGetArtist: UnicodeString;
 begin
     result := GetValueByKey('Artist');
 end;
-function TBaseApeFile.fGetBibliography: UnicodeString;
+function TApeTag.fGetBibliography: UnicodeString;
 begin
     result := GetValueByKey('Bibliography');
 end;
-function TBaseApeFile.fGetCatalog: UnicodeString;
+function TApeTag.fGetCatalog: UnicodeString;
 begin
     result := GetValueByKey('Catalog');
 end;
-function TBaseApeFile.fGetComment: UnicodeString;
+function TApeTag.fGetComment: UnicodeString;
 begin
     result := GetValueByKey('Comment');
 end;
-function TBaseApeFile.fGetComposer: UnicodeString;
+function TApeTag.fGetComposer: UnicodeString;
 begin
     result := GetValueByKey('Composer');
 end;
-function TBaseApeFile.fGetConductor: UnicodeString;
+function TApeTag.fGetConductor: UnicodeString;
 begin
     result := GetValueByKey('Conductor');
 end;
-function TBaseApeFile.fGetCopyright: UnicodeString;
+function TApeTag.fGetCopyright: UnicodeString;
 begin
     result := GetValueByKey('Copyright');
 end;
-function TBaseApeFile.fGetDebutAlbum: UnicodeString;
+function TApeTag.fGetDebutAlbum: UnicodeString;
 begin
     result := GetValueByKey('Debut album');
 end;
-function TBaseApeFile.fGetEAN: UnicodeString;
+function TApeTag.fGetEAN: UnicodeString;
 begin
     result := GetValueByKey('EAN/UPC');
 end;
-function TBaseApeFile.fGetFile: UnicodeString;
+function TApeTag.fGetFile: UnicodeString;
 begin
     result := GetValueByKey('File');
 end;
-function TBaseApeFile.fGetGenre: UnicodeString;
+function TApeTag.fGetGenre: UnicodeString;
 begin
     result := GetValueByKey('Genre');
 end;
-function TBaseApeFile.fGetIndex: UnicodeString;
+function TApeTag.fGetIndex: UnicodeString;
 begin
     result := GetValueByKey('Index');
 end;
-function TBaseApeFile.fGetIntroplay: UnicodeString;
+function TApeTag.fGetIntroplay: UnicodeString;
 begin
     result := GetValueByKey('Introplay');
 end;
-function TBaseApeFile.fGetISBN: UnicodeString;
+function TApeTag.fGetISBN: UnicodeString;
 begin
     result := GetValueByKey('ISBN');
 end;
-function TBaseApeFile.fGetISRC: UnicodeString;
+function TApeTag.fGetISRC: UnicodeString;
 begin
     result := GetValueByKey('ISRC');
 end;
-function TBaseApeFile.fGetLanguage: UnicodeString;
+function TApeTag.fGetLanguage: UnicodeString;
 begin
     result := GetValueByKey('Language');
 end;
-function TBaseApeFile.fGetLC: UnicodeString;
+function TApeTag.fGetLC: UnicodeString;
 begin
     result := GetValueByKey('LC');
 end;
-function TBaseApeFile.fGetMedia: UnicodeString;
+function TApeTag.fGetMedia: UnicodeString;
 begin
     result := GetValueByKey('Media');
 end;
-function TBaseApeFile.fGetPublicationright: UnicodeString;
+function TApeTag.fGetPublicationright: UnicodeString;
 begin
     result := GetValueByKey('Publicationright');
 end;
-function TBaseApeFile.fGetPublisher: UnicodeString;
+function TApeTag.fGetPublisher: UnicodeString;
 begin
     result := GetValueByKey('Publisher');
 end;
-function TBaseApeFile.fGetRecordDate: UnicodeString;
+function TApeTag.fGetRecordDate: UnicodeString;
 begin
     result := GetValueByKey('Record Date');
 end;
-function TBaseApeFile.fGetRecordLocation: UnicodeString;
+function TApeTag.fGetRecordLocation: UnicodeString;
 begin
     result := GetValueByKey('Record Location');
 end;
-function TBaseApeFile.fGetRelated: UnicodeString;
+function TApeTag.fGetRelated: UnicodeString;
 begin
     result := GetValueByKey('Related');
 end;
-function TBaseApeFile.fGetSubTitle: UnicodeString;
+function TApeTag.fGetSubTitle: UnicodeString;
 begin
     result := GetValueByKey('Subtitle');
 end;
-function TBaseApeFile.fGetTitle: UnicodeString;
+function TApeTag.fGetTitle: UnicodeString;
 begin
     result := GetValueByKey('Title');
 end;
-function TBaseApeFile.fGetTrack: UnicodeString;
+function TApeTag.fGetTrack: UnicodeString;
 begin
     result := GetValueByKey('Track');
 end;
-function TBaseApeFile.fGetYear: UnicodeString;
+function TApeTag.fGetYear: UnicodeString;
 begin
     result := GetValueByKey('Year');
 end;
 
 
-function TBaseApeFile.GetBinaryDataByKey(aKey: AnsiString; dest: TStream): Boolean;
+function TApeTag.GetBinaryDataByKey(aKey: AnsiString; dest: TStream): Boolean;
 var i: Integer;
     aTagItem: TApeTagItem;
 begin
@@ -693,7 +620,7 @@ begin
             result := aTagItem.GetBinaryData(dest);
     end;
 end;
-procedure TBaseApeFile.SetBinaryByKey(aKey: AnsiString; source: TStream);
+procedure TApeTag.SetBinaryByKey(aKey: AnsiString; source: TStream);
 var i: Integer;
     aTagItem: TApeTagItem;
     success: Boolean;
@@ -723,7 +650,7 @@ begin
     end;
 end;
 
-procedure TBaseApeFile.GetAllFrames(dest: TStrings);
+procedure TApeTag.GetAllFrames(dest: TStrings);
 var i: Integer;
 begin
     dest.Clear;
@@ -731,7 +658,7 @@ begin
         dest.Add(String(TApeTagItem(fItemList[i]).Key));
 end;
 
-procedure TBaseApeFile.GetAllPictureFrames(dest: TStrings);
+procedure TApeTag.GetAllPictureFrames(dest: TStrings);
 var i: Integer;
     aTagItem: TApeTagItem;
 begin
@@ -744,7 +671,7 @@ begin
     end;
 end;
 
-function TBaseApeFile.GetPicture(aKey: AnsiString; dest: TStream; var description: UnicodeString): boolean;
+function TApeTag.GetPicture(aKey: AnsiString; dest: TStream; var description: UnicodeString): boolean;
 var i: Integer;
     aTagItem: TApeTagItem;
 begin
@@ -760,13 +687,13 @@ begin
     end;
 end;
 
-function TBaseApeFile.GetPicture(aType: TApePictureTypes; dest: TStream;
+function TApeTag.GetPicture(aType: TApePictureTypes; dest: TStream;
   var description: UnicodeString): boolean;
 begin
     result := GetPicture(TPictureTypeStrings[aType], dest, description);
 end;
 
-procedure TBaseApeFile.SetPicture(aKey: AnsiString; description: UnicodeString; source: TStream);
+procedure TApeTag.SetPicture(aKey: AnsiString; description: UnicodeString; source: TStream);
 var i: Integer;
     aTagItem: TApeTagItem;
     success: Boolean;
@@ -796,7 +723,7 @@ begin
     end;
 end;
 
-procedure TBaseApeFile.SetPicture(aType: TApePictureTypes;description: String; source: TStream);
+procedure TApeTag.SetPicture(aType: TApePictureTypes;description: String; source: TStream);
 begin
     SetPicture(TPictureTypeStrings[aType], description, source);
 end;
@@ -809,7 +736,7 @@ end;
     and verify, that this tag does not belong to the APETAGEX of the Header
     of the APE Tag.
 }
-function TBaseApeFile.CheckForID3Tag(aStream: TStream): Boolean;
+function TApeTag.CheckForID3Tag(aStream: TStream): Boolean;
 var aApeHeader: TApeHeader;
 begin
     aStream.Seek(-128, soFromEnd);
@@ -828,20 +755,6 @@ begin
         result := false;
 end;
 
-{
-    ReadAudioDataFromStream
-    Read the audio data from a stream
-    This should be implemented in derived classes
-}
-function TBaseApeFile.ReadAudioDataFromStream(aStream: TStream): Boolean;
-begin
-    fDuration   := 0;
-    fBitrate    := 0;
-    fSamplerate := 0;
-    fChannels   := 0;
-    result := True;
-end;
-
 
 {
     ReadTagFromStream
@@ -849,16 +762,16 @@ end;
     The parameter ReadItems is used for reading basic data (Footer, Header)
     just before writing the new Tag into the File
 }
-function TBaseApeFile.ReadTagFromStream(aStream: TStream; ReadItems: Boolean = True): TAudioError;
+function TApeTag.ReadTagFromStream(aStream: TStream; ReadItems: Boolean): TAudioError;
 var c, i: Integer;
     newItem: TApeTagItem;
 begin
-    //Clear data
+
     result := FileErr_None;
 
     fID3v1Present := CheckForID3Tag(aStream);
     if fID3v1Present then
-        fID3v1TagSize := 128        // the ID3v1Tag is now stored in fID3v1tag
+        fID3v1TagSize := 128  // the ID3v1Tag is now stored in fID3v1tag
     else
         fID3v1TagSize := 0;
 
@@ -915,28 +828,32 @@ begin
         result := ApeErr_NoTag;
 end;
 
+function TApeTag.ReadFromStream(aStream: TStream): TAudioError;
+begin
+    result := ReadTagFromStream(aStream, True);
+end;
 
-function TBaseApeFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
+
+function TApeTag.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
 begin
-    inherited;
     Clear;
     if AudioFileExists(aFilename) then
     begin
         try
             fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
             try
-                fFileSize := fs.Size;
+
                 // Check for an existing ID3v2Tag and get its size
-                fID3v2TagSize := GetID3Size(fs);
+                // fID3v2TagSize := GetID3Size(fs);
                 // Read the APEv2Tag from the stream
-                result := ReadTagFromStream(fs);
+                result := ReadTagFromStream(fs, True);
 
                 // Read the Audio Data (duration, bitrate, ) from the file.
                 // This should be done in derivate classes
                 // TagSizes (all 3) may be needed there
-                fs.Seek(fID3v2TagSize, soBeginning);
-                ReadAudioDataFromStream(fs);
+                // fs.Seek(fID3v2TagSize, soBeginning);
+                // ReadAudioDataFromStream(fs);
             finally
                 fs.Free;
             end;
@@ -947,7 +864,7 @@ begin
         result := FileErr_NoFile;
 end;
 
-procedure TBaseApeFile.fPrepareFooterAndHeader;
+procedure TApeTag.fPrepareFooterAndHeader;
 var b: DWord;
 begin
     b := 1;
@@ -964,12 +881,11 @@ begin
     fApev2TagHeader.Flags     := (b shl 31) or (b shl 29);
 end;
 
-function TBaseApeFile.WriteToFile(aFilename: UnicodeString): TAudioError;
+function TApeTag.WriteToFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
-    oldTag: TBaseApeFile;
+    oldTag: TApeTag;
     i: Integer;
 begin
-    inherited;
     result := FileErr_None;
 
     fPrepareFooterAndHeader;
@@ -984,7 +900,7 @@ begin
                 fs := TAudioFileStream.Create(aFilename, fmOpenReadWrite or fmShareDenyWrite);
                 try
                     /// Check the file for an existing tag
-                    oldTag := TBaseApeFile.Create;
+                    oldTag := TApeTag.Create;
                     try
                         oldTag.ReadTagFromStream(fs, False); // items there are not needed
                         fs.Seek(- oldTag.fOffset, soEnd);
@@ -1014,11 +930,10 @@ begin
     end;
 end;
 
-function TBaseApeFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
+function TApeTag.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
-    oldTag: TBaseApeFile;
+    oldTag: TApeTag;
 begin
-    inherited;
     result := FileErr_None;
 
     if AudioFileExists(aFilename) then
@@ -1027,7 +942,7 @@ begin
             fs := TAudioFileStream.Create(aFilename, fmOpenReadWrite or fmShareDenyWrite);
             try
                 /// Check the file for an existing tag
-                oldTag := TBaseApeFile.Create;
+                oldTag := TApeTag.Create;
                 try
                     oldTag.ReadTagFromStream(fs, False); // items there are not needed
                     if oldTag.fOffset > 0 then

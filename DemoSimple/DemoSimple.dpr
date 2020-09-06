@@ -12,7 +12,7 @@ uses
   Id3v2Frames in '..\source\Id3v2Frames.pas',
   MonkeyFiles in '..\source\MonkeyFiles.pas',
   Mp3Files in '..\source\Mp3Files.pas',
-  Mp3FileUtils in '..\source\Mp3FileUtils.pas',
+  MpegFrames in '..\source\MpegFrames.pas',
   MusePackFiles in '..\source\MusePackFiles.pas',
   OggVorbisFiles in '..\source\OggVorbisFiles.pas',
   OptimFrogFiles in '..\source\OptimFrogFiles.pas',

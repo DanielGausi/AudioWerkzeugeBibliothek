@@ -9,6 +9,9 @@
         <Projects Include="..\DemoExtended\DemoExtended.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\DemoMp3\DemoMp3.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
     <Target Name="DemoExtended:Make">
         <MSBuild Projects="..\DemoExtended\DemoExtended.dproj" Targets="Make"/>
     </Target>
+    <Target Name="DemoMp3">
+        <MSBuild Projects="..\DemoMp3\DemoMp3.dproj"/>
+    </Target>
+    <Target Name="DemoMp3:Clean">
+        <MSBuild Projects="..\DemoMp3\DemoMp3.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DemoMp3:Make">
+        <MSBuild Projects="..\DemoMp3\DemoMp3.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DemoSimple;DemoExtended"/>
+        <CallTarget Targets="DemoSimple;DemoExtended;DemoMp3"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DemoSimple:Clean;DemoExtended:Clean"/>
+        <CallTarget Targets="DemoSimple:Clean;DemoExtended:Clean;DemoMp3:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DemoSimple:Make;DemoExtended:Make"/>
+        <CallTarget Targets="DemoSimple:Make;DemoExtended:Make;DemoMp3:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

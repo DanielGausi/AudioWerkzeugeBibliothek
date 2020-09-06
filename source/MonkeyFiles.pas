@@ -57,7 +57,7 @@ unit MonkeyFiles;
 
 interface
 
-uses Windows, Messages, SysUtils,  Classes, Apev2Tags, Dialogs,
+uses Windows, Messages, SysUtils,  Classes, BaseApeFiles, Dialogs,
     AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
 
 const

@@ -104,7 +104,7 @@
         <DCCReference Include="..\source\Id3v2Frames.pas"/>
         <DCCReference Include="..\source\MonkeyFiles.pas"/>
         <DCCReference Include="..\source\Mp3Files.pas"/>
-        <DCCReference Include="..\source\Mp3FileUtils.pas"/>
+        <DCCReference Include="..\source\MpegFrames.pas"/>
         <DCCReference Include="..\source\MusePackFiles.pas"/>
         <DCCReference Include="..\source\OggVorbisFiles.pas"/>
         <DCCReference Include="..\source\OptimFrogFiles.pas"/>

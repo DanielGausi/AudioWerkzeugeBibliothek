@@ -1181,7 +1181,7 @@ end;
 function TFlacFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
 begin
-    inherited;
+    inherited ReadFromFile(aFilename);
     // Clear Data, Metablocks, ...
     ClearData;
     if AudioFileExists(aFilename) then
@@ -1391,7 +1391,7 @@ var fs: TAudioFileStream;
     tmpFlacFile: TFlacFile;
     AvailableSize: Integer;
 begin
-    inherited;
+    inherited WriteToFile(aFilename);
     if AudioFileExists(aFilename) then
     begin
         try
@@ -1463,7 +1463,7 @@ end;
 
 function TFlacFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited RemoveFromFile(aFilename);
     result := FlacErr_RemovingNotSupported;
 end;
 

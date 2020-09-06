@@ -17,7 +17,7 @@ uses
   Mp3Files in '..\source\Mp3Files.pas',
   Id3Basics in '..\source\Id3Basics.pas',
   Id3v2Frames in '..\source\Id3v2Frames.pas',
-  Mp3FileUtils in '..\source\Mp3FileUtils.pas',
+  MpegFrames in '..\source\MpegFrames.pas',
   U_CharCode in '..\source\U_CharCode.pas',
   WmaFiles in '..\source\WmaFiles.pas',
   WavFiles in '..\source\WavFiles.pas',
@@ -26,7 +26,11 @@ uses
   ID3GenreList in '..\source\ID3GenreList.pas',
   AudioFiles.Base in '..\source\AudioFiles.Base.pas',
   AudioFiles.Declarations in '..\source\AudioFiles.Declarations.pas',
-  AudioFiles.Factory in '..\source\AudioFiles.Factory.pas';
+  AudioFiles.Factory in '..\source\AudioFiles.Factory.pas',
+  BaseApeFiles in '..\source\BaseApeFiles.pas',
+  ID3v1Tags in '..\source\ID3v1Tags.pas',
+  ID3v2Tags in '..\source\ID3v2Tags.pas',
+  LanguageCodeList in '..\source\LanguageCodeList.pas';
 
 {$R *.res}
 

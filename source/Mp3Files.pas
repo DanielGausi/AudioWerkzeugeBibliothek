@@ -10,6 +10,9 @@
     Unit MP3Files
 
     Manipulate mp3-Files
+    * Read MPEG information (bitrate, samplerate, ...)
+    * Read/Write ID3v1-Tags
+    * Read/Write ID3v2-Tags
 
     ---------------------------------------------------------------------------
 
@@ -51,7 +54,7 @@ interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
      AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations,
-     Mp3FileUtils, ID3v2Frames;
+     ID3v1Tags, ID3v2Tags, MpegFrames, ID3v2Frames;
 
 type
 
@@ -485,7 +488,7 @@ function TMP3File.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
     tmp1, tmp2, tmpMpeg: TMP3Error;
 begin
-    inherited;
+    inherited ReadFromFile(aFilename);
 
     Clear;
     if AudioFileExists(aFilename) then
@@ -564,7 +567,7 @@ end;
 function TMP3File.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 var tmp: TMP3Error;
 begin
-    inherited;
+    inherited RemoveFromFile(aFilename);
 
     tmp := MP3ERR_None;
     if fTagDeleteMode in [id3_del_both, id3_del_v1] then
@@ -578,7 +581,7 @@ function TMP3File.WriteToFile(aFilename: UnicodeString): TAudioError;
 var tmp: TMP3Error;
     TagWritten: Boolean;
 begin
-    inherited;
+    inherited WriteToFile(aFilename);
     tmp := MP3ERR_None;
 
     case fTagWriteMode of

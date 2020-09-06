@@ -824,10 +824,10 @@ begin
 end;
 
 function TOggVorbisFile.BackUpRestOfFile(source: tStream; BackUpFilename: String): TAudioError;
-var fs: TFileStream;
+var fs: TAudioFileStream;
 begin
     try
-        fs := TFileStream.Create(BackupFilename, fmCreate);
+        fs := TAudioFileStream.Create(BackupFilename, fmCreate);
         try
             fs.CopyFrom(source, source.Size - source.Position);
             result := FileErr_None;
@@ -840,10 +840,10 @@ begin
 end;
 
 function TOggVorbisFile.AppendBackup(Destination: tStream; BackUpFilename: String): TAudioError;
-var fs: TFileStream;
+var fs: TAudioFileStream;
 begin
     try
-        fs := TFileStream.Create(BackupFilename, fmOpenread);
+        fs := TAudioFileStream.Create(BackupFilename, fmOpenread);
         try
             Destination.CopyFrom(fs, 0);
             result := FileErr_None;
@@ -856,14 +856,14 @@ begin
 end;
 
 function TOggVorbisFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TFileStream;
+var fs: TAudioFileStream;
 begin
-    inherited;
+    inherited ReadFromFile(aFilename);
     ClearData;
     if AudioFileExists(aFilename) then
     begin
         try
-            fs := TFileStream.Create(aFileName, fmOpenRead or fmShareDenyWrite);
+            fs := TAudioFileStream.Create(aFileName, fmOpenRead or fmShareDenyWrite);
             try
                 fFileSize := fs.Size;
 
@@ -896,7 +896,7 @@ end;
 
 
 function TOggVorbisFile.WriteToFile(aFilename: UnicodeString): TAudioError;
-var fs: TFileStream;
+var fs: TAudioFileStream;
     tmpStream: TMemoryStream;
 
     localFirstOggVorbisPage: TFirstOggVorbisPage;
@@ -909,11 +909,11 @@ var fs: TFileStream;
     tmpSegments: Integer;
 
 begin
-    inherited;
+    inherited WriteToFile(aFilename);
     if AudioFileExists(aFilename) then
     begin
         try
-            fs := TFileStream.Create(aFilename, fmOpenReadWrite or fmShareDenyWrite);
+            fs := TAudioFileStream.Create(aFilename, fmOpenReadWrite or fmShareDenyWrite);
             try
                 localFirstOggVorbisPage := TFirstOggVorbisPage.Create;
                 localSecondOggVorbisPage:= TSecondOggVorbisPage.Create;
@@ -1053,7 +1053,7 @@ end;
 
 function TOggVorbisFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited RemoveFromFile(aFilename);
     result := OVErr_RemovingNotSupported;
 end;
 

@@ -442,11 +442,11 @@ end;
 function TWMAfile.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var
   Data: FileData;
-  fs: TFileStream;
+  fs: TAudioFileStream;
   ID: ObjectID;
   Iterator, ObjectCount, ObjectSize, Position: Integer;
 begin
-    inherited;
+    inherited ReadFromFile(aFilename);
     // Reset variables and load file data
     fResetData;
     FillChar(Data, SizeOf(Data), 0);
@@ -517,13 +517,13 @@ end;
 
 function TWMAfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited RemoveFromFile(aFilename);
     result := WmaErr_WritingNotSupported;
 end;
 
 function TWMAfile.WriteToFile(aFilename: UnicodeString): TAudioError;
 begin
-    inherited;
+    inherited   WriteToFile(aFilename);
     result := WmaErr_WritingNotSupported;
 end;
 
