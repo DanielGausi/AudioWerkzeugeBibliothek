@@ -68,7 +68,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, ContNrs, Classes,
   VorbisComments, ID3Basics,
-  AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
+  AudioFiles.Base, AudioFiles.Declarations;
 
 
 const
@@ -1056,11 +1056,6 @@ begin
     inherited RemoveFromFile(aFilename);
     result := OVErr_RemovingNotSupported;
 end;
-
-initialization
-
-  AudioFileFactory.RegisterClass(TOggVorbisFile, '.ogg');
-  AudioFileFactory.RegisterClass(TOggVorbisFile, '.oga');
 
 
 end.

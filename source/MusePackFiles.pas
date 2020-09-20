@@ -59,7 +59,7 @@ unit MusePackFiles;
 interface
 
 uses Windows, Messages, SysUtils,  Classes, BaseApeFiles, Dialogs,
-     AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
+     AudioFiles.Base,  AudioFiles.Declarations;
 
 const
 
@@ -366,12 +366,6 @@ begin
             fBitrate := 0;
     end;
 end;
-
-initialization
-
-  AudioFileFactory.RegisterClass(TMusePackFile, '.mpc');
-  AudioFileFactory.RegisterClass(TMusePackFile, '.mp+');
-  AudioFileFactory.RegisterClass(TMusePackFile, '.mpp');
 
 
 end.

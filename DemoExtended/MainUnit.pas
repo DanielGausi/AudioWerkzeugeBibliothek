@@ -42,16 +42,16 @@ type
     DirectoryListBox1: TDirectoryListBox;
     FileListBox1: TFileListBox;
     GrpBoxLyrics: TGroupBox;
-    LblFileSize: TLabel;
-    LblDuration: TLabel;
-    LblBitrate: TLabel;
-    LblChannels: TLabel;
-    MemoSpecific: TMemo;
-    LblAudioType: TLabel;
     MemoLyrics: TMemo;
     BtnRemoveTag: TButton;
     BtnSave: TButton;
-    // procedure BtnLoadClick(Sender: TObject);
+    GroupBox4: TGroupBox;
+    MemoSpecific: TMemo;
+    LblAudioType: TLabel;
+    LblBitrate: TLabel;
+    LblChannels: TLabel;
+    LblDuration: TLabel;
+    LblFileSize: TLabel;
     procedure FormDestroy(Sender: TObject);
     procedure BtnSaveClick(Sender: TObject);
     procedure cbPicturesChange(Sender: TObject);
@@ -102,11 +102,8 @@ end;
 
 procedure TMainFormAWB.FileListBox1Change(Sender: TObject);
 begin
-
     if assigned(AudioFile) then
         AudioFile.Free;
-
-    // EdtFilename.Text := FileListBox1.FileName; // OpenDialog1.FileName;
 
     AudioFile := AudioFileFactory.CreateAudioFile(FileListBox1.FileName);
 
@@ -133,14 +130,14 @@ begin
 
     case AudioFile.FileType of
           at_Invalid: begin
-                ShowMessage('Invalid AudioFile');
-                lbKeys.Items.Clear;
-                MemoValue.Text := '';
-                LblAudioType.Caption := 'Invalid Audiofile';
-                LblFileSize.Caption  := 'Filesize: N/A';
-                LblDuration.Caption  := 'Duration: N/A';
-                LblBitrate.Caption   := 'Bitrate: N/A';
-                LblChannels.Caption  := 'Channels: N/A';
+              ShowMessage('Invalid AudioFile');
+              lbKeys.Items.Clear;
+              MemoValue.Text := '';
+              LblAudioType.Caption := 'Invalid Audiofile';
+              LblFileSize.Caption  := 'Filesize: N/A';
+              LblDuration.Caption  := 'Duration: N/A';
+              LblBitrate.Caption   := 'Bitrate: N/A';
+              LblChannels.Caption  := 'Channels: N/A';
           end;
           at_Mp3: begin
               RefreshID3Frames;
@@ -171,7 +168,7 @@ begin
           at_M4a: begin
               TM4AFile(AudioFile).GetAllTextAtomDescriptions(lbKeys.Items);
               MemoLyrics.Text := TM4AFile(AudioFile).Lyrics;
-               if lbKeys.Items.Count > 0 then
+              if lbKeys.Items.Count > 0 then
               begin
                   lbKeys.ItemIndex := 0;
                   MemoValue.Text := TM4AFile(AudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
@@ -224,134 +221,8 @@ begin
     end;
 
     RefreshImageList;
-
-
 end;
 
-(*
-procedure TMainFormAWB.BtnLoadClick(Sender: TObject);
-begin
-    if OpenDialog1.Execute then
-    begin
-        if assigned(AudioFile) then
-            AudioFile.Free;
-        EdtFilename.Text := OpenDialog1.FileName;
-
-        AudioFile := AudioFileFactory.CreateAudioFile(OpenDialog1.FileName);
-
-        if not assigned(AudioFile) then
-          exit;
-
-        AudioFile.ReadFromFile(OpenDialog1.FileName);
-
-        EdtArtist.Text := AudioFile.Artist;
-        EdtTitle.Text  := AudioFile.Title;
-        EdtAlbum.Text  := AudioFile.Album;
-        EdtGenre.Text  := AudioFile.Genre;
-        EdtTrack.Text  := AudioFile.Track;
-        EdtYear.Text   := AudioFile.Year;
-
-        LblAudioType.Caption  := AudioFile.FileTypeDescription;
-        LblFileSize.Caption   := Format('Filesize : %d Bytes', [AudioFile.FileSize]);
-        LblDuration.Caption   := Format('Duration   : %d seconds', [AudioFile.Duration]);
-        LblBitrate.Caption    := Format('Bitrate    : %d kbit/s', [AudioFile.Bitrate div 1000]);
-        LblChannels.Caption   := Format('Channels   : %d', [AudioFile.Channels]);
-        LblSampleRate.Caption := Format('Samplerate : %d Hz', [AudioFile.Samplerate]);
-
-        //MemoAudio.Lines.Add(AudioFile.FileTypeDescription);
-        //MemoAudio.Lines.Add(Format('Filesize : %d Bytes', [AudioFile.FileSize]));
-        //MemoAudio.Lines.Add(Format('Duration   : %d seconds', [AudioFile.Duration]));
-        //MemoAudio.Lines.Add(Format('Bitrate    : %d kbit/s', [AudioFile.Bitrate div 1000]));
-        //MemoAudio.Lines.Add(Format('Channels   : %d', [AudioFile.Channels]));
-        //MemoAudio.Lines.Add(Format('Samplerate : %d Hz', [AudioFile.Samplerate]));
-
-
-        case AudioFile.FileType of
-              at_Invalid: begin
-                    ShowMessage('Invalid AudioFile');
-                    lbKeys.Items.Clear;
-                    MemoValue.Text := '';
-              end;
-              at_Mp3: begin
-                  RefreshID3Frames;
-                  MemoSpecific.Lines.Add(Format('ID3v1: %d Bytes', [TMP3File(AudioFile).ID3v1TagSize]));
-                  MemoSpecific.Lines.Add(Format('ID3v2: %d Bytes', [TMP3File(AudioFile).ID3v2TagSize]));
-              end;
-              at_Ogg: begin
-                  TOggVorbisFile(AudioFile).GetAllFields(lbKeys.Items);
-                  if lbKeys.Items.Count > 0 then
-                  begin
-                      lbKeys.ItemIndex := 0;
-                      MemoValue.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-                  end else
-                      MemoValue.Text := '';
-              end;
-              at_Flac: begin
-                  TFlacFile(AudioFile).GetAllFields(lbKeys.Items);
-                  if lbKeys.Items.Count > 0 then
-                  begin
-                      lbKeys.ItemIndex := 0;
-                      MemoValue.Text := TFlacFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-                  end else
-                      MemoValue.Text := '';
-              end;
-              at_M4a: begin
-                  TM4AFile(AudioFile).GetAllTextAtomDescriptions(lbKeys.Items);
-                   if lbKeys.Items.Count > 0 then
-                  begin
-                      lbKeys.ItemIndex := 0;
-                      MemoValue.Text := TM4AFile(AudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
-                  end else
-                      MemoValue.Text := '';
-              end;
-              at_Monkey,
-              at_WavPack,
-              at_MusePack,
-              at_OptimFrog,
-              at_TrueAudio: begin
-                  TBaseApeFile(AudioFile).GetAllFrames(lbKeys.Items);
-                  if lbKeys.Items.Count > 0 then
-                  begin
-                      lbKeys.ItemIndex := 0;
-                      MemoValue.Text := TBaseApeFile(AudioFile).GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
-                  end else
-                      MemoValue.Text := '';
-                  MemoSpecific.Lines.Add(Format('ID3v1: %d Bytes', [TBaseApeFile(AudioFile).ID3v1TagSize]));
-                  MemoSpecific.Lines.Add(Format('ID3v2: %d Bytes', [TBaseApeFile(AudioFile).ID3v2TagSize]));
-                  MemoSpecific.Lines.Add(Format('ApeV2: %d Bytes', [TBaseApeFile(AudioFile).Apev2TagSize]));
-              end;
-        end;
-
-        case AudioFile.FileType of
-              at_Monkey  : begin
-                  MemoSpecific.Lines.Add(Format('Version     %s', [TMonkeyFile(AudioFile).VersionStr]));
-                  MemoSpecific.Lines.Add(Format('Compression %s', [TMonkeyFile(AudioFile).CompressionModeStr]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample: %d',[TMonkeyFile(AudioFile).Bits]));
-              end;
-              at_WavPack : begin
-                  MemoSpecific.Lines.Add(Format('Enoder      %s', [TWavPackFile(AudioFile).Encoder]));
-                  MemoSpecific.Lines.Add(Format('Channelmode %s', [TWavPackFile(AudioFile).ChannelMode]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample: %d',[TWavPackFile(AudioFile).Bits]));
-              end;
-              at_MusePack: begin
-                  MemoSpecific.Lines.Add(Format('Version     %s', [TMusePackFile(AudioFile).VersionString]));
-                  MemoSpecific.Lines.Add(Format('Channelmode %s', [TMusePackFile(AudioFile).ChannelMode]));
-              end;
-              at_OptimFrog: begin
-                  MemoSpecific.Lines.Add(Format('Version     %s', [TOptimFrogFile(AudioFile).Version]));
-                  MemoSpecific.Lines.Add(Format('Compression %s', [TOptimFrogFile(AudioFile).Compression]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample %d', [TOptimFrogFile(AudioFile).Bits]));
-              end;
-              at_TrueAudio: begin
-                  MemoSpecific.Lines.Add(Format('AudioFormat %d', [TTrueAudioFile(AudioFile).AudioFormat]));
-                  MemoSpecific.Lines.Add(Format('Bits/Sample %d', [TTrueAudioFile(AudioFile).Bits]));
-              end;
-        end;
-
-        RefreshImageList;
-    end;
-end;
-*)
 
 procedure TMainFormAWB.RefreshID3Frames;
 var iFrame: TID3v2Frame;

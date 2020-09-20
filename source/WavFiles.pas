@@ -58,7 +58,7 @@ unit WavFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations;
 
 
 type
@@ -342,10 +342,6 @@ begin
     inherited WriteToFile(aFilename);
     result := WavErr_WritingNotSupported;
 end;
-
-initialization
-
-  AudioFileFactory.RegisterClass(TWavfile, '.wav');
 
 
 end.

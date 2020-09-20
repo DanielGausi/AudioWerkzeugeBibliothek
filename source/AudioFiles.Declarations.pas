@@ -36,6 +36,22 @@ type
 
     TBuffer = Array of byte;
 
+    String4  = String[4];
+    String30 =  String[30];
+
+
+     // Structure of ID3v1Tags in the file
+    TID3v1Structure = record
+      ID: array[1..3] of AnsiChar;         //  3
+      Title: Array [1..30] of AnsiChar;    // 30
+      Artist: Array [1..30] of AnsiChar;   // 30
+      Album: Array [1..30] of AnsiChar;    // 30
+      Year: array [1..4] of AnsiChar;      //  4
+      Comment: Array [1..30] of AnsiChar;  // 30
+      Genre: Byte;                         //  1 = 128 Bytes total
+    end;
+
+
     TAudioFileType = (at_Invalid,
                       at_Mp3,
                       at_Ogg,
@@ -49,12 +65,22 @@ type
                       at_Wma,
                       at_Wav,
                       at_AbstractApe);
-    TMP3Error = (MP3ERR_None, MP3ERR_NoFile, MP3ERR_FOpenCrt, MP3ERR_FOpenR,
-               MP3ERR_FOpenRW, MP3ERR_FOpenW, MP3ERR_SRead, MP3ERR_SWrite,
-               ID3ERR_Cache, ID3ERR_NoTag, ID3ERR_Invalid_Header, ID3ERR_Compression,
-               ID3ERR_Unclassified,
-               MPEGERR_NoFrame );
-
+    (*
+    TMP3Error = ( MP3ERR_None,
+                  MP3ERR_NoFile,
+                  MP3ERR_FOpenCrt,
+                  MP3ERR_FOpenR,
+                  MP3ERR_FOpenRW,
+                  MP3ERR_FOpenW,
+                  MP3ERR_SRead,
+                  MP3ERR_SWrite,
+                  ID3ERR_Cache,
+                  ID3ERR_NoTag,
+                  ID3ERR_Invalid_Header,
+                  ID3ERR_Compression,
+                  ID3ERR_Unclassified,
+                  MPEGERR_NoFrame );
+     *)
 
     TAudioError = (
           FileErr_None,

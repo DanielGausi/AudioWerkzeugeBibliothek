@@ -247,12 +247,10 @@ unit MpegFrames;
 interface
 
 uses
-  SysUtils, Classes, Windows, Contnrs, U_CharCode
-  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF}
-  , AudioFiles.Declarations;
+  SysUtils, Classes, Windows, Contnrs, U_CharCode, AudioFiles.Declarations
+  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
 
 type
-
 
 
 //--------------------------------------------------------------------
@@ -338,12 +336,12 @@ type
 
     constructor create;
     destructor Destroy; override;
-    function LoadFromStream(stream: tStream): TMP3Error;
-    function LoadFromFile(FileName: UnicodeString): TMP3Error;
+    function LoadFromStream(stream: tStream): TAudioError;
+    function LoadFromFile(FileName: UnicodeString): TAudioError;
     // StoreFrames: This is only for a low level analysis of the file
     //              It is mainly used by myself to have a closer look on "odd" mp3 files
     //              which some properties leading to wrong results in bitrate, duration and stuff.
-    function StoreFrames(aStream: TStream): TMP3Error;
+    function StoreFrames(aStream: TStream): TAudioError;
     property MpegFrames: TMpegFramesArray read fMpegFrames;
     // properties of an mp3file, most of them based on the properties of the MPEG frames
     property Filesize: int64          read   FFilesize;
@@ -426,7 +424,7 @@ end;
 //------------------------------------------------------
 // Get the MPEG-Information from a stream
 //------------------------------------------------------
-function TMpegInfo.LoadFromStream(stream: tStream): TMP3Error;
+function TMpegInfo.LoadFromStream(stream: tStream): TAudioError;
 var buffer: TBuffer;
   erfolg, Skip3rdTest: boolean;
   positionInStream, CombinedFrameLength: int64;
@@ -455,7 +453,7 @@ begin
   FFilesize := Stream.Size;
 
   // be pessimistic first. No mpeg-frame-header found.
-  result := MPEGERR_NoFrame;
+  result := MP3ERR_NoMpegFrame;
   Fvalid := False;
   erfolg := False;
 
@@ -590,7 +588,7 @@ begin
 
       Fvalid := True;
       FfirstHeaderPosition := PositionInStream;
-      result := MP3ERR_None;
+      result := FileErr_None;
       erfolg := True;
   end;
 
@@ -667,7 +665,7 @@ end;
 //  StoreFrames
 //  Analyse the file completely and store all mpeg frames into the fMpegFrames-array
 //------------------------------------------------------
-function TMpegInfo.StoreFrames(aStream: TStream): TMP3Error;
+function TMpegInfo.StoreFrames(aStream: TStream): TAudioError;
 var bufpos, i: Integer;
     buffer: TBuffer;
     aMpegHeader: TMpegHeader;
@@ -681,7 +679,7 @@ begin
 
     if FfirstHeaderPosition = -1 then
     begin
-        result := MPEGERR_NoFrame;
+        result := MP3ERR_NoMpegFrame;
         exit;
     end;
 
@@ -727,7 +725,7 @@ begin
 end;
 
 
-function TMpegInfo.LoadFromFile(FileName: UnicodeString): TMP3Error;
+function TMpegInfo.LoadFromFile(FileName: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
   if AudioFileExists(Filename) then
@@ -739,10 +737,10 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenR;
+      result := FileErr_FileOpenR;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 //------------------------------------------------------

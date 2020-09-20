@@ -30,6 +30,10 @@ object FormNewFrame: TFormNewFrame
     OnChange = pcFrameTypeSelectionChange
     object tsText: TTabSheet
       Caption = 'Text'
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label1: TLabel
         Left = 8
         Top = 16
@@ -60,7 +64,6 @@ object FormNewFrame: TFormNewFrame
         Width = 393
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
         TabOrder = 0
       end
       object Ed_TextFrame: TLabeledEdit
@@ -78,6 +81,10 @@ object FormNewFrame: TFormNewFrame
     object TabSheet2: TTabSheet
       Caption = 'Comment'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label2: TLabel
         Left = 8
         Top = 8
@@ -105,7 +112,6 @@ object FormNewFrame: TFormNewFrame
         Width = 73
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
         TabOrder = 0
         OnChange = EdtCommentDescriptionChange
       end
@@ -129,6 +135,10 @@ object FormNewFrame: TFormNewFrame
     object TabSheet6: TTabSheet
       Caption = 'Lyrics'
       ImageIndex = 5
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label10: TLabel
         Left = 8
         Top = 8
@@ -156,7 +166,6 @@ object FormNewFrame: TFormNewFrame
         Width = 73
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
         TabOrder = 0
         OnChange = EdtCommentDescriptionChange
       end
@@ -180,6 +189,10 @@ object FormNewFrame: TFormNewFrame
     object tsURLs: TTabSheet
       Caption = 'URLs'
       ImageIndex = 3
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object Label7: TLabel
         Left = 8
         Top = 16
@@ -208,7 +221,6 @@ object FormNewFrame: TFormNewFrame
         Width = 329
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
         TabOrder = 0
       end
       object ED_URLFrame: TLabeledEdit
@@ -256,6 +268,10 @@ object FormNewFrame: TFormNewFrame
     object TabSheet5: TTabSheet
       Caption = 'Cover art'
       ImageIndex = 4
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object ImgNewPic: TImage
         Left = 8
         Top = 8
@@ -285,7 +301,6 @@ object FormNewFrame: TFormNewFrame
         Width = 193
         Height = 21
         Style = csDropDownList
-        ItemHeight = 13
         TabOrder = 0
       end
       object EdtPictureDescription: TEdit
@@ -309,6 +324,10 @@ object FormNewFrame: TFormNewFrame
     object tsPrivate: TTabSheet
       Caption = 'Private Frame'
       ImageIndex = 6
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       DesignSize = (
         424
         206)

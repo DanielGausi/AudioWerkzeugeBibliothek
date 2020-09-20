@@ -6,7 +6,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, ContNrs,
-  Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG,  Mp3FileUtils, ID3v2Frames,
+  Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG, MpegFrames, ID3v1Tags, ID3v2Tags, ID3v2Frames,
   ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage{$ENDIF};
 
 type

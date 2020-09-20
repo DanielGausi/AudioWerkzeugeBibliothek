@@ -54,7 +54,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, ContNrs, Classes
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF},
-  AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations,
+  AudioFiles.Base, AudioFiles.Declarations,
   VorbisComments, Id3Basics , winsock;
 
 const
@@ -1467,9 +1467,5 @@ begin
     result := FlacErr_RemovingNotSupported;
 end;
 
-initialization
-
-  AudioFileFactory.RegisterClass(TFlacFile, '.flac');
-  AudioFileFactory.RegisterClass(TFlacFile, '.fla');
 
 end.

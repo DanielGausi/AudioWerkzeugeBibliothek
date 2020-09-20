@@ -59,30 +59,26 @@ unit BaseApeFiles;
 interface
 
 uses Windows, SysUtils, Classes,
-     AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations,
-     Id3Basics, ApeV2Tags, ApeTagItem;
-
-const
-    APE_PREAMBLE = 'APETAGEX';
+     AudioFiles.Base, AudioFiles.Declarations,
+     Id3Basics, ID3v1Tags, ApeV2Tags, ApeTagItem;
 
 type
 
-    TApeHeader = record
-        Preamble: Array[1..8] of AnsiChar;
-        Version: DWord;
-        Size: DWord;
-        ItemCount: DWord;
-        Flags: DWord;
-        Reserved: Array[1..8] of Byte;
-    end;
+    TTagWriteModeApe = (ape_both, ape_id3v1, ape_ape, ape_existing);
+    TTagDefaultModeApe = (ape_def_both, ape_def_id3v1, ape_def_ape);
+    TTagDeleteModeApe = (ape_del_both, ape_del_id3v1, ape_del_ape);
+
 
     TBaseApeFile = class (TBaseAudioFile)
         private
 
             fApeTag: TApeTag;
+            fID3v1Tag: TID3v1tag;
 
-            //fID3v1Present: Boolean;
-            //fID3v1TagSize: Cardinal;
+            fTagWriteMode  : TTagWriteModeApe;
+            fTagDefaultMode: TTagDefaultModeApe;
+            fTagDeleteMode : TTagDeleteModeApe;
+
             fID3v2TagSize: Cardinal;
 
             function fGetID3v1TagSize: Cardinal;
@@ -90,12 +86,6 @@ type
             function fGetCombinedTagSize: Cardinal;  // The Size of Ape, ID3v and ID3v2 together. Used for Bitrate calculation
 
       protected
-            // Audio properties
-            //fDuration   : Integer;
-            //fBitrate    : Integer;
-            //fSamplerate : Integer;
-            //fChannels   : Integer;
-            //fValid      : Boolean;
             function fGetFileSize   : Int64;    override;
             function fGetDuration   : Integer;  override;
             function fGetBitrate    : Integer;  override;
@@ -121,12 +111,16 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
 
-
         public
             property ApeTag: TApeTag read fApeTag;
+            property ID3v1Tag: TID3v1tag read fID3v1Tag;
+
+            property TagWriteMode  : TTagWriteModeApe   read fTagWriteMode  ;
+            property TagDefaultMode: TTagDefaultModeApe read fTagDefaultMode;
+            property TagDeleteMode : TTagDeleteModeApe  read fTagDeleteMode ;
 
             // Size of the Tags in Bytes
-            // Note: Only the Apev2Tag is really processed here
+            // Note: Only the Apev2Tag and ID3v1Tag is really processed here
             //       The other Tags ore only considered for bitrate calculation later
             property Apev2TagSize   : Cardinal read fGetApeTagSize;
             property ID3v1TagSize   : Cardinal read fGetID3v1TagSize;
@@ -150,11 +144,17 @@ implementation
 constructor TBaseApeFile.Create;
 begin
     fApeTag := TApeTag.Create;
+    fID3v1Tag := TID3v1Tag.Create;
+
+    fTagWriteMode   := ape_existing;
+    fTagDefaultMode := ape_def_both;
+    fTagDeleteMode  := ape_del_both;
 end;
 
 destructor TBaseApeFile.Destroy;
 begin
     fApeTag.Free;
+    fID3v1Tag.Free;
     inherited;
 end;
 
@@ -175,6 +175,8 @@ end;
 procedure TBaseApeFile.Clear;
 begin
     ApeTag.Clear;
+    ID3v1Tag.Clear;
+
     FFileSize := 0;
     fID3v2TagSize := 0;
     fDuration   := 0;
@@ -235,52 +237,70 @@ end;
 procedure TBaseApeFile.fSetAlbum(aValue: UnicodeString);
 begin
     ApeTag.Album := aValue;
+    fID3v1Tag.Album := aValue;
 end;
 procedure TBaseApeFile.fSetArtist(aValue: UnicodeString);
 begin
     ApeTag.Artist := aValue;
+    fID3v1Tag.Artist := aValue;
 end;
 procedure TBaseApeFile.fSetTitle(aValue: UnicodeString);
 begin
     ApeTag.Title := aValue;
+    fID3v1Tag.Title := aValue;
 end;
 procedure TBaseApeFile.fSetTrack(aValue: UnicodeString);
 begin
     ApeTag.Track := aValue;
+    fID3v1Tag.Track := aValue;
 end;
 procedure TBaseApeFile.fSetYear(aValue: UnicodeString);
 begin
     ApeTag.Year := aValue;
+    fID3v1Tag.Year := aValue;
 end;
 procedure TBaseApeFile.fSetGenre(aValue: UnicodeString);
 begin
     ApeTag.Genre := aValue;
+    fID3v1Tag.Genre := aValue;
 end;
 
 
 function TBaseApeFile.fGetAlbum: UnicodeString;
 begin
     result := ApeTag.Album;
+    if result = '' then
+        result := fID3v1Tag.Album;
 end;
 function TBaseApeFile.fGetArtist: UnicodeString;
 begin
     result := ApeTag.Artist;
+    if result = '' then
+        result := fID3v1Tag.Artist;
 end;
 function TBaseApeFile.fGetGenre: UnicodeString;
 begin
     result := ApeTag.Genre;
+    if result = '' then
+        result := fID3v1Tag.Genre;
 end;
 function TBaseApeFile.fGetTitle: UnicodeString;
 begin
     result := ApeTag.Title;
+    if result = '' then
+        result := fID3v1Tag.Title;
 end;
 function TBaseApeFile.fGetTrack: UnicodeString;
 begin
     result := ApeTag.Track;
+    if result = '' then
+        result := fID3v1Tag.Track;
 end;
 function TBaseApeFile.fGetYear: UnicodeString;
 begin
     result := ApeTag.Year;
+    if result = '' then
+        result := fID3v1Tag.Year;
 end;
 
 {
@@ -316,6 +336,10 @@ begin
                 // Read the APEv2Tag from the stream
                 result := ApeTag.ReadFromStream(fs);
 
+                // no matter what the result is: we may have also already read a raw ID3v1Tag
+                if ApeTag.ID3v1Present then
+                    fID3v1Tag.CopyFromRawTag(ApeTag.ID3v1TagRaw);
+
                 // Read the Audio Data (duration, bitrate, ) from the file.
                 // This should be done in derivate classes
                 // TagSizes (all 3) may be needed there
@@ -333,9 +357,54 @@ end;
 
 
 function TBaseApeFile.WriteToFile(aFilename: UnicodeString): TAudioError;
+var TagWritten : Boolean;
 begin
     inherited WriteToFile(aFilename);
-    result := ApeTag.WriteToFile(aFilename);
+    result := FileErr_None;
+
+    case TagWriteMode of
+
+      ape_both: begin
+        result := ApeTag.WriteToFile(aFilename);
+        if result = FileErr_None then
+            result := fID3v1Tag.WriteToFile(aFilename);
+      end;
+
+      ape_id3v1: result := fID3v1Tag.WriteToFile(aFilename);
+
+      ape_ape: result := ApeTag.WriteToFile(aFilename);
+
+      ape_existing: begin
+          TagWritten := False;
+
+          if ApeTag.Exists then
+          begin
+              result := ApeTag.WriteToFile(aFilename);
+              TagWritten := True;
+          end;
+
+          if fID3v1Tag.Exists then
+          begin
+              result := fID3v1Tag.WriteToFile(aFilename);
+              TagWritten := True;
+          end;
+
+          if Not TagWritten then
+          begin
+              // Create Tag(s)
+              // (ape_def_both, ape_def_id3v1, ape_def_ape);
+              case fTagDefaultMode of
+                ape_def_both: begin
+                    result := ApeTag.WriteToFile(aFilename);
+                    if result = FileErr_None then
+                        result := fID3v1Tag.WriteToFile(aFilename);
+                end;
+                ape_def_id3v1: result := fId3v1Tag.WriteToFile(aFilename);
+                ape_def_ape: result := ApeTag.WriteToFile(aFilename);
+              end;
+          end;
+      end;
+    end;
 end;
 
 function TBaseApeFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;

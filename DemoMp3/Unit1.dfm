@@ -251,6 +251,10 @@ object Form1: TForm1
       TabOrder = 0
       object TSText: TTabSheet
         Caption = 'Text'
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           468
           236)
@@ -269,6 +273,10 @@ object Form1: TForm1
       object TSComments: TTabSheet
         Caption = 'Comments/Lyrics'
         ImageIndex = 1
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           468
           236)
@@ -317,6 +325,10 @@ object Form1: TForm1
       object TSURL: TTabSheet
         Caption = 'URLs'
         ImageIndex = 3
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           468
           236)
@@ -344,6 +356,10 @@ object Form1: TForm1
       object TSURLUserDefined: TTabSheet
         Caption = 'URLs (user defined)'
         ImageIndex = 2
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           468
           236)
@@ -486,6 +502,10 @@ object Form1: TForm1
       object TSPrivate: TTabSheet
         Caption = 'Private Frames'
         ImageIndex = 7
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           468
           236)
@@ -531,6 +551,10 @@ object Form1: TForm1
       object TSBinary: TTabSheet
         Caption = 'All data'
         ImageIndex = 5
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           468
           236)

@@ -13,12 +13,12 @@
            * Use "AudioFileFactory.CreateAudioFile(aFileName)" to create
              a proper AudioFile-Object. Relevant is the FileName Extension (like ".mp3")
 
-    Notes: * This Unit uses a TDictionary for registering the different
+    Notes: * By default, this Unit uses a TDictionary for registering the different
              types auf audiofiles (like mp3, ogg, whatever).
            * If you want to use it with an older Delphi version, undef the
              Compiler Directive "$DEFINE USE_DICTIONARY" in config.inc
              Then, a simple ObjectList is used for the registered FileClasses
-             Access to a FileClass within in ths ObjectList will move this entry
+             Access to a FileClass within in the ObjectList will move this entry
              upwards. Thus, successive access to the same FileClass will be faster.
 
 
@@ -88,7 +88,7 @@ type
           {$IFDEF USE_DICTIONARY}
           FRegisteredFileTypes: TRegFileTypesDict;
           {$ELSE}
-          // If tDictionary is unknown, use a List for registering classes
+          // If TDictionary is unknown, use a List for registering Classes
           // No Generics, just a plain TObjectlist
           FRegisteredFileTypes: TObjectList;
           {$ENDIF}
@@ -101,7 +101,6 @@ type
           procedure RemoveType(aClass: TBaseAudioFileClass);
           {$ENDIF}
 
-
         public
             constructor Create;
             destructor Destroy; override;
@@ -113,9 +112,21 @@ type
             function CreateAudioFile(aFilename: UnicodeString): TBaseAudioFile;
     end;
 
+///  --------------------------------------------------------
+///  The global AudioFileFactory for use in VCL-Thread.
+///  If you want to use an AudioFileFactory in a secondary thread, you MUST create
+///  another Factory in the context of this thread.
+///
+///  Note that neither the Dictionary implementation nor the TObjectList here is thread-safe!
+///  --------------------------------------------------------
 function AudioFileFactory: TAudioFileFactory;
 
 implementation
+
+uses
+  Mp3Files, FlacFiles, OggVorbisFiles,
+  MonkeyFiles, WavPackFiles, MusePackFiles, OptimFrogFiles, TrueAudioFiles,
+  M4AFiles, WmaFiles, WavFiles;
 
 var fLocalAudioFileFactory: TAudioFileFactory;
 
@@ -140,7 +151,6 @@ end;
 {$ENDIF}
 
 
-
 { TAudioFileFactory }
 constructor TAudioFileFactory.Create;
 begin
@@ -149,6 +159,27 @@ begin
     {$ELSE}
     FRegisteredFileTypes := TObjectList.Create(True);
     {$ENDIF}
+
+    RegisterClass(TMP3File, '.mp3');
+    RegisterClass(TMP3File, '.mp2');
+    RegisterClass(TMP3File, '.mp1');
+    RegisterClass(TFlacFile, '.flac');
+    RegisterClass(TFlacFile, '.fla');
+    RegisterClass(TOggVorbisFile, '.ogg');
+    RegisterClass(TOggVorbisFile, '.oga');
+    RegisterClass(TMusePackFile, '.mpc');
+    RegisterClass(TMusePackFile, '.mp+');
+    RegisterClass(TMusePackFile, '.mpp');
+    RegisterClass(TOptimFrogFile, '.ofr');
+    RegisterClass(TOptimFrogFile, '.ofs');
+    RegisterClass(TTrueAudioFile, '.tta');
+    RegisterClass(TMonkeyFile, '.ape');
+    RegisterClass(TMonkeyFile, '.mac');
+    RegisterClass(TM4AFile, '.m4a');
+    RegisterClass(TM4AFile, '.mp4');
+    RegisterClass(TWavPackFile, '.wv');
+    RegisterClass(TWMAfile, '.wma');
+    RegisterClass(TWavfile, '.wav');
 end;
 
 destructor TAudioFileFactory.Destroy;

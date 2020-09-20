@@ -18,8 +18,7 @@
   (in Delphi 2007 or earlier).  
 }
 
-{.$DEFINE USE_TNT_COMPOS}
-
+{$DEFINE USE_TNT_COMPOS}
 
 {
   Delphi 2009: Unicode-capable by default. TNTs ar not needed.

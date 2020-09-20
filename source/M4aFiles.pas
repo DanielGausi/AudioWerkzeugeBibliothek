@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2012, Daniel Gaussmann
+    (c) 2012-2020, Daniel Gaussmann
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
@@ -50,7 +50,7 @@ unit M4aFiles;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
- AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations, M4aAtoms;
+ AudioFiles.Base, AudioFiles.Declarations, M4aAtoms;
 
 
 const DEFAULT_MEAN: AnsiString = 'com.apple.iTunes';
@@ -783,11 +783,6 @@ procedure TM4AFile.__fSetKeywords(aValue: UnicodeString);
 begin
     MOOV.UdtaAtom.SetTextData('keyw', aValue);
 end;
-
-Initialization
-
-  AudioFileFactory.RegisterClass(TM4AFile, '.m4a');
-  AudioFileFactory.RegisterClass(TM4AFile, '.mp4');
 
 
 end.

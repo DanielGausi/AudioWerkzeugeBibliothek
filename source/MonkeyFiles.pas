@@ -58,7 +58,7 @@ unit MonkeyFiles;
 interface
 
 uses Windows, Messages, SysUtils,  Classes, BaseApeFiles, Dialogs,
-    AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
+    AudioFiles.Base, AudioFiles.Declarations;
 
 const
     // Compression level codes
@@ -325,11 +325,6 @@ begin
         end
     end;
 end;
-
-initialization
-
-  AudioFileFactory.RegisterClass(TMonkeyFile, '.ape');
-  AudioFileFactory.RegisterClass(TMonkeyFile, '.mac');
 
 
 end.

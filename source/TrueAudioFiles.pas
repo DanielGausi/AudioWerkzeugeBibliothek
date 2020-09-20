@@ -58,7 +58,7 @@ unit TrueAudioFiles;
 interface
 
 uses Windows, Messages, SysUtils,  Classes, BaseApeFiles, Dialogs,
-     AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
+     AudioFiles.Base, AudioFiles.Declarations;
 
 type
 
@@ -156,8 +156,5 @@ begin
     end;
 end;
 
-initialization
-
-  AudioFileFactory.RegisterClass(TTrueAudioFile, '.tta');
 
 end.

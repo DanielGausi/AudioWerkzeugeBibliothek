@@ -1,3 +1,12 @@
+{
+    -----------------------------------
+    Audio Werkzeuge Bibliothek
+    -----------------------------------
+    (c) 2012-2020, Daniel Gaussmann
+              Website : www.gausi.de
+              EMail   : mail@gausi.de
+    -----------------------------------
+}
 unit ID3GenreList;
 
 interface

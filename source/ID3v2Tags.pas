@@ -125,8 +125,8 @@ type
     function GetDescribedTextFrame(ID:TFrameIDs; Language:AnsiString; Description: UnicodeString): UnicodeString;
     procedure SetDescribedTextFrame(ID:TFrameIDs; Language:AnsiString; Description: UnicodeString; Value: UnicodeString);
 
-    function ReadFrames(From: LongInt; Stream: TStream): TMP3Error;
-    function ReadHeader(Stream: TStream): TMP3Error;
+    function ReadFrames(From: LongInt; Stream: TStream): TAudioError;
+    function ReadHeader(Stream: TStream): TAudioError;
     procedure SyncStream(Source, Target: TStream);
 
     // property read functions
@@ -250,12 +250,12 @@ type
     property CharCode: TCodePage read fCharCode write SetCharCode;
     property  AutoCorrectCodepage: Boolean read fAutoCorrectCodepage write SetAutoCorrectCodepage;
 
-    function ReadFromStream(Stream: TStream): TMP3Error;
-    function WriteToStream(Stream: TStream): TMP3Error;
-    function RemoveFromStream(Stream: TStream): TMP3Error;
-    function ReadFromFile(Filename: UnicodeString): TMP3Error;
-    function WriteToFile(Filename: UnicodeString): TMP3Error;
-    function RemoveFromFile(Filename: UnicodeString): TMP3Error;
+    function ReadFromStream(Stream: TStream): TAudioError;
+    function WriteToStream(Stream: TStream): TAudioError;
+    function RemoveFromStream(Stream: TStream): TAudioError;
+    function ReadFromFile(Filename: UnicodeString): TAudioError;
+    function WriteToFile(Filename: UnicodeString): TAudioError;
+    function RemoveFromFile(Filename: UnicodeString): TAudioError;
     procedure Clear;
 
 
@@ -707,13 +707,13 @@ end;
 //--------------------------------------------------------------------
 // Read the ID3v2Header
 //--------------------------------------------------------------------
-function TID3v2Tag.ReadHeader(Stream: TStream): TMP3Error;
+function TID3v2Tag.ReadHeader(Stream: TStream): TAudioError;
 var
   RawHeader: TID3v2Header;
   ExtendedHeader: Array[0..3] of byte;
   ExtendedHeaderSize: Integer;
 begin
-  result := MP3ERR_None;
+  result := FileErr_None;
   try
     Stream.Seek(0, soBeginning);
     Stream.ReadBuffer(RawHeader, 10);
@@ -730,7 +730,7 @@ begin
                 FFlgExtended := False;
                 FFlgExperimental := False;
                 if fFlgCompression then
-                  result := ID3ERR_Compression;
+                  result := Mp3ERR_Compression;
                 FFlgFooterPresent := False;
             end;
             3: begin
@@ -780,14 +780,14 @@ begin
       end
       else
           // subversion <> 2,3 or 4: invalid Header, invalid Tag
-          result := ID3ERR_Invalid_Header
+          result := MP3ERR_Invalid_Header
     else
-        result := ID3ERR_NoTag;
+        result := Mp3ERR_NoTag;
   except
-    on EReadError do result := MP3ERR_SRead;
+    on EReadError do result := MP3ERR_StreamRead;
     on E: Exception do
     begin
-      result := ID3ERR_Unclassified;
+      result := Mp3ERR_Unclassified;
       MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
@@ -796,11 +796,11 @@ end;
 //--------------------------------------------------------------------
 // Read the frames of the ID3v2 Tags
 //--------------------------------------------------------------------
-function TID3v2Tag.ReadFrames(From: LongInt; Stream: TStream): TMP3Error;
+function TID3v2Tag.ReadFrames(From: LongInt; Stream: TStream): TAudioError;
 var FrameIDstr: AnsiString;
     newFrame: TID3v2Frame;
 begin
-  result := MP3ERR_None;
+  result := FileErr_None;
   FUsePadding := False;
   try
     case fVersion.Major of
@@ -842,10 +842,10 @@ begin
     end;
 
   except
-    on EReadError do result := MP3ERR_SRead;
+    on EReadError do result := MP3ERR_StreamRead;
     on E: Exception do
     begin
-      result := ID3ERR_Unclassified;
+      result := Mp3ERR_Unclassified;
       MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
@@ -885,14 +885,14 @@ end;
 //--------------------------------------------------------------------
 // read the tag. Header first, Frames afterwards
 //--------------------------------------------------------------------
-function TID3v2Tag.ReadFromStream(Stream: TStream): TMP3Error;
+function TID3v2Tag.ReadFromStream(Stream: TStream): TAudioError;
 var SyncedStream: TMemoryStream;
 begin
   // Clear self
   clear;
 
   result := ReadHeader(Stream);
-  if (FExists) and (result = MP3ERR_None) then
+  if (FExists) and (result = FileErr_None) then
   begin
       // if unsync and subversion 2.2 or 2.3 then:
       // ReadfromStream - Synch to new stream - Readframes from new stream
@@ -927,7 +927,7 @@ end;
 //--------------------------------------------------------------------
 // write tag
 //--------------------------------------------------------------------
-function TID3v2Tag.WriteToStream(Stream: TStream): TMP3Error;
+function TID3v2Tag.WriteToStream(Stream: TStream): TAudioError;
 var
   aHeader: TID3v2Header;
   TmpStream, ID3v2Stream: TAudioFileStream;
@@ -941,7 +941,7 @@ var
   tmpFrameStream: TMemoryStream;
   ExistingID3Tag: TID3v2Tag;
 begin
-  result := MP3ERR_None;
+  result := FileErr_None;
   AudioDataSize := 0;
   v1AdditionalPadding := 0;
 
@@ -1033,7 +1033,7 @@ begin
                 if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> AudioDataSize then
                 begin
                     TmpStream.Free;
-                    result := ID3ERR_Cache;
+                    result := Mp3ERR_Cache;
                     Exit;
                 end;
 
@@ -1050,7 +1050,7 @@ begin
                 end;
                 TmpStream.Free;
               except
-                result := ID3ERR_Cache;
+                result := Mp3ERR_Cache;
                 // Failure -> Exit, to not damage the file
                 Exit;
               end;
@@ -1111,7 +1111,7 @@ begin
                 TmpStream.Free;
               end;
             except
-              result := MP3ERR_FOpenR;
+              result := FileErr_FileOpenR;
               Exit;
             end;
           end;
@@ -1129,11 +1129,11 @@ begin
       DeleteFile(PChar(FrameName));
     end;
   except
-    on EFCreateError do result := MP3ERR_FopenCRT;
-    on EWriteError do result := MP3ERR_SWrite;
+    on EFCreateError do result := FileErr_FileCreate;
+    on EWriteError do result := MP3ERR_StreamWrite;
     on E: Exception do
     begin
-      result := ID3ERR_Unclassified;
+      result := Mp3ERR_Unclassified;
       MessageBox(0, PChar(E.Message), PChar('Error Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
@@ -1142,14 +1142,14 @@ end;
 //--------------------------------------------------------------------
 // delete tag
 //--------------------------------------------------------------------
-function TID3v2Tag.RemoveFromStream(Stream: TStream): TMP3Error;
+function TID3v2Tag.RemoveFromStream(Stream: TStream): TAudioError;
 var
   TmpStream: TAudioFileStream;
   TmpName: String;     // temporary filename. Delphi-Default-String
   tmpsize: int64;
   ExistingID3Tag: TID3v2Tag;
 begin
-  result := MP3ERR_None;
+  result := FileErr_None;
   try
       ExistingID3Tag := TID3v2Tag.Create;
       ExistingID3Tag.ReadHeader(Stream);
@@ -1171,7 +1171,7 @@ begin
                   begin
                       TmpStream.Free;
                       ExistingID3Tag.Free;
-                      result := ID3ERR_Cache;
+                      result := Mp3ERR_Cache;
                       Exit;
                   end;
                   // ...cut the stream...
@@ -1185,14 +1185,14 @@ begin
                   begin
                       TmpStream.Free;
                       ExistingID3Tag.Free;
-                      result := ID3ERR_Cache;
+                      result := Mp3ERR_Cache;
                       Exit;
                   end;
               except
-                  on EWriteError do result := MP3ERR_SWrite;
+                  on EWriteError do result := MP3ERR_StreamWrite;
                   on E: Exception do
                   begin
-                      result := ID3ERR_Unclassified;
+                      result := Mp3ERR_Unclassified;
                       MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
                   end;
               end;
@@ -1200,10 +1200,10 @@ begin
               TmpStream.Free;
               DeleteFile(PChar(TmpName));
           except
-              on EFOpenError do result := MP3ERR_FOpenCRT;
+              on EFOpenError do result := FileErr_FileCreate;
               on E: Exception do
               begin
-                  result := ID3ERR_Unclassified;
+                  result := Mp3ERR_Unclassified;
                   MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
               end;
           end;
@@ -1211,12 +1211,12 @@ begin
       else
       begin
           ExistingID3Tag.Free;
-          result := ID3ERR_NoTag;
+          result := Mp3ERR_NoTag;
       end;
   except
       on E: Exception do
       begin
-          result := ID3ERR_Unclassified;
+          result := Mp3ERR_Unclassified;
           MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
       end;
   end;
@@ -1226,7 +1226,7 @@ end;
 //--------------------------------------------------------------------
 // read tag from file
 //--------------------------------------------------------------------
-function TID3v2Tag.ReadFromFile(Filename: UnicodeString): TMP3Error;
+function TID3v2Tag.ReadFromFile(Filename: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
   if AudioFileExists(Filename) then
@@ -1239,16 +1239,16 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenR;
+      result := FileErr_FileOpenR;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 //--------------------------------------------------------------------
 // write tag to file
 //--------------------------------------------------------------------
-function TID3v2Tag.WriteToFile(Filename: UnicodeString): TMP3Error;
+function TID3v2Tag.WriteToFile(Filename: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
   if AudioFileExists(Filename) then
@@ -1261,16 +1261,16 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenRW;
+      result := FileErr_FileOpenRW;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 //--------------------------------------------------------------------
 // delete tag from file
 //--------------------------------------------------------------------
-function TID3v2Tag.RemoveFromFile(Filename: UnicodeString): TMP3Error;
+function TID3v2Tag.RemoveFromFile(Filename: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
   if AudioFileExists(Filename) then
@@ -1283,10 +1283,10 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenRW;
+      result := FileErr_FileOpenRW;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 

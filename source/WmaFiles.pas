@@ -58,7 +58,7 @@ unit WmaFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Factory, AudioFiles.Declarations;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations;
 
 const
   // Channel modes
@@ -527,8 +527,5 @@ begin
     result := WmaErr_WritingNotSupported;
 end;
 
-initialization
-
-  AudioFileFactory.RegisterClass(TWMAfile, '.wma');
 
 end.

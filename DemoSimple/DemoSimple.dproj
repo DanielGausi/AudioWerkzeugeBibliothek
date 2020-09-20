@@ -98,10 +98,18 @@
         <DCCReference Include="..\source\ApeTagItem.pas"/>
         <DCCReference Include="..\source\Apev2Tags.pas"/>
         <DCCReference Include="..\source\AudioFiles.Base.pas"/>
+        <DCCReference Include="..\source\AudioFiles.Declarations.pas"/>
         <DCCReference Include="..\source\AudioFiles.Factory.pas"/>
+        <DCCReference Include="..\source\BaseApeFiles.pas"/>
         <DCCReference Include="..\source\FlacFiles.pas"/>
         <DCCReference Include="..\source\Id3Basics.pas"/>
+        <DCCReference Include="..\source\ID3GenreList.pas"/>
+        <DCCReference Include="..\source\ID3v1Tags.pas"/>
         <DCCReference Include="..\source\Id3v2Frames.pas"/>
+        <DCCReference Include="..\source\ID3v2Tags.pas"/>
+        <DCCReference Include="..\source\LanguageCodeList.pas"/>
+        <DCCReference Include="..\source\M4aAtoms.pas"/>
+        <DCCReference Include="..\source\M4aFiles.pas"/>
         <DCCReference Include="..\source\MonkeyFiles.pas"/>
         <DCCReference Include="..\source\Mp3Files.pas"/>
         <DCCReference Include="..\source\MpegFrames.pas"/>
@@ -111,13 +119,9 @@
         <DCCReference Include="..\source\TrueAudioFiles.pas"/>
         <DCCReference Include="..\source\U_CharCode.pas"/>
         <DCCReference Include="..\source\VorbisComments.pas"/>
-        <DCCReference Include="..\source\WavPackFiles.pas"/>
         <DCCReference Include="..\source\WavFiles.pas"/>
+        <DCCReference Include="..\source\WavPackFiles.pas"/>
         <DCCReference Include="..\source\WmaFiles.pas"/>
-        <DCCReference Include="..\source\ID3GenreList.pas"/>
-        <DCCReference Include="..\source\M4aAtoms.pas"/>
-        <DCCReference Include="..\source\M4aFiles.pas"/>
-        <DCCReference Include="..\source\AudioFiles.Declarations.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

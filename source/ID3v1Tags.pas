@@ -62,19 +62,7 @@ type
 //--------------------------------------------------------------------
 // Teil 2: Types for ID3v1-tag
 //--------------------------------------------------------------------
-  String4  = String[4];
-  String30 =  String[30];
 
-  // Structure of ID3v1Tags in the file
-  TID3v1Structure = record
-    ID: array[1..3] of AnsiChar;               // all together 128 Bytes
-    Title: Array [1..30] of AnsiChar;          // Use AnsiChars
-    Artist: Array [1..30] of AnsiChar;
-    Album: Array [1..30] of AnsiChar;
-    Year: array [1..4] of AnsiChar;
-    Comment: Array [1..30] of AnsiChar;
-    Genre: Byte;
-  end;
 
   TID3v1Tag = class(TObject)
   private
@@ -131,12 +119,13 @@ type
     property AutoCorrectCodepage: Boolean read FAutoCorrectCodepage write FAutoCorrectCodepage;
 
     procedure Clear;
-    function ReadFromStream(Stream: TStream): TMP3Error;
-    function WriteToStream(Stream: TStream): TMP3Error;
-    function RemoveFromStream(Stream: TStream): TMP3Error;
-    function ReadFromFile(Filename: UnicodeString): TMP3Error;        // UnicodeString
-    function WriteToFile(Filename: UnicodeString): TMP3Error;
-    function RemoveFromFile(Filename: UnicodeString): TMP3Error;
+    procedure CopyFromRawTag(Rawtag: TID3v1Structure);
+    function ReadFromStream(Stream: TStream): TAudioError;
+    function WriteToStream(Stream: TStream): TAudioError;
+    function RemoveFromStream(Stream: TStream): TAudioError;
+    function ReadFromFile(Filename: UnicodeString): TAudioError;        // UnicodeString
+    function WriteToFile(Filename: UnicodeString): TAudioError;
+    function RemoveFromFile(Filename: UnicodeString): TAudioError;
   end;
 //--------------------------------------------------------------------
 
@@ -205,60 +194,63 @@ begin
   inherited destroy;
 end;
 
+procedure TID3v1Tag.CopyFromRawTag(Rawtag: TID3v1Structure);
+begin
+    FExists := True;
+    FVersion := GetID3v1Version(RawTag);
+    FTitle := RawTag.Title;
+    FArtist := RawTag.Artist;
+    FAlbum := RawTag.Album;
+    FYear := RawTag.Year;
+
+    if FVersion = 0 then
+    begin
+      FComment := (RawTag.Comment);
+      FTrack := 0;
+    end
+    else
+    begin
+      Move(RawTag.Comment[1], FComment[1], 28);
+      FComment[29] := #0;
+      FComment[30] := #0;
+      FTrack := Ord(RawTag.Comment[30]);
+    end;
+    FGenre := RawTag.Genre;
+end;
+
 // Read the Tag from a stream
-function TID3v1Tag.ReadFromStream(Stream: TStream): TMP3Error;
+function TID3v1Tag.ReadFromStream(Stream: TStream): TAudioError;
 var
   RawTag: TID3v1Structure;
 begin
   clear;
-  result := MP3ERR_None;
+  result := FileErr_None;
   FExists := False;
   try
     Stream.Seek(-128, soEnd);
     if (Stream.Read(RawTag, 128) = 128) then
       if (RawTag.ID = 'TAG') then
-      begin
-        FExists := True;
-        FVersion := GetID3v1Version(RawTag);
-        FTitle := (RawTag.Title);
-        FArtist := (RawTag.Artist);
-        FAlbum := (RawTag.Album);
-        FYear := (RawTag.Year);
-            //String4(Trim(String(FYear)));
-        if FVersion = 0 then
-        begin
-          FComment := (RawTag.Comment);
-          FTrack := 0;
-        end
-        else
-        begin
-          Move(RawTag.Comment[1], FComment[1], 28);
-          FComment[29] := #0;
-          FComment[30] := #0;
-          FTrack := Ord(RawTag.Comment[30]);
-        end;
-        FGenre := RawTag.Genre;
-      end
+        CopyFromRawTag(RawTag)
       else
-        result := ID3ERR_NoTag
+        result := Mp3ERR_NoTag
     else
-      result := MP3ERR_SRead;
+      result := MP3ERR_StreamRead;
   except
     on E: Exception do
     begin
-      result := ID3ERR_Unclassified;
+      result := Mp3ERR_Unclassified;
       MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
 
 // Write Tag to a stream
-function TID3v1Tag.WriteToStream(Stream: TStream): TMP3Error;
+function TID3v1Tag.WriteToStream(Stream: TStream): TAudioError;
 var
   RawTag: TID3v1Structure;
   Buffer: Array [1..3] of AnsiChar;
 begin
-  result := MP3ERR_NONE;
+  result := FileErr_None;
   try
     FillChar(RawTag, 128, 0);
     RawTag.ID := 'TAG';
@@ -283,22 +275,22 @@ begin
       Stream.Seek(0, soEnd);
 
     if Stream.Write(RawTag, 128) <> 128 then
-      result := MP3ERR_SWrite;
+      result := MP3ERR_StreamWrite;
   except
     on E: Exception do
     begin
-      result := ID3ERR_Unclassified;
+      result := Mp3ERR_Unclassified;
       MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
 
 // Delete Tag, if existing
-function TID3v1Tag.RemoveFromStream(Stream: TStream): TMP3Error;
+function TID3v1Tag.RemoveFromStream(Stream: TStream): TAudioError;
 var
   Buffer: Array [1..3] of AnsiChar;
 begin
-  result := MP3ERR_NONE;
+  result := FileErr_None;
   try
     Stream.Seek(-128, soEnd);
     Stream.Read(Buffer[1], 3);
@@ -308,11 +300,11 @@ begin
       SetStreamEnd(Stream);
     end
     else
-      result := ID3ERR_NoTag;
+      result := Mp3ERR_NoTag;
   except
     on E: Exception do
     begin
-      result := ID3ERR_Unclassified;
+      result := Mp3ERR_Unclassified;
       MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
@@ -335,7 +327,7 @@ end;
 
 // read tag from a file
 // -> use stream-function
-function TID3v1Tag.ReadFromFile(Filename: UnicodeString): TMP3Error;
+function TID3v1Tag.ReadFromFile(Filename: UnicodeString): TAudioError;
 var
   Stream: TAudioFileStream;
 begin
@@ -348,15 +340,15 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenR;
+      result := FileErr_FileOpenR;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 // Write a tag to a file
 // -> use stream-function
-function TID3v1Tag.WriteToFile(Filename: UnicodeString): TMP3Error;
+function TID3v1Tag.WriteToFile(Filename: UnicodeString): TAudioError;
 var
   Stream: TAudioFileStream;
 begin
@@ -369,15 +361,15 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenRW;
+      result := FileErr_FileOpenRW;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 // Delete Tag from a file
 // -> use stream-function
-function TID3v1Tag.RemoveFromFile(Filename: UnicodeString): TMP3Error;
+function TID3v1Tag.RemoveFromFile(Filename: UnicodeString): TAudioError;
 var
   Stream: TAudioFileStream;
 begin
@@ -390,10 +382,10 @@ begin
         Stream.Free;
       end;
     except
-      result := MP3ERR_FOpenRW;
+      result := FileErr_FileOpenRW;
     end
   else
-    result := MP3ERR_NoFile;
+    result := FileErr_NoFile;
 end;
 
 
