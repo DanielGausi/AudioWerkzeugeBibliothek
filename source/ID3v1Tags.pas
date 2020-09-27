@@ -229,10 +229,10 @@ begin
   try
     Stream.Seek(-128, soEnd);
     if (Stream.Read(RawTag, 128) = 128) then
-      if (RawTag.ID = 'TAG') then
-        CopyFromRawTag(RawTag)
-      else
-        result := Mp3ERR_NoTag
+    begin
+      if IsValidID3Tag(RawTag) then
+        CopyFromRawTag(RawTag);
+    end
     else
       result := MP3ERR_StreamRead;
   except
@@ -247,35 +247,38 @@ end;
 // Write Tag to a stream
 function TID3v1Tag.WriteToStream(Stream: TStream): TAudioError;
 var
-  RawTag: TID3v1Structure;
-  Buffer: Array [1..3] of AnsiChar;
+  NewRawTag: TID3v1Structure;
+  ExistingTag: TID3v1Structure;
 begin
   result := FileErr_None;
   try
-    FillChar(RawTag, 128, 0);
-    RawTag.ID := 'TAG';
-    Move(FTitle[1], RawTag.Title, Length(FTitle));
-    Move(FArtist[1], RawTag.Artist, Length(FArtist));
-    Move(FAlbum[1], RawTag.Album, Length(FAlbum));
-    Move(FYear[1], RawTag.Year, Length(FYear));
-    Move(FComment[1], RawTag.Comment, Length(FComment));
+    FillChar(NewRawTag, 128, 0);
+    NewRawTag.ID := ID3V1_PREAMBLE; // 'TAG';
+    Move(FTitle[1], NewRawTag.Title, Length(FTitle));
+    Move(FArtist[1], NewRawTag.Artist, Length(FArtist));
+    Move(FAlbum[1], NewRawTag.Album, Length(FAlbum));
+    Move(FYear[1], NewRawTag.Year, Length(FYear));
+    Move(FComment[1], NewRawTag.Comment, Length(FComment));
     if FTrack > 0 then
     begin
-      RawTag.Comment[29] := #0;
-      RawTag.Comment[30] := AnsiChar(Chr(FTrack));
+      NewRawTag.Comment[29] := #0;
+      NewRawTag.Comment[30] := AnsiChar(Chr(FTrack));
     end;
-    RawTag.Genre := FGenre;
+    NewRawTag.Genre := FGenre;
 
     // Search for an existing tag and set position to write the new one
     Stream.Seek(-128, soEnd);
-    Stream.Read(Buffer[1], 3);
-    if (Buffer[1]='T') AND (Buffer[2]='A') AND (Buffer[3]='G') then
-      Stream.Seek(-128, soEnd)
-    else
-      Stream.Seek(0, soEnd);
+    if (Stream.Read(ExistingTag, 128) = 128) then
+    begin
+      if IsValidID3Tag(ExistingTag) then
+        Stream.Seek(-128, soEnd)
+      else
+        Stream.Seek(0, soEnd);
 
-    if Stream.Write(RawTag, 128) <> 128 then
-      result := MP3ERR_StreamWrite;
+      if Stream.Write(NewRawTag, 128) <> 128 then
+        result := MP3ERR_StreamWrite;
+    end else
+      result := MP3ERR_StreamRead;
   except
     on E: Exception do
     begin
@@ -287,20 +290,21 @@ end;
 
 // Delete Tag, if existing
 function TID3v1Tag.RemoveFromStream(Stream: TStream): TAudioError;
-var
-  Buffer: Array [1..3] of AnsiChar;
+var ExistingTag: TID3v1Structure;
 begin
   result := FileErr_None;
   try
     Stream.Seek(-128, soEnd);
-    Stream.Read(Buffer[1], 3);
-    if (Buffer[1]='T') AND (Buffer[2]='A') AND (Buffer[3]='G') then
+    if (Stream.Read(ExistingTag, 128) = 128) then
     begin
-      Stream.Seek(-128, soEnd);
-      SetStreamEnd(Stream);
-    end
-    else
-      result := Mp3ERR_NoTag;
+      if IsValidID3Tag(ExistingTag) then
+      begin
+        Stream.Seek(-128, soEnd);
+        SetStreamEnd(Stream);
+      end;
+      // else: nothing to do, there was no ID3v1Tag
+    end else
+      result := MP3ERR_StreamRead;
   except
     on E: Exception do
     begin

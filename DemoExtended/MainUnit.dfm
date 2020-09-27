@@ -3,7 +3,7 @@ object MainFormAWB: TMainFormAWB
   Top = 0
   BorderStyle = bsSingle
   Caption = 'AudioWerkzeugeBibliothek (Demo Level 2)'
-  ClientHeight = 604
+  ClientHeight = 608
   ClientWidth = 755
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -155,11 +155,8 @@ object MainFormAWB: TMainFormAWB
     Top = 399
     Width = 417
     Height = 155
-    Caption = 'More text information (in this demo: read only)'
+    Caption = 'Meta tag overview (in this demo: read only)'
     TabOrder = 2
-    DesignSize = (
-      417
-      155)
     object Label7: TLabel
       Left = 16
       Top = 16
@@ -167,33 +164,32 @@ object MainFormAWB: TMainFormAWB
       Height = 13
       Caption = 'Key'
     end
-    object Label8: TLabel
-      Left = 214
-      Top = 16
-      Width = 26
-      Height = 13
-      Caption = 'Value'
-    end
-    object lbKeys: TListBox
-      Left = 16
-      Top = 35
-      Width = 185
-      Height = 103
-      Anchors = [akLeft, akTop, akBottom]
-      ItemHeight = 13
-      TabOrder = 0
-      OnClick = lbKeysClick
-    end
-    object MemoValue: TMemo
-      Left = 214
-      Top = 35
-      Width = 187
-      Height = 103
-      Anchors = [akLeft, akTop, akBottom]
+    object lvMetaTags: TListView
+      Left = 2
+      Top = 15
+      Width = 413
+      Height = 138
+      Align = alClient
+      Columns = <
+        item
+          Caption = 'Tag'
+        end
+        item
+          Caption = 'Key'
+          Width = 100
+        end
+        item
+          AutoSize = True
+          Caption = 'Value'
+        end>
       ReadOnly = True
-      ScrollBars = ssVertical
-      TabOrder = 1
-      WordWrap = False
+      RowSelect = True
+      TabOrder = 0
+      ViewStyle = vsReport
+      ExplicitLeft = 3
+      ExplicitTop = 11
+      ExplicitWidth = 411
+      ExplicitHeight = 141
     end
   end
   object GroupBox7: TGroupBox

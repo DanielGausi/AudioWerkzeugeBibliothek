@@ -8,9 +8,10 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, Jpeg, ContNrs, AudioFiles.Base,
   AudioFiles.Factory,  AudioFiles.Declarations, BaseApeFiles, ApeTagItem, ID3v2Frames,
+  ID3v1Tags, ID3v2Tags, Apev2Tags,
   Mp3Files, FlacFiles, OggVorbisFiles, MonkeyFiles, WavPackFiles, MusePackFiles,
   OptimFrogFiles, TrueAudioFiles, M4aAtoms, M4AFiles, FileCtrl
-  {$IFDEF USE_PNG}, PNGImage{$ENDIF} ;
+  {$IFDEF USE_PNG}, PNGImage, Vcl.ComCtrls{$ENDIF} ;
 
 type
   TMainFormAWB = class(TForm)
@@ -33,10 +34,6 @@ type
     Label6: TLabel;
     EdtYear: TEdit;
     GroupBox3: TGroupBox;
-    lbKeys: TListBox;
-    MemoValue: TMemo;
-    Label7: TLabel;
-    Label8: TLabel;
     GroupBox7: TGroupBox;
     DriveComboBox1: TDriveComboBox;
     DirectoryListBox1: TDirectoryListBox;
@@ -52,12 +49,13 @@ type
     LblChannels: TLabel;
     LblDuration: TLabel;
     LblFileSize: TLabel;
+    lvMetaTags: TListView;
+    Label7: TLabel;
     procedure FormDestroy(Sender: TObject);
     procedure BtnSaveClick(Sender: TObject);
     procedure cbPicturesChange(Sender: TObject);
     procedure BtnNewPictureClick(Sender: TObject);
     procedure BtnDeletePictureClick(Sender: TObject);
-    procedure lbKeysClick(Sender: TObject);
     procedure BtnRemoveTagClick(Sender: TObject);
     procedure FileListBox1Change(Sender: TObject);
   private
@@ -71,7 +69,23 @@ type
     procedure LoadImage(aKey: AnsiString);
     function StreamToBitmap(aStream: TStream; aBitmap: TBitmap): Boolean;
     procedure RefreshImageList;
-    procedure RefreshID3Frames;
+
+
+
+    procedure AddTagItem(Tag, Key, Value: String);
+    procedure RefillTagDetailsID3v1(aTag: TID3v1Tag);
+    procedure RefillTagDetailsID3v2(aTag: TID3v2Tag);
+    procedure RefillTagDetailsApe(aTag: TApeTag);
+
+    procedure RefillTagDetailsMP3;
+    procedure RefillTagDetailsOgg;
+    procedure RefillTagDetailsFlac;
+    procedure RefillTagDetailsM4A;
+    procedure RefillTagDetailsBaseApe;
+
+
+    procedure RefillTagDetailsListView;
+
 
   public
     { Public-Deklarationen }
@@ -110,6 +124,9 @@ begin
     if not assigned(AudioFile) then
       exit;
 
+    //if AudioFile.FileType = at_Mp3 then
+    //   TMp3File(AudioFile).TagScanMode := id3_read_complete;
+
     AudioFile.ReadFromFile(FileListBox1.FileName);
 
     MemoSpecific.Clear;
@@ -128,11 +145,11 @@ begin
     LblBitrate.Caption    := Format('Bitrate: %d kbit/s', [AudioFile.Bitrate div 1000]);
     LblChannels.Caption   := Format('Channels: %d, %d Hz', [AudioFile.Channels, AudioFile.Samplerate]);
 
+    RefillTagDetailsListView;
+
     case AudioFile.FileType of
           at_Invalid: begin
               ShowMessage('Invalid AudioFile');
-              lbKeys.Items.Clear;
-              MemoValue.Text := '';
               LblAudioType.Caption := 'Invalid Audiofile';
               LblFileSize.Caption  := 'Filesize: N/A';
               LblDuration.Caption  := 'Duration: N/A';
@@ -140,54 +157,27 @@ begin
               LblChannels.Caption  := 'Channels: N/A';
           end;
           at_Mp3: begin
-              RefreshID3Frames;
               MemoLyrics.Text := TMP3File(AudioFile).ID3v2Tag.Lyrics;
               MemoSpecific.Lines.Add(Format('ID3v1: %d Bytes', [TMP3File(AudioFile).ID3v1TagSize]));
               MemoSpecific.Lines.Add(Format('ID3v2: %d Bytes', [TMP3File(AudioFile).ID3v2TagSize]));
+              MemoSpecific.Lines.Add(Format('Apev2: %d Bytes', [TMP3File(AudioFile).ApeTagSize]));
           end;
           at_Ogg: begin
-              TOggVorbisFile(AudioFile).GetAllFields(lbKeys.Items);
               MemoLyrics.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname('UNSYNCEDLYRICS');
-              if lbKeys.Items.Count > 0 then
-              begin
-                  lbKeys.ItemIndex := 0;
-                  MemoValue.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-              end else
-                  MemoValue.Text := '';
           end;
           at_Flac: begin
-              TFlacFile(AudioFile).GetAllFields(lbKeys.Items);
               MemoLyrics.Text := TFlacFile(AudioFile).GetPropertyByFieldname('UNSYNCEDLYRICS');
-              if lbKeys.Items.Count > 0 then
-              begin
-                  lbKeys.ItemIndex := 0;
-                  MemoValue.Text := TFlacFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-              end else
-                  MemoValue.Text := '';
           end;
           at_M4a: begin
-              TM4AFile(AudioFile).GetAllTextAtomDescriptions(lbKeys.Items);
               MemoLyrics.Text := TM4AFile(AudioFile).Lyrics;
-              if lbKeys.Items.Count > 0 then
-              begin
-                  lbKeys.ItemIndex := 0;
-                  MemoValue.Text := TM4AFile(AudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
-              end else
-                  MemoValue.Text := '';
           end;
           at_Monkey,
           at_WavPack,
           at_MusePack,
           at_OptimFrog,
           at_TrueAudio: begin
-              TBaseApeFile(AudioFile).ApeTag.GetAllFrames(lbKeys.Items);
               MemoLyrics.Text := TBaseApeFile(AudioFile).ApeTag.GetValueByKey('UNSYNCEDLYRICS');
-              if lbKeys.Items.Count > 0 then
-              begin
-                  lbKeys.ItemIndex := 0;
-                  MemoValue.Text := TBaseApeFile(AudioFile).ApeTag.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
-              end else
-                  MemoValue.Text := '';
+
               MemoSpecific.Lines.Add(Format('ID3v1: %d Bytes', [TBaseApeFile(AudioFile).ID3v1TagSize]));
               MemoSpecific.Lines.Add(Format('ID3v2: %d Bytes', [TBaseApeFile(AudioFile).ID3v2TagSize]));
               MemoSpecific.Lines.Add(Format('ApeV2: %d Bytes', [TBaseApeFile(AudioFile).Apev2TagSize]));
@@ -224,23 +214,146 @@ begin
 end;
 
 
-procedure TMainFormAWB.RefreshID3Frames;
-var iFrame: TID3v2Frame;
+procedure TMainFormAWB.AddTagItem(Tag, Key, Value: String);
+var newListItem: TListItem;
+begin
+    newListItem := lvMetaTags.Items.Add;
+    newListItem.Caption := Tag;
+    newListItem.SubItems.Add(Key);
+    newListItem.SubItems.Add(Value);
+end;
+
+procedure TMainFormAWB.RefillTagDetailsID3v1(aTag: TID3v1Tag);
+begin
+    AddTagItem('ID3v1', 'Artist', aTag.Artist);
+    AddTagItem('ID3v1', 'Title', aTag.Title);
+    AddTagItem('ID3v1', 'Album', aTag.Album);
+    AddTagItem('ID3v1', 'Year', UnicodeString(aTag.Year));
+    AddTagItem('ID3v1', 'Genre', aTag.Genre);
+    AddTagItem('ID3v1', 'Comment', aTag.Comment);
+    if aTag.Version = 1 then
+        AddTagItem('ID3v1', 'Track', aTag.Track);
+end;
+procedure TMainFormAWB.RefillTagDetailsID3v2(aTag: TID3v2Tag);
+var i: Integer;
+    iFrame: TID3v2Frame;
+begin
+    aTag.GetAllTextFrames(ID3v2Frames);
+    for i := 0 to ID3v2Frames.Count - 1 do
+    begin
+        iFrame := TID3v2Frame(ID3v2Frames[i]);
+        AddTagItem('ID3v2', iFrame.FrameTypeDescription, iFrame.GetText);
+    end;
+end;
+procedure TMainFormAWB.RefillTagDetailsApe(aTag: TApeTag);
+var ApeKeys: TStrings;
     i: Integer;
+begin
+    ApeKeys := tStringList.Create;
+    try
+        aTag.GetAllTextFrames(ApeKeys);
+        for i := 0 to ApeKeys.Count - 1 do
+            AddTagItem('APEv2', ApeKeys[i], aTag.GetValueByKey(ApeKeys[i]) );
+    finally
+       ApeKeys.Free;
+    end
+end;
+
+procedure TMainFormAWB.RefillTagDetailsMP3;
 begin
     if AudioFile.FileType = at_Mp3 then
     begin
-        if not assigned(ID3v2Frames) then
-            ID3v2Frames:= TObjectList.Create(False);
+        if (AudioFile as TMp3File).ID3v1Tag.Exists then
+            RefillTagDetailsID3v1((AudioFile as TMp3File).ID3v1Tag);
+        if (AudioFile as TMp3File).ID3v2Tag.Exists then
+            RefillTagDetailsID3v2(TMP3File(AudioFile).ID3v2Tag);
+        if (AudioFile as TMp3File).ApeTag.Exists then
+            RefillTagDetailsApe((AudioFile as TMp3File).ApeTag);
+    end;
+end;
 
-        lbKeys.Items.Clear;
-        TMP3File(AudioFile).ID3v2Tag.GetAllTextFrames(ID3v2Frames);
-        for i := 0 to ID3v2Frames.Count - 1 do
-        begin
-            iFrame := TID3v2Frame(ID3v2Frames[i]);
-            lbKeys.AddItem(iFrame.FrameTypeDescription, iFrame);
+procedure TMainFormAWB.RefillTagDetailsOgg;
+var OggKeys: TStrings;
+    i: Integer;
+begin
+    if AudioFile.FileType = at_Ogg then
+    begin
+        OggKeys := TStringList.Create;
+        try
+            TOggVorbisFile(AudioFile).GetAllFields(OggKeys);
+            for i := 0 to OggKeys.Count - 1 do
+                AddTagItem('OggVorbis', OggKeys[i], TOggVorbisFile(AudioFile).GetPropertyByFieldname(OggKeys[i]));
+        finally
+            OggKeys.Free;
         end;
     end;
+end;
+procedure TMainFormAWB.RefillTagDetailsFlac;
+var FlacKeys: TStrings;
+    i: Integer;
+begin
+    if AudioFile.FileType = at_Flac then
+    begin
+        FlacKeys := TStringList.Create;
+        try
+            TFlacFile(AudioFile).GetAllFields(FlacKeys);
+            for i := 0 to FlacKeys.Count - 1 do
+                AddTagItem('OggVorbis', FlacKeys[i], TFlacFile(AudioFile).GetPropertyByFieldname(FlacKeys[i]));
+        finally
+            FlacKeys.Free;
+        end;
+    end;
+end;
+
+procedure TMainFormAWB.RefillTagDetailsM4A;
+var M4AKeys: TStrings;
+    i: Integer;
+begin
+    if AudioFile.FileType = at_M4A then
+    begin
+        M4AKeys := TStringList.Create;
+        try
+            TM4AFile(AudioFile).GetAllTextAtomDescriptions(M4AKeys);
+            for i := 0 to M4AKeys.Count - 1 do
+                AddTagItem('M4A', M4AKeys[i], TM4AFile(AudioFile).GetTextDataByDescription(M4AKeys[i]));
+        finally
+            M4AKeys.Free;
+        end;
+    end;
+end;
+procedure TMainFormAWB.RefillTagDetailsBaseApe;
+begin
+    if AudioFile.FileType in [at_Monkey, at_WavPack, at_MusePack, at_OptimFrog, at_TrueAudio] then
+    begin
+        if (AudioFile as TBaseApeFile).ID3v1Tag.Exists then
+            RefillTagDetailsID3v1((AudioFile as TBaseApeFile).ID3v1Tag);
+        if (AudioFile as TBaseApeFile).ApeTag.Exists then
+            RefillTagDetailsApe((AudioFile as TBaseApeFile).ApeTag);
+    end;
+end;
+
+
+procedure TMainFormAWB.RefillTagDetailsListView;
+begin
+  lvMetaTags.Clear;
+  if not assigned(ID3v2Frames) then
+      ID3v2Frames:= TObjectList.Create(False);
+
+  case AudioFile.FileType of
+    at_Invalid: ;
+    at_Mp3: RefillTagDetailsMP3;
+    at_Ogg: RefillTagDetailsOgg;
+    at_Flac: RefillTagDetailsFlac;
+    at_M4A: RefillTagDetailsM4A;
+    at_Monkey,
+    at_WavPack,
+    at_MusePack,
+    at_OptimFrog,
+    at_TrueAudio: RefillTagDetailsBaseApe;
+    at_Wma: ;
+    at_Wav: ;
+    at_AbstractApe: ;
+  end;
 end;
 
 procedure TMainFormAWB.RefreshImageList;
@@ -499,22 +612,6 @@ begin
         at_MusePack,
         at_OptimFrog,
         at_TrueAudio: LoadImage(AnsiString(cBPictures.Items[cbPictures.ItemIndex]));
-    end;
-end;
-
-procedure TMainFormAWB.lbKeysClick(Sender: TObject);
-begin
-    case AudioFile.FileType of
-        at_Invalid: ;
-        at_Mp3: MemoValue.Text := TID3v2Frame(lbKeys.Items.Objects[lbKeys.ItemIndex]).GetText;
-        at_Ogg: MemoValue.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-        at_Flac: MemoValue.Text := TFlacFile(AudioFile).GetPropertyByFieldname(lbKeys.Items[lbKeys.ItemIndex]);
-        at_M4a:  MemoValue.Text := TM4aFile(AudioFile).GetTextDataByDescription(lbKeys.Items[lbKeys.ItemIndex]);
-        at_Monkey,
-        at_WavPack,
-        at_MusePack,
-        at_OptimFrog,
-        at_TrueAudio: MemoValue.Text := TBaseApeFile(AudioFile).ApeTag.GetValueByKey(lbKeys.Items[lbKeys.ItemIndex]);
     end;
 end;
 

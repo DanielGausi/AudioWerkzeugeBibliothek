@@ -191,6 +191,8 @@ type
     procedure SetCharCode(Value: TCodePage);
     procedure SetAutoCorrectCodepage(Value: Boolean);
 
+    // get the size of another ID3v2Tag in the Stream. used for removing/writing
+    function GetExistingTagSize(aStream: TStream): Cardinal;
 
   public
 
@@ -718,7 +720,8 @@ begin
     Stream.Seek(0, soBeginning);
     Stream.ReadBuffer(RawHeader, 10);
     if RawHeader.ID = 'ID3' then
-      if RawHeader.Version in  [2,3,4] then
+    begin
+      if RawHeader.Version in [2,3,4] then
       begin
         FTagSize := Int28ToInt32(RawHeader.TagSize) + 10;
         FExists := True;
@@ -780,9 +783,8 @@ begin
       end
       else
           // subversion <> 2,3 or 4: invalid Header, invalid Tag
-          result := MP3ERR_Invalid_Header
-    else
-        result := Mp3ERR_NoTag;
+          result := MP3ERR_Invalid_Header;
+    end;
   except
     on EReadError do result := MP3ERR_StreamRead;
     on E: Exception do
@@ -927,6 +929,23 @@ end;
 //--------------------------------------------------------------------
 // write tag
 //--------------------------------------------------------------------
+
+function TID3v2Tag.GetExistingTagSize(aStream: TStream): Cardinal;
+var ExistingID3Tag: TID3v2Tag;
+begin
+    ExistingID3Tag := TID3v2Tag.Create;
+    try
+      ExistingID3Tag.ReadHeader(aStream);
+      if ExistingID3Tag.FExists then
+         result := ExistingID3Tag.FTagSize
+      else
+        result := 0;
+    finally
+       ExistingID3Tag.Free;
+    end;
+end;
+
+
 function TID3v2Tag.WriteToStream(Stream: TStream): TAudioError;
 var
   aHeader: TID3v2Header;
@@ -939,7 +958,8 @@ var
   i: Integer;
   AudioDataSize: int64;
   tmpFrameStream: TMemoryStream;
-  ExistingID3Tag: TID3v2Tag;
+  ExistingTagSize: Cardinal;
+
 begin
   result := FileErr_None;
   AudioDataSize := 0;
@@ -958,7 +978,6 @@ begin
   FrameName := GetTempFile;
   try
     ID3v2Stream := TAudioFileStream.Create(FrameName, fmCreate or fmShareDenyWrite);
-
     try
       // build a new header
       // size is unkown yet - must be set later in this method
@@ -978,11 +997,14 @@ begin
               2,3: begin
                   // write frames, unsynch here
                   tmpFrameStream := TMemoryStream.Create;
-                  for i := 0 to Frames.Count - 1 do
-                      (Frames[i] as TID3v2Frame).WriteToStream(tmpFrameStream);
-                  tmpFrameStream.Position := 0;
-                  UnSyncStream(tmpFrameStream, ID3v2Stream);
-                  tmpFrameStream.Free;
+                  try
+                      for i := 0 to Frames.Count - 1 do
+                          (Frames[i] as TID3v2Frame).WriteToStream(tmpFrameStream);
+                      tmpFrameStream.Position := 0;
+                      UnSyncStream(tmpFrameStream, ID3v2Stream);
+                  finally
+                      tmpFrameStream.Free;
+                  end;
               end ;
               4: begin
                   // write frames, unsynch in frames
@@ -1003,11 +1025,9 @@ begin
       if ID3v2Stream.Size > 0 then
       begin
           // Check stream for existing tag
-          ExistingID3Tag := TID3v2Tag.Create;
-          ExistingID3Tag.ReadHeader(Stream);
-
+          ExistingTagSize := GetExistingTagSize(Stream);
           // jump to the end of this tag
-          Stream.Seek(ExistingID3Tag.FTagSize, soBeginning);
+          Stream.Seek(ExistingTagSize, soBeginning);
 
           // 2019: new decision for CacheAudio:
           // Rewrite the File also when the old existing Tag is WAY BIGGER than the new one
@@ -1016,48 +1036,51 @@ begin
               // user wants no padding
               (not FUsePadding) OR
               // ExistingTag too small
-              ((ID3v2Stream.Size + 30) >= ExistingID3Tag.FTagSize) OR
+              ((ID3v2Stream.Size + 30) >= ExistingTagSize) OR
               // ExistingTag is way too large (max. padding Size: 500k)
-              (ExistingID3Tag.FTagSize > ID3v2Stream.Size + 512000);
+              (ExistingTagSize > ID3v2Stream.Size + 512000);
 
           if CacheAudio then
           begin
-            // Existing ID3v2Tag is too small (or too big in case of no padding) for the new one
-            // Write Audiodata to temporary file
-            TmpName := GetTempFile;
-            try
-                TmpStream := TAudioFileStream.Create(TmpName, fmCreate or fmShareDenyWrite);
-                TmpStream.Seek(0, soBeginning);
+              // Existing ID3v2Tag is too small (or too big in case of no padding) for the new one
+              // Write Audiodata to temporary file
+              TmpName := GetTempFile;
+              try
+                  TmpStream := TAudioFileStream.Create(TmpName, fmCreate or fmShareDenyWrite);
+                  try
+                      TmpStream.Seek(0, soBeginning);
 
-                AudioDataSize := Stream.Size - Stream.Position;
-                if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> AudioDataSize then
-                begin
-                    TmpStream.Free;
-                    result := Mp3ERR_Cache;
-                    Exit;
-                end;
+                      AudioDataSize := Stream.Size - Stream.Position;
+                      if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> AudioDataSize then
+                      begin
+                          TmpStream.Free;
+                          result := Mp3ERR_Cache;
+                          Exit;
+                      end;
 
-                // Check for ID3v1Tag
-                // adjust paddingsize, so that an id3v1Tag will not need another cluster on disk
-                Stream.Seek(-128, soEnd);
-                v1Tag := '   ';
-                if (Stream.Read(v1Tag[1], 3) = 3) then
-                begin
-                  if (v1Tag = 'TAG') then
-                    v1AdditionalPadding := 0
-                  else
-                    v1AdditionalPadding := 128;
-                end;
-                TmpStream.Free;
+                      // Check for ID3v1Tag
+                      // adjust paddingsize, so that an id3v1Tag will not need another cluster on disk
+                      Stream.Seek(-128, soEnd);
+                      v1Tag := '   ';
+                      if (Stream.Read(v1Tag[1], 3) = 3) then
+                      begin
+                        if (v1Tag = 'TAG') then
+                          v1AdditionalPadding := 0
+                        else
+                          v1AdditionalPadding := 128;
+                      end;
+                  finally
+                      TmpStream.Free;
+                  end;
               except
-                result := Mp3ERR_Cache;
-                // Failure -> Exit, to not damage the file
-                Exit;
+                  result := Mp3ERR_Cache;
+                  // Failure -> Exit, to not damage the file
+                  Exit;
               end;
           end;
 
           // situation here:
-          // Old Audiodata is in "tmpstream" (if neccessary)
+          // Old Audiodata is stored in a temporary file "TmpName" (if caching is neccessary)
           // New ID3Tag is in "ID3v2Stream"
           // But: Header is invalid, as the tags size was unknown before
           FDataSize := ID3v2Stream.Size;
@@ -1070,8 +1093,8 @@ begin
                   FTagSize := FDataSize + fPaddingSize;
               end
               else begin
-                  fPaddingSize := ExistingID3Tag.FTagSize - FDataSize;
-                  FTagSize := ExistingID3Tag.FTagSize;
+                  fPaddingSize := ExistingTagSize - FDataSize;
+                  FTagSize := ExistingTagSize;
               end;
           end else
           begin
@@ -1117,10 +1140,6 @@ begin
           end;
           // delete cache
           DeleteFile(PChar(TmpName));
-
-          // delete existing-tag-object
-          ExistingID3Tag.Free;
-
       end;  // if ID3v2Stream.Size > 0;
 
     finally
@@ -1145,75 +1164,58 @@ end;
 function TID3v2Tag.RemoveFromStream(Stream: TStream): TAudioError;
 var
   TmpStream: TAudioFileStream;
-  TmpName: String;     // temporary filename. Delphi-Default-String
+  TmpName: String;
   tmpsize: int64;
-  ExistingID3Tag: TID3v2Tag;
+  ExistingTagSize: Cardinal;
 begin
   result := FileErr_None;
   try
-      ExistingID3Tag := TID3v2Tag.Create;
-      ExistingID3Tag.ReadHeader(Stream);
+      ExistingTagSize := GetExistingTagSize(Stream);
+      if ExistingTagSize = 0 then
+        exit; // nothing to do here
 
-      // if a Tag existiert...
-      if ExistingID3Tag.FExists then
-      begin
-          // ...jump to its end...
-          Stream.Seek(ExistingID3Tag.FTagSize, soBeginning);
+      // ...jump to its end...
+      Stream.Seek(ExistingTagSize, soBeginning);
+      // ...cache Audiodata to temporary file...
+      TmpName := GetTempFile;
 
-          // ...cache Audiodat to temporary file...
-          TmpName := GetTempFile;
+      TmpStream := TAudioFileStream.Create(TmpName, fmCreate);
+      try
           try
-              TmpStream := TAudioFileStream.Create(TmpName, fmCreate);
-              try
-                  TmpStream.Seek(0, soBeginning);
-                  tmpsize := Stream.Size - Stream.Position;
-                  if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> tmpsize then
-                  begin
-                      TmpStream.Free;
-                      ExistingID3Tag.Free;
-                      result := Mp3ERR_Cache;
-                      Exit;
-                  end;
-                  // ...cut the stream...
-                  Stream.Seek(-ExistingID3Tag.FTagSize, soEnd);
-                  SetStreamEnd(Stream);
-                  ExistingID3Tag.Free;
-                  // ...and write the audiodata back.
-                  Stream.Seek(0, soBeginning);
-                  TmpStream.Seek(0, soBeginning);
-                  if Stream.CopyFrom(TmpStream, TmpStream.Size) <> TmpStream.Size then
-                  begin
-                      TmpStream.Free;
-                      ExistingID3Tag.Free;
-                      result := Mp3ERR_Cache;
-                      Exit;
-                  end;
-              except
-                  on EWriteError do result := MP3ERR_StreamWrite;
-                  on E: Exception do
-                  begin
-                      result := Mp3ERR_Unclassified;
-                      MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
-                  end;
+              TmpStream.Seek(0, soBeginning);
+              tmpsize := Stream.Size - Stream.Position;
+              if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> tmpsize then
+              begin
+                  result := Mp3ERR_Cache;
+                  Exit;
               end;
-              // delete tmp-file
-              TmpStream.Free;
-              DeleteFile(PChar(TmpName));
+              // ...cut the stream...
+              Stream.Seek(-ExistingTagSize, soEnd);
+              SetStreamEnd(Stream);
+              // ...and write the audiodata back.
+              Stream.Seek(0, soBeginning);
+              TmpStream.Seek(0, soBeginning);
+              if Stream.CopyFrom(TmpStream, TmpStream.Size) <> TmpStream.Size then
+              begin
+                  result := Mp3ERR_Cache;
+                  Exit;
+              end;
           except
-              on EFOpenError do result := FileErr_FileCreate;
+              on EWriteError do result := MP3ERR_StreamWrite;
               on E: Exception do
               begin
                   result := Mp3ERR_Unclassified;
                   MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
               end;
           end;
-      end
-      else
-      begin
-          ExistingID3Tag.Free;
-          result := Mp3ERR_NoTag;
+      finally
+          // delete tmp-file
+          TmpStream.Free;
+          DeleteFile(PChar(TmpName));
       end;
+
   except
+      on EFOpenError do result := FileErr_FileCreate;
       on E: Exception do
       begin
           result := Mp3ERR_Unclassified;

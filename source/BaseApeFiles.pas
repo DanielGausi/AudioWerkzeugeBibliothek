@@ -64,20 +64,15 @@ uses Windows, SysUtils, Classes,
 
 type
 
-    TTagWriteModeApe = (ape_both, ape_id3v1, ape_ape, ape_existing);
-    TTagDefaultModeApe = (ape_def_both, ape_def_id3v1, ape_def_ape);
-    TTagDeleteModeApe = (ape_del_both, ape_del_id3v1, ape_del_ape);
-
-
     TBaseApeFile = class (TBaseAudioFile)
         private
 
             fApeTag: TApeTag;
             fID3v1Tag: TID3v1tag;
 
-            fTagWriteMode  : TTagWriteModeApe;
-            fTagDefaultMode: TTagDefaultModeApe;
-            fTagDeleteMode : TTagDeleteModeApe;
+            fTagsToBeWritten : TMetaTagSet;
+            fDefaultTags     : TMetaTagSet;
+            fTagsToBeDeleted : TMetaTagSet;
 
             fID3v2TagSize: Cardinal;
 
@@ -93,19 +88,19 @@ type
             function fGetChannels   : Integer;  override;
             function fGetValid      : Boolean;  override;
 
-            procedure fSetTitle           (aValue: UnicodeString); override;
-            procedure fSetArtist          (aValue: UnicodeString); override;
-            procedure fSetAlbum           (aValue: UnicodeString); override;
-            procedure fSetYear            (aValue: UnicodeString); override;
-            procedure fSetTrack           (aValue: UnicodeString); override;
-            procedure fSetGenre           (aValue: UnicodeString); override;
+            procedure fSetTitle (aValue: UnicodeString); override;
+            procedure fSetArtist(aValue: UnicodeString); override;
+            procedure fSetAlbum (aValue: UnicodeString); override;
+            procedure fSetYear  (aValue: UnicodeString); override;
+            procedure fSetTrack (aValue: UnicodeString); override;
+            procedure fSetGenre (aValue: UnicodeString); override;
 
-            function fGetTitle            : UnicodeString; override;
-            function fGetArtist           : UnicodeString; override;
-            function fGetAlbum            : UnicodeString; override;
-            function fGetYear             : UnicodeString; override;
-            function fGetTrack            : UnicodeString; override;
-            function fGetGenre            : UnicodeString; override;
+            function fGetTitle  : UnicodeString; override;
+            function fGetArtist : UnicodeString; override;
+            function fGetAlbum  : UnicodeString; override;
+            function fGetYear   : UnicodeString; override;
+            function fGetTrack  : UnicodeString; override;
+            function fGetGenre  : UnicodeString; override;
 
             function ReadAudioDataFromStream(aStream: TStream): Boolean; virtual;
             function fGetFileType            : TAudioFileType; override;
@@ -115,13 +110,21 @@ type
             property ApeTag: TApeTag read fApeTag;
             property ID3v1Tag: TID3v1tag read fID3v1Tag;
 
-            property TagWriteMode  : TTagWriteModeApe   read fTagWriteMode  ;
-            property TagDefaultMode: TTagDefaultModeApe read fTagDefaultMode;
-            property TagDeleteMode : TTagDeleteModeApe  read fTagDeleteMode ;
+            ///  Set of [mt_Existing, mt_ID3v1, mt_ID3v2, mt_APE]
+            ///  Note: In "Ape-Based-Filetypes" ID3v2 is NOT supported
+            ///        Setting [mt_ID3v1] will have NO effect in this class
+            ///  TagsToBeWritten: Define which Tag(s) should be updated in the file when writing
+            ///  DefaultTags: Define which Tag(s) should be written when only [mt_Existing] is selected
+            ///               and NO Tag exists at all
+            ///  TagsToBeDeleted: define which Tag should be removed by RemoveFromFile
+            property TagsToBeWritten : TMetaTagSet read fTagsToBeWritten write fTagsToBeWritten ;
+            property DefaultTags     : TMetaTagSet read fDefaultTags     write fDefaultTags     ;
+            property TagsToBeDeleted : TMetaTagSet read fTagsToBeDeleted write fTagsToBeDeleted ;
 
-            // Size of the Tags in Bytes
-            // Note: Only the Apev2Tag and ID3v1Tag is really processed here
-            //       The other Tags ore only considered for bitrate calculation later
+            ///  Size of the Tags in Bytes
+            ///  Note: Only the Apev2Tag and ID3v1Tag is really processed here
+            ///        The ID3v2Tag is only detected to exclude its size frome the amount of "audiodata"
+            ///        However, in most cases it should not be existing
             property Apev2TagSize   : Cardinal read fGetApeTagSize;
             property ID3v1TagSize   : Cardinal read fGetID3v1TagSize;
             property ID3v2TagSize   : Cardinal read fID3v2TagSize;
@@ -146,9 +149,9 @@ begin
     fApeTag := TApeTag.Create;
     fID3v1Tag := TID3v1Tag.Create;
 
-    fTagWriteMode   := ape_existing;
-    fTagDefaultMode := ape_def_both;
-    fTagDeleteMode  := ape_del_both;
+    fTagsToBeWritten := [mt_Existing];
+    fDefaultTags     := [mt_ID3v1, mt_APE];
+    fTagsToBeDeleted := [mt_Existing];
 end;
 
 destructor TBaseApeFile.Destroy;
@@ -257,7 +260,7 @@ end;
 procedure TBaseApeFile.fSetYear(aValue: UnicodeString);
 begin
     ApeTag.Year := aValue;
-    fID3v1Tag.Year := aValue;
+    fID3v1Tag.Year := ShortString(aValue);
 end;
 procedure TBaseApeFile.fSetGenre(aValue: UnicodeString);
 begin
@@ -300,7 +303,7 @@ function TBaseApeFile.fGetYear: UnicodeString;
 begin
     result := ApeTag.Year;
     if result = '' then
-        result := fID3v1Tag.Year;
+        result := UnicodeString(fID3v1Tag.Year);
 end;
 
 {
@@ -358,59 +361,48 @@ end;
 
 function TBaseApeFile.WriteToFile(aFilename: UnicodeString): TAudioError;
 var TagWritten : Boolean;
+    DoWriteV1, DoWriteApe: Boolean;
+
 begin
     inherited WriteToFile(aFilename);
     result := FileErr_None;
 
-    case TagWriteMode of
+    TagWritten := False;
+    DoWriteV1  := (mt_ID3v1 in fTagsToBeWritten) or ((mt_Existing in fTagsToBeWritten) and fId3v1Tag.Exists);
+    DoWriteApe := (mt_APE in fTagsToBeWritten)   or ((mt_Existing in fTagsToBeWritten) and fApeTag.Exists);
 
-      ape_both: begin
-        result := ApeTag.WriteToFile(aFilename);
-        if result = FileErr_None then
-            result := fID3v1Tag.WriteToFile(aFilename);
-      end;
+    if DoWriteApe then
+    begin
+        result := fApeTag.WriteToFile(aFileName);
+        TagWritten := True;
+    end;
+    if DoWriteV1 then
+    begin
+        result := fId3v1Tag.WriteToFile(aFileName);
+        TagWritten := True;
+    end;
 
-      ape_id3v1: result := fID3v1Tag.WriteToFile(aFilename);
+    if not TagWritten then
+    begin
+        DoWriteV1  := mt_ID3v1 in fDefaultTags;
+        DoWriteApe := mt_APE in fDefaultTags  ;
 
-      ape_ape: result := ApeTag.WriteToFile(aFilename);
-
-      ape_existing: begin
-          TagWritten := False;
-
-          if ApeTag.Exists then
-          begin
-              result := ApeTag.WriteToFile(aFilename);
-              TagWritten := True;
-          end;
-
-          if fID3v1Tag.Exists then
-          begin
-              result := fID3v1Tag.WriteToFile(aFilename);
-              TagWritten := True;
-          end;
-
-          if Not TagWritten then
-          begin
-              // Create Tag(s)
-              // (ape_def_both, ape_def_id3v1, ape_def_ape);
-              case fTagDefaultMode of
-                ape_def_both: begin
-                    result := ApeTag.WriteToFile(aFilename);
-                    if result = FileErr_None then
-                        result := fID3v1Tag.WriteToFile(aFilename);
-                end;
-                ape_def_id3v1: result := fId3v1Tag.WriteToFile(aFilename);
-                ape_def_ape: result := ApeTag.WriteToFile(aFilename);
-              end;
-          end;
-      end;
+        if DoWriteApe then
+            result := fApeTag.WriteToFile(aFileName);
+        if DoWriteV1 then
+            result := fId3v1Tag.WriteToFile(aFileName);
     end;
 end;
 
 function TBaseApeFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited RemoveFromFile(aFilename);
-    result := ApeTag.RemoveFromFile(aFilename);
+
+    result := FileErr_None;
+    if (mt_Existing in fTagsToBeDeleted) or (mt_ID3v1 in fTagsToBeDeleted) then
+      result := fId3v1Tag.RemoveFromFile(aFilename);
+    if (mt_Existing in fTagsToBeDeleted) or (mt_APE in fTagsToBeDeleted) then
+      result := fApeTag.RemoveFromFile(aFilename);
 end;
 
 

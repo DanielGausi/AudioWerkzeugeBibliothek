@@ -310,27 +310,31 @@ begin
   CBUnsync.Checked := ID3v2Tag.FlgUnsynch;
   CBUnsync.OnClick := CBUnsyncClick;
 
-  Case CBFrameTypeSelection.ItemIndex of
-      0: FrameList := ID3v2Tag.GetAllTextFrames ;     //  Text-Frames
-      1: FrameList := ID3v2Tag.GetAllCommentFrames ;  //  Comments
-      2: FrameList := ID3v2Tag.GetAllLyricFrames ;    //  Lyrics
-      3: FrameList := ID3v2Tag.GetAllURLFrames ;      //  URLs
-      4: FrameList := ID3v2Tag.GetAllUserDefinedURLFrames;  //  User-defined URLs
-      5: FrameList := ID3v2Tag.GetAllPictureFrames;   //  Cover Art
-      6: FrameList := ID3v2Tag.GetAllPrivateFrames;   //  private Frames
-  else
-      FrameList := ID3v2Tag.GetAllFrames ;         //  All Frames (viewed as binary data)
-  end;
+  FrameList := TObjectlist.Create;
+  try
+      case CBFrameTypeSelection.ItemIndex of
+          0: ID3v2Tag.GetAllTextFrames(FrameList) ;     //  Text-Frames
+          1: ID3v2Tag.GetAllCommentFrames(FrameList) ;  //  Comments
+          2: ID3v2Tag.GetAllLyricFrames(FrameList) ;    //  Lyrics
+          3: ID3v2Tag.GetAllURLFrames(FrameList) ;      //  URLs
+          4: ID3v2Tag.GetAllUserDefinedURLFrames(FrameList);  //  User-defined URLs
+          5: ID3v2Tag.GetAllPictureFrames(FrameList);   //  Cover Art
+          6: ID3v2Tag.GetAllPrivateFrames(FrameList);   //  private Frames
+      else
+          ID3v2Tag.GetAllFrames(FrameList) ;         //  All Frames (viewed as binary data)
+      end;
 
-  for i := 0 to FrameList.Count - 1 do
-  begin
-      iFrame := (FrameList[i] as TID3v2Frame);
-      NewItem := LVFrames.Items.Add;
-      NewItem.Caption := iFrame.FrameIDString;
-      NewItem.SubItems.Add(iFrame.FrameTypeDescription);
-      NewItem.Data := iFrame;
+      for i := 0 to FrameList.Count - 1 do
+      begin
+          iFrame := (FrameList[i] as TID3v2Frame);
+          NewItem := LVFrames.Items.Add;
+          NewItem.Caption := iFrame.FrameIDString;
+          NewItem.SubItems.Add(iFrame.FrameTypeDescription);
+          NewItem.Data := iFrame;
+      end;
+  finally
+    FrameList.Free;
   end;
-  FrameList.Free;
 end;
 
 procedure TForm1.CBFrameTypeSelectionChange(Sender: TObject);
@@ -364,17 +368,17 @@ begin
       exit;
    end;
 
-   LblTagAlter       .caption := BoolToYesNo(iFrame.FlagTagAlterPreservation                  );
-   LblFileAlter      .caption := BoolToYesNo(iFrame.FlagFileAlterPreservation                 );
-   LblReadOnly       .caption := BoolToYesNo(iFrame.FlagReadOnly                              );
-   LblSize           .caption := IntToStr   (iFrame.DataSize                                  );
-   LblUnknownFlags   .caption := BoolToYesNo(iFrame.FlagUnknownEncoding or iFrame.FlagUnknownStatus  );
+   LblTagAlter    .caption := BoolToYesNo(iFrame.FlagTagAlterPreservation                  );
+   LblFileAlter   .caption := BoolToYesNo(iFrame.FlagFileAlterPreservation                 );
+   LblReadOnly    .caption := BoolToYesNo(iFrame.FlagReadOnly                              );
+   LblSize        .caption := IntToStr   (iFrame.DataSize                                  );
+   LblUnknownFlags.caption := BoolToYesNo(iFrame.FlagUnknownEncoding or iFrame.FlagUnknownStatus  );
 
    if not iFrame.FlagGroupingIndentity
    then
-       LblGrouped        .caption := BoolToYesNo(iFrame.FlagGroupingIndentity                     )
+       LblGrouped.caption := BoolToYesNo(iFrame.FlagGroupingIndentity                     )
    else
-       LblGrouped        .caption := IntToStr(iFrame.GroupID); 
+       LblGrouped.caption := IntToStr(iFrame.GroupID);
 
    LblUnsynced       .caption := BoolToYesNo(iFrame.FlagUnsynchronisation                     );
    LblLengthIndicator.caption := BoolToYesNo(iFrame.FlagDataLengthIndicator                   );

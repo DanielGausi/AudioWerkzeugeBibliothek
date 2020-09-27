@@ -23,6 +23,10 @@ uses Classes, SysUtils, Windows
     {$IFDEF USE_TNT_COMPOS}, TntSysUtils, TntClasses{$ENDIF}
     ;
 
+const
+    APE_PREAMBLE = 'APETAGEX';
+    ID3V1_PREAMBLE = 'TAG';
+
 type
     {$IFNDEF UNICODE}
         UnicodeString = WideString;
@@ -40,6 +44,10 @@ type
     String30 =  String[30];
 
 
+    TMetaTag = (mt_Existing, mt_ID3v1, mt_ID3v2, mt_APE);
+    TMetaTagSet = set of TMetaTag;
+
+
      // Structure of ID3v1Tags in the file
     TID3v1Structure = record
       ID: array[1..3] of AnsiChar;         //  3
@@ -50,6 +58,22 @@ type
       Comment: Array [1..30] of AnsiChar;  // 30
       Genre: Byte;                         //  1 = 128 Bytes total
     end;
+
+    TApeHeader = record
+        Preamble: Array[1..8] of AnsiChar; // 8
+        Version: DWord;                    // 4
+        Size: DWord;                       // 4
+        ItemCount: DWord;                  // 4
+        Flags: DWord;                      // 4
+        Reserved: Array[1..8] of Byte;     // 8 = 32 Bytes total
+    end;
+
+    TCombinedFooterTag = record
+        ApeFooter: TApeHeader;             //  32
+        ID3Tag: TID3v1Structure;           // 128 = 160 Bytes total
+    end;
+
+    PApeHeader = ^TApeHeader;
 
 
     TAudioFileType = (at_Invalid,
@@ -93,7 +117,7 @@ type
           MP3ERR_StreamRead,
           MP3ERR_StreamWrite,
           Mp3ERR_Cache,
-          Mp3ERR_NoTag,
+          // Mp3ERR_NoTag,                  ////  Nicht mehr verwenden
           MP3ERR_Invalid_Header,
           Mp3ERR_Compression,
           Mp3ERR_Unclassified,
@@ -119,7 +143,7 @@ type
           // ApeFiles
           ApeErr_InvalidApeFile,
           ApeErr_InvalidTag,
-          ApeErr_NoTag,
+          // ApeErr_NoTag,                  ////  Nicht mehr verwenden
 
           // WMA Files
           WmaErr_WritingNotSupported,
@@ -143,9 +167,7 @@ type
           M4aErr_Invalid_MOOV,
           M4aErr_Invalid_DuplicateUDTA,
           M4aErr_Invalid_DuplicateTRAK,
-
           M4aErr_RemovingNotSupported,
-
           //
           FileErr_NotSupportedFileType
           );
@@ -175,11 +197,11 @@ const
               'Could not read from file',                               //FileErr_FileOpenR,
               'Could not write into file',                              //FileErr_FileOpenRW,
               'File is read-only',                                      //FileErr_ReadOnly,
-              'Reading from stream failed',                             //MP3ERR_StreamRead,
+              'Reading from stream failed (not enough data)',           //MP3ERR_StreamRead,
               'Writing to stream failed',                               //MP3ERR_StreamWrite,
               // Id3
               'Caching audiodata failed',                               //Mp3ERR_Cache,
-              'No ID3-Tag found',                                       //Mp3ERR_NoTag,
+              // 'No ID3-Tag found',                                       //Mp3ERR_NoTag,
               'Invalid header for ID3v2-Tag',                           //MP3ERR_Invalid_Header,
               'Compressed ID3-Tag found',                               //Mp3ERR_Compression,
               'Unknown ID3-Error',                                      //Mp3ERR_Unclassified,
@@ -190,7 +212,7 @@ const
               'Invalid Ogg-Vorbis-File: First Ogg-Page corrupt',        //OVErr_InvalidFirstPage,
               'Invalid Ogg-Vorbis-File: Second Vorbis-Header corrupt',  //OVErr_InvalidSecondPageHeader,
               'Invalid Ogg-Vorbis-File: Second Ogg-Page corrupt',       //OVErr_InvalidSecondPage,
-              'Comment too large (sorry, Flogger limitation)',          //OVErr_CommentTooLarge,
+              'Comment too large (not supported)',                      //OVErr_CommentTooLarge,
               'Backup failed',                                          //OVErr_BackupFailed,
               'Delete backup failed',                                   //OVErr_DeleteBackupFailed,
               'Removing Tag not supported.',                            //OVErr_RemovingNotSupported,
@@ -203,26 +225,26 @@ const
                // ApeFiles
                'Invalid Apev2 file',                        //ApeErr_InvalidApeFile,
                'Invalid Apev2Tag',                          //ApeErr_InvalidTag,
-               'No Apev2tag found',                         //ApeErr_NoTag,
+               // 'No Apev2tag found',                         //ApeErr_NoTag,
                // WMA Files
                'Writing not supported on WMA',              //WmaErr_WritingNotSupported,
                // Wav Files
                'Writing not supported on WAV',              //WavErr_WritingNotSupported,
                // M4a Files
                'M4A: 64Bit not supported',                  //M4AErr_64BitNotSupported,
-               'M4A: Invalid TopLevelAtom,',                //M4aErr_Invalid_TopLevelAtom,
-               'M4A: Invalid UDTA,',                        //M4aErr_Invalid_UDTA,
-               'M4A: Invalid METAVersion,',                 //M4aErr_Invalid_METAVersion,
-               'M4A: Invalid MDHD,',                        //M4aErr_Invalid_MDHD,
-               'M4A: Invalid STSD,',                        //M4aErr_Invalid_STSD,
-               'M4A: Invalid STCO,',                        //M4aErr_Invalid_STCO,
-               'M4A: Invalid STBL,',                        //M4aErr_Invalid_STBL,
-               'M4A: Invalid TRAK,',                        //M4aErr_Invalid_TRAK,
-               'M4A: Invalid MDIA,',                        //M4aErr_Invalid_MDIA,
-               'M4A: Invalid MINF,',                        //M4aErr_Invalid_MINF,
-               'M4A: Invalid MOOV,',                        //M4aErr_Invalid_MOOV,
-               'M4A: Invalid Duplicate UDTA,',              //M4aErr_Invalid_DuplicateUDTA,
-               'M4A: Invalid Duplicate TRAK,',              //M4aErr_Invalid_DuplicateTRAK,
+               'M4A: Invalid TopLevelAtom',                 //M4aErr_Invalid_TopLevelAtom,
+               'M4A: Invalid UDTA',                         //M4aErr_Invalid_UDTA,
+               'M4A: Invalid METAVersion',                  //M4aErr_Invalid_METAVersion,
+               'M4A: Invalid MDHD',                         //M4aErr_Invalid_MDHD,
+               'M4A: Invalid STSD',                         //M4aErr_Invalid_STSD,
+               'M4A: Invalid STCO',                         //M4aErr_Invalid_STCO,
+               'M4A: Invalid STBL',                         //M4aErr_Invalid_STBL,
+               'M4A: Invalid TRAK',                         //M4aErr_Invalid_TRAK,
+               'M4A: Invalid MDIA',                         //M4aErr_Invalid_MDIA,
+               'M4A: Invalid MINF',                         //M4aErr_Invalid_MINF,
+               'M4A: Invalid MOOV',                         //M4aErr_Invalid_MOOV,
+               'M4A: Invalid Duplicate UDTA',               //M4aErr_Invalid_DuplicateUDTA,
+               'M4A: Invalid Duplicate TRAK',               //M4aErr_Invalid_DuplicateTRAK,
                'M4A: removing Meta data not supported',     //M4aErr_RemovingNotSupported,
 
                'File type not supported'                    //FileErr_NotSupportedFileType
@@ -232,6 +254,8 @@ const
     function AudioExtractFileDrive(aString: UnicodeString): UnicodeString;
     function ConvertUTF8ToString(aUTF8String: UTF8String): UnicodeString;
     function ConvertStringToUTF8(aString: UnicodeString): UTF8String;
+
+    function IsValidID3Tag(aID3v1tag: TID3v1Structure): Boolean;
 
     procedure SetStreamEnd(aStream: TStream);
     function GetTempFile: String;
@@ -303,6 +327,18 @@ begin
     result := Path + 'TagTemp.t' + IntToHex(i, 2);
     inc(i);
   until not FileExists(result);
+end;
+
+
+function IsValidID3Tag(aID3v1tag: TID3v1Structure): Boolean;
+var p: Pointer;
+    hiddenApeFooter: TApeHeader;
+begin
+    p := @aID3v1Tag.Year[4];
+    hiddenApeFooter := PApeHeader(p)^ ;
+
+    result := (aID3v1Tag.ID = ID3V1_PREAMBLE)
+          and (hiddenApeFooter.Preamble <> APE_PREAMBLE);
 end;
 
 

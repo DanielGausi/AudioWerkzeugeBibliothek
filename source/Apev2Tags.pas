@@ -75,27 +75,8 @@ uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
      AudioFiles.Base, AudioFiles.Declarations,
      Id3Basics, ApeTagItem;
 
-const
-    APE_PREAMBLE = 'APETAGEX';
-    ID3V1_PREAMBLE = 'TAG';
 
 type
-
-    TApeHeader = record
-        Preamble: Array[1..8] of AnsiChar; // 8
-        Version: DWord;                    // 4
-        Size: DWord;                       // 4
-        ItemCount: DWord;                  // 4
-        Flags: DWord;                      // 4
-        Reserved: Array[1..8] of Byte;     // 8 = 32 Bytes total
-    end;
-
-    TCombinedFooterTag = record
-        ApeFooter: TApeHeader;             //  32
-        ID3Tag: TID3v1Structure;           // 128 = 160 Bytes total
-    end;
-
-    PApeHeader = ^TApeHeader;
 
     TApeTag = class
         private
@@ -112,8 +93,6 @@ type
             fItemList: TObjectList;
 
             function fIsValidHeader(aApeHeader: TApeHeader): Boolean;
-            function fIsValidID3Tag(aID3v1tag: TID3v1Structure): Boolean;
-
             function fTagContainsHeader: Boolean;
 
             function fGetComment          : UnicodeString;
@@ -247,6 +226,7 @@ type
             procedure SetBinaryByKey(aKey: AnsiString; source: TStream);
             // Get a List of all TagItems in the tag (e.g. for use in a TListBox)
             procedure GetAllFrames(dest: TStrings);
+            procedure GetAllTextFrames(dest: TStrings);
 
             // Get/Set Cover Art
             // return value of the getter:
@@ -311,17 +291,6 @@ end;
 function TApeTag.fIsValidHeader(aApeHeader: TApeHeader): Boolean;
 begin
     result := aApeHeader.Preamble = APE_PREAMBLE; //AnsiString('APETAGEX');
-end;
-
-function TApeTag.fIsValidID3Tag(aID3v1tag: TID3v1Structure): Boolean;
-var p: Pointer;
-    hiddenApeFooter: TApeHeader;
-begin
-    p := @aID3v1Tag.Year[4];
-    hiddenApeFooter := PApeHeader(p)^ ;
-
-    result := (aID3v1Tag.ID = ID3V1_PREAMBLE)
-          and (hiddenApeFooter.Preamble <> APE_PREAMBLE);
 end;
 
 
@@ -691,6 +660,15 @@ begin
         dest.Add(String(TApeTagItem(fItemList[i]).Key));
 end;
 
+procedure TApeTag.GetAllTextFrames(dest: TStrings);
+var i: Integer;
+begin
+    dest.Clear;
+    for i := 0 to fItemList.Count - 1 do
+        if TApeTagItem(fItemList[i]).ContentType = ctText then
+            dest.Add(String(TApeTagItem(fItemList[i]).Key));
+end;
+
 procedure TApeTag.GetAllPictureFrames(dest: TStrings);
 var i: Integer;
     aTagItem: TApeTagItem;
@@ -776,20 +754,20 @@ var i: Integer;
     hiddenApeHeader: TApeHeader;
     CombinedTagStructure: TCombinedFooterTag;
     MemStream: TMemoryStream;
+    tmpValidApeFooter: Boolean;
 
 begin
     result := FileErr_None;
     clear;
+    tmpValidApeFooter := False;
 
     // Check for ID3/APE-Markers at the end of the file
     aStream.Seek(-160, soFromEnd);
     if (aStream.Read(CombinedTagStructure, 160) <> 160) then
-        // well, actually it could be ID3v1Tag in the file, but that would mean
-        // that three is less than 32Bytes of Audiodata - it would't make any sense
-        result := ApeErr_NoTag
+        result := MP3ERR_StreamRead
     else
     begin
-        if fIsValidID3Tag(CombinedTagStructure.ID3Tag) then
+        if IsValidID3Tag(CombinedTagStructure.ID3Tag) then
         begin
             // we DO have a valid ID3v1Tag in the file
             fID3v1TagSize := 128;
@@ -797,10 +775,9 @@ begin
             fOffset := 128;
             fID3v1tag := CombinedTagStructure.ID3Tag;
 
-            if fIsValidHeader(CombinedTagStructure.ApeFooter) then
-                fApev2TagFooter := CombinedTagStructure.ApeFooter  // we DO have a valid ApeFooter in the file
-            else
-                result := ApeErr_NoTag;  // we DO NOT have a valid ApeFooter in the file
+            tmpValidApeFooter := fIsValidHeader(CombinedTagStructure.ApeFooter);
+            if tmpValidApeFooter then
+                fApev2TagFooter := CombinedTagStructure.ApeFooter;  // we DO have a valid ApeFooter in the file
         end else
         begin
             // we DO NOT have a valid ID3v1Tag in the file, but
@@ -808,14 +785,13 @@ begin
             p := @CombinedTagStructure.ID3Tag.Year[4];
             hiddenApeHeader := PApeHeader(p)^ ;
 
-            if fIsValidHeader(hiddenApeHeader) then
-                fApev2TagFooter := hiddenApeHeader // we DO have a valid ApeFooter at the very end of the file
-            else
-                result := ApeErr_NoTag;
+            tmpValidApeFooter := fIsValidHeader(hiddenApeHeader);
+            if tmpValidApeFooter then
+                fApev2TagFooter := hiddenApeHeader;  // we DO have a valid ApeFooter at the very end of the file
         end;
     end;
 
-    if result = ApeErr_NoTag then
+    if not tmpValidApeFooter then
         exit;
 
     // Apev2tag is present, it's Footer is stored in fApev2TagFooter
