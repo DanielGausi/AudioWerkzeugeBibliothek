@@ -368,22 +368,22 @@ begin
       exit;
    end;
 
-   LblTagAlter    .caption := BoolToYesNo(iFrame.FlagTagAlterPreservation                  );
-   LblFileAlter   .caption := BoolToYesNo(iFrame.FlagFileAlterPreservation                 );
-   LblReadOnly    .caption := BoolToYesNo(iFrame.FlagReadOnly                              );
-   LblSize        .caption := IntToStr   (iFrame.DataSize                                  );
+   LblTagAlter    .caption := BoolToYesNo(iFrame.FlagTagAlterPreservation  );
+   LblFileAlter   .caption := BoolToYesNo(iFrame.FlagFileAlterPreservation );
+   LblReadOnly    .caption := BoolToYesNo(iFrame.FlagReadOnly              );
+   LblSize        .caption := IntToStr   (iFrame.DataSize                  );
    LblUnknownFlags.caption := BoolToYesNo(iFrame.FlagUnknownEncoding or iFrame.FlagUnknownStatus  );
 
    if not iFrame.FlagGroupingIndentity
    then
-       LblGrouped.caption := BoolToYesNo(iFrame.FlagGroupingIndentity                     )
+       LblGrouped.caption := BoolToYesNo(iFrame.FlagGroupingIndentity)
    else
        LblGrouped.caption := IntToStr(iFrame.GroupID);
 
-   LblUnsynced       .caption := BoolToYesNo(iFrame.FlagUnsynchronisation                     );
-   LblLengthIndicator.caption := BoolToYesNo(iFrame.FlagDataLengthIndicator                   );
-   LblCompression    .caption := BoolToYesNo(iFrame.FlagCompression                           );
-   LblEncryption     .caption := BoolToYesNo(iFrame.FlagEncryption                            );
+   LblUnsynced       .caption := BoolToYesNo(iFrame.FlagUnsynchronisation  );
+   LblLengthIndicator.caption := BoolToYesNo(iFrame.FlagDataLengthIndicator);
+   LblCompression    .caption := BoolToYesNo(iFrame.FlagCompression        );
+   LblEncryption     .caption := BoolToYesNo(iFrame.FlagEncryption         );
 
    case CBFrameTypeSelection.ItemIndex of
        0: begin //  Normale Text-Frames

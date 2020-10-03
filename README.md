@@ -20,8 +20,8 @@ Limitations:
 ## Important changes in version 2.0
 
 * Instead of a "super class" TGeneralAudioFile I use now a factory pattern. This has some effect on how you create instances of `TAudioFiles`, and how you access file-type-specific class methods.
-* The Constructor of the "File-Classes" does NOT automatically read information from the file any longer. This has to be done by `ReadfromFile(filename)`now. The reason for this change is, that some classes (= TMP3File) have now some options how exactly the information is gathered from the file.
-* The unit `MP3FileUtils.pas` was split into several units, and some "legacy" code from it has been removed (like the type `TMP3Error`).
+* The constructor of the "File-Classes" does NOT automatically read information from the file any longer. This has to be done by `ReadfromFile(filename)`now. The reason for this change is, that some classes (= TMP3File) have now some options how exactly the information is gathered from the file.
+* The unit `MP3FileUtils.pas` was split into several units, and some legacy code from it has been removed (like the type `TMP3Error`).
 * Several changes in the usage of some classes. For example for the class `TMP3File`, there is now a property `TagsToBeWritten`, which is a set of `TMetaTag = (mt_Existing, mt_ID3v1, mt_ID3v2, mt_APE)`, defining which tags should be written when using `UpdatFile` . The former property of type `TTagWriteMode = (id3_both, id3_v1, id3_v2, id3_existing);` wasn't flexible enough to be extended to three different supported meta tags.
 
 ## General concept of this library
@@ -29,8 +29,8 @@ Limitations:
 You can use this library on different "levels", but there is not a real differentiation between these levels. You can just use more or less from the features of this library. Depending on what you want to do, it is recommended to know more or less about the inner structure of "audio files".
 
 * The first level is super easy to use, but limited in what you can get from the audio files, and what you can do with them. You just need to know that there do exist some file types containing "music", which also may contain some "meta data" (like artist or title), and have some properties (like duration or bitrate).
-* The second level is little bit more complicated to use, but you'll get more information from the audio files (like Lyrics and Cover Art). You should know that there are different types of audio files like mp3 and ogg files, and that these different kind of files use different ways to store the meta data (like ID3-Tags or Vorbis Comments), and you should try to get an overwiew about how these ways look like.
-* And there is a third level, where you can do some crazy stuff with your files. Like, storing another mp3-file within the ID3-tag of another mp3-file. For this, you should understand a little bit more about the inner structure of ID3Tags on the frame level. This means, that you should know that an ID3v2Tag contains a list of ID3Frames, where each frame consist of a header and the actual data. You can also read and write ID3-Tags and Apev2Tags directly, adding them to file types not intended by the `TxxxFile` classes provided by this library.
+* The second level is little bit more complicated to use, but you'll get more information from the audio files (like Lyrics and Cover Art). You should know that there are different types of audio files like mp3 and ogg files, and that these different kind of files use different ways to store the meta data (like ID3-Tags or Vorbis Comments), and you should try to get an overview about how these ways look like.
+* And there is a third level, where you can do some crazy stuff with your files. Like, storing another mp3-file within the ID3-Tag of another mp3-file. For this, you should understand a little bit more about the inner structure of ID3Tags on the frame level. This means, that you should know that an ID3v2Tag contains a list of ID3Frames, where each frame consist of a header and the actual data. 
 
 See the demo projects for examples.
 
@@ -116,7 +116,7 @@ You may also have access to other information like Cover-Art here. See demo "Dem
 
 On the "expert level" you don't use the classes `TxxxFile` any more, but you read and write the meta tags directly, using the `TXXXTags` classes. With that, you can read and write other meta data (like ID3v2-Tags in flac-files). Not everything that is possible is actually recommended. Adding "non-standard" tags to other file formats may cause problems with other tagging software or even players, which deny playback of the file after adding not supported meta data.
 
-You may also make full usage of the features of  the class `TID3v2Tag`. With this, you can read and write your own "private" frames, that only your software will understand, but doesn't disturbe other programs. A lot of mp3-players do that, and these private frames are meant exactly for such purposes.
+You may also make full usage of the features of  the class `TID3v2Tag`. With this, you can read and write your own "private" frames, that only your software will understand, but doesn't disturb other programs. A lot of mp3-players do that, and these private frames are meant exactly for such purposes.
 
 See demo "DemoMp3" for more details of what is possible (but not always recommended, some players may stumble about these files then).
 
@@ -126,7 +126,7 @@ Several audio formats may contain different kinds of meta data within the file. 
 
 * Mp3 files usually contain ID3v1 and ID3v2-Tags. When using the class `TMP3File`, it is usually ensured that both versions stay consistent in the file. 
 
-* Mp3 files sometimes also contain an APEv2-Tag. This tag is now also fully processed by class `TMP3File`. Setting basic properties will ensure that all meta tags remain consistent. Make sure that property `TagsToBeWritten` contains `mt_Existing`.
+* Mp3 files sometimes also contain an APEv2-Tag. This tag is now also fully processed by class `TMP3File`. Setting basic properties will ensure that all meta tags remain consistent. Make sure that property `TagsToBeWritten` contains `mt_Existing` (which is the default value).
 
 * All audio formats using APEv2-Tags by default (Monkey, WavPack, Musepack, OptimFrog, TrueAudio) may also contain ID3v1- and ID3v2-Tags. The `TxxxFile` classes for those formats do now fully process the ID3v1-Tag. The existence of an ID3v2-Tag is detected (and it's size is considered for the calculation of the duration, if needed), but otherwise ignored.
 
@@ -195,7 +195,7 @@ If you are using an older Delphi Version without TNTUnicodeControls, this librar
 
 *Note*: The sample projects do not use the TNTControls (like TTNTEdit instead of TEdit). Be careful there with older Delphis. ;-)
 
-Newer Delphi versions (2009 and later) have built-in Unicode support, and therefore the use of these TNTUnicodeControls is not needed. In addition, the definition of the type `UnicodeString` is not needed there. This is the reason for this compiler switch, which can be found in some of the files as well.
+Newer Delphi versions (2009 and later) have built-in Unicode support, and therefore the use of these TNTUnicodeControls is not needed. In addition, the definition of the type `UnicodeString` is not needed there. This is the reason for this compiler switch:
 ```
 {$IFNDEF UNICODE}
 	UnicodeString = WideString;
@@ -218,5 +218,5 @@ This library should correctly read information from all kind of audio files in m
 
 If you found a bug, or if you have some audio files (especially mp3 files!), where the methods of this library provide wrong data, please contact me and/or send some sample files to [mail@gausi.de](mailto:mail@gausi.de).
 
-*But I can't (and will not) fix everything. The most craziest thing I have ever seen was an ID3v2Tag with the following encoding: UTF-16 (fine), null-terminated (more or less standard), starting with a BOM (ok...), character-by-character (wtf..?) - yes, no kidding. A total of 6 bytes per character ...* 
+*But I can't (and will not) fix everything. The most craziest thing I have ever seen was an ID3v2Tag with the following encoding: UTF-16 (fine), null-terminated (more or less standard), starting with a BOM (ok...), character-by-character (wtf...?) - yes, no kidding. A total of 6 bytes per character ...* 
 

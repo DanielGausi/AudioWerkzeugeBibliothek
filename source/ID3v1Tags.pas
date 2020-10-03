@@ -540,7 +540,6 @@ begin
     end else
     begin
         // Write as Ansi
-
         tmpstr := AnsiString(value);
         max := length(tmpstr);
         if max > 30 then max := 30;
@@ -567,7 +566,7 @@ var
   i: integer;
 begin
   i := ID3Genres.IndexOf(Value);
-  if i in [0..125] then
+  if i >= 0 then
     FGenre := i
   else
     FGenre := 255; // undefined

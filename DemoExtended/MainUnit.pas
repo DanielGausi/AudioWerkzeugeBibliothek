@@ -51,6 +51,11 @@ type
     LblFileSize: TLabel;
     lvMetaTags: TListView;
     Label7: TLabel;
+    grpTagSelection: TGroupBox;
+    cb_Existing: TCheckBox;
+    cb_ID3v1: TCheckBox;
+    cb_ID3v2: TCheckBox;
+    cb_Ape: TCheckBox;
     procedure FormDestroy(Sender: TObject);
     procedure BtnSaveClick(Sender: TObject);
     procedure cbPicturesChange(Sender: TObject);
@@ -70,7 +75,7 @@ type
     function StreamToBitmap(aStream: TStream; aBitmap: TBitmap): Boolean;
     procedure RefreshImageList;
 
-
+    procedure ApplyUpdateSettings;
 
     procedure AddTagItem(Tag, Key, Value: String);
     procedure RefillTagDetailsID3v1(aTag: TID3v1Tag);
@@ -115,6 +120,7 @@ end;
 
 
 procedure TMainFormAWB.FileListBox1Change(Sender: TObject);
+var EnableTagSelection: Boolean;
 begin
     if assigned(AudioFile) then
         AudioFile.Free;
@@ -147,6 +153,7 @@ begin
 
     RefillTagDetailsListView;
 
+    EnableTagSelection := false;
     case AudioFile.FileType of
           at_Invalid: begin
               ShowMessage('Invalid AudioFile');
@@ -161,6 +168,7 @@ begin
               MemoSpecific.Lines.Add(Format('ID3v1: %d Bytes', [TMP3File(AudioFile).ID3v1TagSize]));
               MemoSpecific.Lines.Add(Format('ID3v2: %d Bytes', [TMP3File(AudioFile).ID3v2TagSize]));
               MemoSpecific.Lines.Add(Format('Apev2: %d Bytes', [TMP3File(AudioFile).ApeTagSize]));
+              EnableTagSelection := True;
           end;
           at_Ogg: begin
               MemoLyrics.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname('UNSYNCEDLYRICS');
@@ -181,6 +189,7 @@ begin
               MemoSpecific.Lines.Add(Format('ID3v1: %d Bytes', [TBaseApeFile(AudioFile).ID3v1TagSize]));
               MemoSpecific.Lines.Add(Format('ID3v2: %d Bytes', [TBaseApeFile(AudioFile).ID3v2TagSize]));
               MemoSpecific.Lines.Add(Format('ApeV2: %d Bytes', [TBaseApeFile(AudioFile).Apev2TagSize]));
+              EnableTagSelection := True;
           end;
     end;
 
@@ -211,6 +220,12 @@ begin
     end;
 
     RefreshImageList;
+
+    grpTagSelection.Enabled := EnableTagSelection;
+    cb_Existing.Enabled := EnableTagSelection;
+    cb_ID3v1.Enabled := EnableTagSelection;
+    cb_ID3v2.Enabled := EnableTagSelection;
+    cb_Ape.Enabled := EnableTagSelection;
 end;
 
 
@@ -528,8 +543,45 @@ begin
     end;
 end;
 
+procedure TMainFormAWB.ApplyUpdateSettings;
+var mp3File: TMp3File;
+    apeFile: TBaseApeFile;
+begin
+    case AudioFile.FileType of
+
+        at_Mp3: begin
+            mp3File := TMp3File(AudioFile);
+            mp3File.TagsToBeWritten := [];
+            if cb_Existing.Checked then mp3File.TagsToBeWritten := mp3File.TagsToBeWritten + [mt_Existing];
+            if cb_ID3v1.Checked    then mp3File.TagsToBeWritten := mp3File.TagsToBeWritten + [mt_ID3v1];
+            if cb_ID3v2.Checked    then mp3File.TagsToBeWritten := mp3File.TagsToBeWritten + [mt_ID3v2];
+            if cb_Ape.Checked      then mp3File.TagsToBeWritten := mp3File.TagsToBeWritten + [mt_Ape];
+
+            mp3File.TagsToBeDeleted := mp3File.TagsToBeWritten;
+        end;
+
+        at_Monkey,
+        at_WavPack,
+        at_MusePack,
+        at_OptimFrog,
+        at_TrueAudio: begin
+            apeFile := TBaseApeFile(AudioFile);
+            apeFile.TagsToBeWritten := [];
+            if cb_Existing.Checked then apeFile.TagsToBeWritten := apeFile.TagsToBeWritten + [mt_Existing];
+            if cb_ID3v1.Checked    then apeFile.TagsToBeWritten := apeFile.TagsToBeWritten + [mt_ID3v1];
+            if cb_ID3v2.Checked    then apeFile.TagsToBeWritten := apeFile.TagsToBeWritten + [mt_ID3v2];
+            if cb_Ape.Checked      then apeFile.TagsToBeWritten := apeFile.TagsToBeWritten + [mt_Ape];
+
+            apeFile.TagsToBeDeleted := apeFile.TagsToBeWritten;
+        end;
+    else
+      // nothing to do;
+    end;
+end;
+
 procedure TMainFormAWB.BtnRemoveTagClick(Sender: TObject);
 begin
+    ApplyUpdateSettings;
     AudioFile.RemoveFromFile(AudioFile.Filename);
 end;
 
@@ -552,6 +604,8 @@ end;
 
 procedure TMainFormAWB.BtnSaveClick(Sender: TObject);
 begin
+    ApplyUpdateSettings;
+
     // Set basic data
     AudioFile.Artist := EdtArtist.Text ;
     AudioFile.Title  := EdtTitle.Text  ;

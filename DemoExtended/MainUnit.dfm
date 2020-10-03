@@ -186,10 +186,6 @@ object MainFormAWB: TMainFormAWB
       RowSelect = True
       TabOrder = 0
       ViewStyle = vsReport
-      ExplicitLeft = 3
-      ExplicitTop = 11
-      ExplicitWidth = 411
-      ExplicitHeight = 141
     end
   end
   object GroupBox7: TGroupBox
@@ -328,6 +324,48 @@ object MainFormAWB: TMainFormAWB
       ScrollBars = ssVertical
       TabOrder = 0
       WordWrap = False
+    end
+  end
+  object grpTagSelection: TGroupBox
+    Left = 250
+    Top = 560
+    Width = 289
+    Height = 42
+    Caption = 'Tags to update/remove'
+    TabOrder = 8
+    object cb_Existing: TCheckBox
+      Left = 16
+      Top = 16
+      Width = 65
+      Height = 17
+      Caption = 'Existing'
+      Checked = True
+      State = cbChecked
+      TabOrder = 0
+    end
+    object cb_ID3v1: TCheckBox
+      Left = 87
+      Top = 16
+      Width = 58
+      Height = 17
+      Caption = 'ID3v1'
+      TabOrder = 1
+    end
+    object cb_ID3v2: TCheckBox
+      Left = 151
+      Top = 16
+      Width = 58
+      Height = 17
+      Caption = 'ID3v2'
+      TabOrder = 2
+    end
+    object cb_Ape: TCheckBox
+      Left = 215
+      Top = 16
+      Width = 58
+      Height = 17
+      Caption = 'APEv2'
+      TabOrder = 3
     end
   end
 end
