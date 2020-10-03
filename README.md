@@ -6,7 +6,7 @@ Read and write meta tags (like artist, title, album, genre, ...) from many diffe
 
 Supported Tag formats (**bold: new in v2.0**):
 
-* ID3Tag, Version 1 and 1.1 (mp3, **ape**, mpc, ofr, tta, wv)
+* ID3Tag, Version 1 and 1.1 (mp3, **ape, mpc, ofr, tta, wv**)
 * ID3Tag, Version 2.2, 2.3 and 2.4 (mp3)
 * Apev2Tags (**mp3**, ape, mpc, ofr, tta, wv)
 * Vorbis Comments (ogg, flac)
