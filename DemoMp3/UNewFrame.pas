@@ -4,8 +4,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, ExtDlgs, StdCtrls, ExtCtrls, ComCtrls, JPEG,
-  ID3v2Tags, ID3v2Frames, LanguageCodeList;
+  Dialogs, ExtDlgs, StdCtrls, ExtCtrls, ComCtrls, JPEG, AudioFiles.Declarations,
+  ID3v2Tags, ID3v2Frames, LanguageCodeList, Vcl.Mask;
 
 type
   TFormNewFrame = class(TForm)
@@ -175,7 +175,7 @@ begin
 end;
 
 procedure TFormNewFrame.FormCreate(Sender: TObject);
-var i: Integer;
+var i: TPictureType;
 begin
     cbLanguageLyrics.Items.AddStrings(LanguageNames);
     cbLanguageLyrics.ItemIndex := LanguageCodes.IndexOf('ger');
@@ -183,8 +183,8 @@ begin
     cbLanguageComment.Items.AddStrings(LanguageNames);
     cbLanguageComment.ItemIndex := LanguageCodes.IndexOf('ger');
 
-    for i := 0 to 20 do
-      cbPicturetype.Items.Add(Picture_Types[i]);
+    for i := Low(TPictureType) to High(TPictureType) do
+      cbPicturetype.Items.Add(cPictureTypes[i]);
     cbPictureType.ItemIndex := 0;
 
     edtPrivateDescription.Text := PRIV_FRAME_DEMO;
@@ -303,7 +303,7 @@ begin
                 PicStream := TMemorystream.Create;
                 try
                     PicStream.LoadFromFile(OpenPictureDialog1.FileName);
-                    NewFrame.SetPicture( 'image/jpeg',  cbPictureType.ItemIndex, EdtPictureDescription.Text, PicStream);
+                    NewFrame.SetPicture( 'image/jpeg', TPictureType(cbPictureType.ItemIndex), EdtPictureDescription.Text, PicStream);
                 finally
                     PicStream.Free;
                 end;

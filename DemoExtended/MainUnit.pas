@@ -8,8 +8,8 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, Jpeg, ContNrs, AudioFiles.Base,
   AudioFiles.Factory,  AudioFiles.Declarations, BaseApeFiles, ApeTagItem, ID3v2Frames,
-  ID3v1Tags, ID3v2Tags, Apev2Tags,
-  Mp3Files, FlacFiles, OggVorbisFiles, MonkeyFiles, WavPackFiles, MusePackFiles,
+  ID3v1Tags, ID3v2Tags, Apev2Tags, VorbisComments,
+  Mp3Files, FlacFiles, BaseVorbisFiles, OggVorbisFiles, MonkeyFiles, WavPackFiles, MusePackFiles,
   OptimFrogFiles, TrueAudioFiles, M4aAtoms, M4AFiles, FileCtrl
   {$IFDEF USE_PNG}, PNGImage, Vcl.ComCtrls{$ENDIF} ;
 
@@ -67,6 +67,7 @@ type
     { Private-Deklarationen }
     AudioFile: TBaseAudioFile;
 
+    OggPictureFrames: TObjectList;
     FlacPictureFrames: TObjectList;
     ID3v2Frames: TObjectList;
     ID3v2PictureFrames: TObjectList;
@@ -116,6 +117,8 @@ begin
         ID3v2Frames.Free;
     if assigned(ID3v2PictureFrames) then
         ID3v2PictureFrames.Free;
+    if assigned(OggPictureFrames) then
+      OggPictureFrames.Free;
 end;
 
 
@@ -170,8 +173,8 @@ begin
               MemoSpecific.Lines.Add(Format('Apev2: %d Bytes', [TMP3File(AudioFile).ApeTagSize]));
               EnableTagSelection := True;
           end;
-          at_Ogg: begin
-              MemoLyrics.Text := TOggVorbisFile(AudioFile).GetPropertyByFieldname('UNSYNCEDLYRICS');
+          at_Ogg, at_Opus: begin
+              MemoLyrics.Text := TBaseVorbisFile(AudioFile).GetPropertyByFieldname('UNSYNCEDLYRICS');
           end;
           at_Flac: begin
               MemoLyrics.Text := TFlacFile(AudioFile).GetPropertyByFieldname('UNSYNCEDLYRICS');
@@ -268,7 +271,7 @@ begin
     try
         aTag.GetAllTextFrames(ApeKeys);
         for i := 0 to ApeKeys.Count - 1 do
-            AddTagItem('APEv2', ApeKeys[i], aTag.GetValueByKey(ApeKeys[i]) );
+            AddTagItem('APEv2', ApeKeys[i], aTag.GetValueByKey(AnsiString(ApeKeys[i])));
     finally
        ApeKeys.Free;
     end
@@ -291,13 +294,13 @@ procedure TMainFormAWB.RefillTagDetailsOgg;
 var OggKeys: TStrings;
     i: Integer;
 begin
-    if AudioFile.FileType = at_Ogg then
+    if AudioFile.FileType in [at_Ogg, at_Opus] then
     begin
         OggKeys := TStringList.Create;
         try
-            TOggVorbisFile(AudioFile).GetAllFields(OggKeys);
+            TBaseVorbisFile(AudioFile).GetAllFields(OggKeys);
             for i := 0 to OggKeys.Count - 1 do
-                AddTagItem('OggVorbis', OggKeys[i], TOggVorbisFile(AudioFile).GetPropertyByFieldname(OggKeys[i]));
+                AddTagItem('OggVorbis', OggKeys[i], TBaseVorbisFile(AudioFile).GetPropertyByIndex(i));
         finally
             OggKeys.Free;
         end;
@@ -313,7 +316,7 @@ begin
         try
             TFlacFile(AudioFile).GetAllFields(FlacKeys);
             for i := 0 to FlacKeys.Count - 1 do
-                AddTagItem('OggVorbis', FlacKeys[i], TFlacFile(AudioFile).GetPropertyByFieldname(FlacKeys[i]));
+                AddTagItem('OggVorbis', FlacKeys[i], TFlacFile(AudioFile).GetPropertyByIndex(i));
         finally
             FlacKeys.Free;
         end;
@@ -357,7 +360,7 @@ begin
   case AudioFile.FileType of
     at_Invalid: ;
     at_Mp3: RefillTagDetailsMP3;
-    at_Ogg: RefillTagDetailsOgg;
+    at_Ogg, at_Opus: RefillTagDetailsOgg;
     at_Flac: RefillTagDetailsFlac;
     at_M4A: RefillTagDetailsM4A;
     at_Monkey,
@@ -373,12 +376,14 @@ end;
 
 procedure TMainFormAWB.RefreshImageList;
 var i: Integer;
-    PicType: Integer;
+    PicType: TPictureType;
+    // PicTypeCardinal: Cardinal;
     Description: UnicodeString;
     stream: TMemoryStream;
     iFrame: TID3v2Frame;
+    iCommentVector: TCommentVector;
     Mime: AnsiString;
-    ID3PicType: Byte;
+    ID3PicType: TPictureType;
     m4aPicType: TM4APicTypes;
 begin
     case AudioFile.FileType of
@@ -395,7 +400,7 @@ begin
                   stream := TMemoryStream.Create;
                   try
                       iFrame.GetPicture(Mime, id3Pictype, description, stream);
-                      cbPictures.Items.AddObject(Picture_Types[id3Pictype], iFrame);
+                      cbPictures.Items.AddObject(cPictureTypes[id3Pictype], iFrame);
                   finally
                       stream.Free;
                   end;
@@ -418,9 +423,55 @@ begin
                   Image1.Picture.Assign(Nil);
 
         end;
-        at_Ogg: begin
+        at_Ogg, at_Opus: begin
             cbPictures.Items.Clear;
-            Image1.Picture.Assign(NIL);
+
+            if not assigned(OggPictureFrames) then
+              OggPictureFrames := TObjectList.Create(False);
+
+            TBaseVorbisFile(AudioFile).GetAllPictureComments(OggPictureFrames);
+            for i := 0 to OggPictureFrames.Count - 1 do begin
+              iCommentVector := TCommentVector(OggPictureFrames[i]);
+              stream := TMemoryStream.Create;
+              try
+                TBaseVorbisFile(AudioFile).GetPictureStream(iCommentVector, stream, PicType, Mime, Description);
+                cbPictures.Items.AddObject(cPictureTypes[PicType], iCommentVector);
+              finally
+                stream.Free;
+              end;
+            end;
+
+            if cbPictures.Items.Count > 0 then
+            begin
+              cbPictures.ItemIndex := 0;
+              iCommentVector := TCommentVector(cbPictures.Items.Objects[0]);
+              stream := TMemoryStream.Create;
+              try
+                if TBaseVorbisFile(AudioFile).GetPictureStream(iCommentVector, stream, PicType, Mime, Description) then
+                  StreamToBitmap(stream, Image1.Picture.Bitmap)
+                else
+                  Image1.Picture.Assign(Nil);
+              finally
+                stream.Free;
+              end;
+            end else
+              Image1.Picture.Assign(Nil);
+
+              (*
+
+            // GetPictureStream(Destination: TStream;
+            //var aPicType: Cardinal; var aMime: AnsiString;
+            //var aDescription: UnicodeString): Boolean;
+            stream := TMemoryStream.Create;
+            try
+              if TOggVorbisFile(AudioFile).GetPictureStream(stream, PicTypeCardinal, Mime, Description) then
+                StreamToBitmap(stream, Image1.Picture.Bitmap)
+              else
+                Image1.Picture.Assign(Nil);
+            finally
+              stream.Free;
+            end;    *)
+
         end;
         at_M4a: begin
             cbPictures.Items.Clear;
@@ -428,6 +479,7 @@ begin
             try
                 if TM4aFile(AudioFile).GetPictureStream(stream, m4aPicType) then
                 begin
+
                     StreamToBitmap(stream, Image1.Picture.Bitmap);
                     cbPictures.Items.Add('Cover');
                     cbPictures.ItemIndex := 0;
@@ -441,17 +493,17 @@ begin
         at_Flac: begin
             if not assigned(FlacPictureFrames) then
                     FlacPictureFrames := TObjectList.Create(False);
-            TFlacFile(AudioFile).GetAllPictureBlocks(FlacPictureFrames);
+            TFlacFile(AudioFile).GetAllPictureComments(FlacPictureFrames);
 
             cbPictures.Items.Clear;
             for i := FlacPictureFrames.Count - 1 downto 0 do
             begin
                 PicType := TFlacPictureBlock(FlacPictureFrames[i]).PictureType;
                 Description := TFlacPictureBlock(FlacPictureFrames[i]).Description;
-                if PicType < length(Picture_Types) then
-                    cbPictures.Items.Insert(0, Format('[%s] %s', [Picture_Types[PicType], Description]))
-                else
-                    cbPictures.Items.Insert(0, Format('[%s] %s', [Picture_Types[0], Description]));
+                //if PicType < length(Picture_Types) then
+                    cbPictures.Items.Insert(0, Format('[%s] %s', [cPictureTypes[PicType], Description]))
+                //else
+                //    cbPictures.Items.Insert(0, Format('[%s] %s', [Picture_Types[0], Description]));
             end;
             if cbPictures.Items.Count > 0 then
             begin
@@ -485,36 +537,44 @@ end;
 
 procedure TMainFormAWB.BtnNewPictureClick(Sender: TObject);
 var fs: TFileStream;
+  aMimeType: AnsiString;
+
+
 begin
     if (NewPic.ShowModal = mrOK) and AudioFileExists(NewPic.OpenPictureDialog1.FileName) then
     begin
+        if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
+            or (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpeg')
+        then
+          aMimeType := 'image/jpeg'
+        else
+          if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.png') then
+            aMimeType := 'image/png'
+          else
+            aMimeType := '';
+
         try
             fs := TFileStream.Create(NewPic.OpenPictureDialog1.FileName, fmOpenRead or fmShareDenyWrite);
             try
                 case AudioFile.FileType of
                     at_Invalid: ;
                     at_Mp3: begin
-                        if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
-                            or (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpeg')
-                        then
-                            TMp3File(AudioFile).ID3v2Tag.SetPicture('image/jpeg', NewPic.cbPicType.ItemIndex, NewPic.EdtDescription.Text, fs)
+                        if aMimeType <> '' then
+                          TMp3File(AudioFile).ID3v2Tag.SetPicture(aMimeType, TPictureType(NewPic.cbPicType.ItemIndex), NewPic.EdtDescription.Text, fs)
                         else
-                            if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.png') then
-                                TMp3File(AudioFile).ID3v2Tag.SetPicture('image/png', NewPic.cbPicType.ItemIndex, NewPic.EdtDescription.Text, fs)
-                            else
-                                ShowMessage('Image type not supported. Operation cancelled');
+                          ShowMessage('Image type not supported. Operation cancelled');
                     end;
-                    at_Ogg: ; // Nothing
-                    at_Flac: begin
-                        if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
-                            or (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpeg')
-                        then
-                            TFlacFile(AudioFile).AddPicture(fs, NewPic.cbPicType.ItemIndex, 'image/jpeg', NewPic.EdtDescription.Text)
+                    at_Ogg, at_Opus: begin
+                        if aMimeType <> '' then
+                          TBaseVorbisFile(AudioFile).AddPicture(fs, TPictureType(NewPic.cbPicType.ItemIndex), aMimeType, NewPic.EdtDescription.Text)
                         else
-                            if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.png') then
-                                TFlacFile(AudioFile).AddPicture(fs, NewPic.cbPicType.ItemIndex, 'image/png', NewPic.EdtDescription.Text)
-                            else
-                                ShowMessage('Image type not supported. Operation cancelled')
+                          ShowMessage('Image type not supported. Operation cancelled');
+                    end;
+                    at_Flac: begin
+                        if aMimeType <> '' then
+                          TFlacFile(AudioFile).AddPicture(fs, TPictureType(NewPic.cbPicType.ItemIndex), aMimeType, NewPic.EdtDescription.Text)
+                        else
+                          ShowMessage('Image type not supported. Operation cancelled');
                     end;
                     at_M4A: begin
                         if (AnsiLowerCase(ExtractFileExt(NewPic.OpenPictureDialog1.FileName)) = '.jpg')
@@ -590,7 +650,7 @@ begin
     case AudioFile.FileType of
         at_Invalid: ;
         at_Mp3: TMP3File(AudioFile).ID3v2Tag.DeleteFrame(TID3v2Frame(cbPictures.Items.Objects[cbPictures.ItemIndex]));
-        at_Ogg: ;
+        at_Ogg, at_Opus: TBaseVorbisFile(AudioFile).DeletePicture(TCommentVector(cbPictures.Items.Objects[cbPictures.ItemIndex]));
         at_Flac: TFlacFile(AudioFile).DeletePicture(TFlacPictureBlock(FlacPictureFrames[cbPictures.ItemIndex]));
         at_M4A: TM4aFile(AudioFile).SetPicture(Nil, M4A_Invalid);
         at_Monkey,
@@ -617,7 +677,7 @@ begin
     case AudioFile.FileType of
         at_Invalid: ;
         at_Mp3:  TMP3File(AudioFile).ID3v2Tag.Lyrics := Trim(MemoLyrics.Text);
-        at_Ogg:  TOggVorbisFile(AudioFile).SetPropertyByFieldname('UNSYNCEDLYRICS', Trim(MemoLyrics.Text));
+        at_Ogg, at_Opus: TBaseVorbisFile(AudioFile).SetPropertyByFieldname('UNSYNCEDLYRICS', Trim(MemoLyrics.Text));
         at_Flac: TFlacFile(AudioFile).SetPropertyByFieldname('UNSYNCEDLYRICS', Trim(MemoLyrics.Text));
         at_M4a:  TM4AFile(AudioFile).Lyrics := Trim(MemoLyrics.Text);
         at_Monkey,
@@ -634,8 +694,9 @@ procedure TMainFormAWB.cbPicturesChange(Sender: TObject);
 var stream: TMemoryStream;
     iFrame: TID3v2Frame;
     Mime: AnsiString;
-    ID3PicType: Byte;
+    PicType: TPictureType;
     description: UnicodeString;
+    //: string;
 begin
     case AudioFile.FileType of
         at_Invalid: ;
@@ -643,7 +704,7 @@ begin
             iFrame := TID3v2Frame(cbPictures.Items.Objects[cbPictures.ItemIndex]);
             stream := TMemoryStream.Create;
             try
-                if iFrame.GetPicture(Mime, id3Pictype, description, stream) then
+                if iFrame.GetPicture(Mime, Pictype, description, stream) then
                     StreamToBitmap(stream, Image1.Picture.Bitmap)
                 else
                     Image1.Picture.Assign(Nil);
@@ -651,7 +712,20 @@ begin
                 stream.Free;
             end;
         end;
-        at_Ogg: ;
+        at_Ogg, at_Opus: begin
+            stream := TMemoryStream.Create;
+            try
+                if TBaseVorbisFile(AudioFile).GetPictureStream(
+                        TCommentVector(OggPictureFrames[cbPictures.ItemIndex]),
+                        stream, PicType, Mime, description)
+                then
+                    StreamToBitmap(stream, Image1.Picture.Bitmap)
+                else
+                    Image1.Picture.Assign(Nil);
+            finally
+                stream.Free;
+            end;
+        end;
         at_Flac: begin
             stream := TMemoryStream.Create;
             try

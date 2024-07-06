@@ -12,23 +12,23 @@ object Form1: TForm1
   Font.Height = -11
   Font.Name = 'MS Sans Serif'
   Font.Style = []
-  OldCreateOrder = False
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   DesignSize = (
     916
     691)
-  PixelsPerInch = 96
   TextHeight = 13
   object GroupBox1: TGroupBox
     Left = 8
     Top = 598
-    Width = 894
+    Width = 890
     Height = 81
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'ID3v2-Tag properties'
     TabOrder = 3
+    ExplicitTop = 597
+    ExplicitWidth = 886
     object Label52: TLabel
       Left = 320
       Top = 24
@@ -231,54 +231,51 @@ object Form1: TForm1
   object GroupBox13: TGroupBox
     Left = 291
     Top = 56
-    Width = 617
+    Width = 613
     Height = 320
     Anchors = [akLeft, akTop, akRight, akBottom]
     Caption = 'Frame content (after editing: click "Apply changes")'
     TabOrder = 0
+    ExplicitWidth = 609
+    ExplicitHeight = 319
     DesignSize = (
-      617
+      613
       320)
     object PCFrameContent: TPageControl
       Left = 8
       Top = 21
-      Width = 476
+      Width = 472
       Height = 291
       ActivePage = TSCoverArt
       Anchors = [akLeft, akTop, akRight, akBottom]
       MultiLine = True
       Style = tsButtons
       TabOrder = 0
+      ExplicitWidth = 468
+      ExplicitHeight = 290
       object TSText: TTabSheet
         Caption = 'Text'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object Ed4_Text: TLabeledEdit
           Left = 16
           Top = 24
-          Width = 435
+          Width = 431
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           EditLabel.Width = 21
           EditLabel.Height = 13
           EditLabel.Caption = 'Text'
           TabOrder = 0
+          Text = ''
         end
       end
       object TSComments: TTabSheet
         Caption = 'Comments/Lyrics'
         ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object Label16: TLabel
           Left = 16
@@ -298,11 +295,12 @@ object Form1: TForm1
           EditLabel.Caption = 'Language'
           ReadOnly = True
           TabOrder = 0
+          Text = ''
         end
         object Ed4_CommentDescription: TLabeledEdit
           Left = 72
           Top = 24
-          Width = 379
+          Width = 375
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           Color = clScrollBar
@@ -311,11 +309,12 @@ object Form1: TForm1
           EditLabel.Caption = 'Description'
           ReadOnly = True
           TabOrder = 1
+          Text = ''
         end
         object Ed4_CommentValue: TMemo
           Left = 16
           Top = 72
-          Width = 435
+          Width = 431
           Height = 154
           Anchors = [akLeft, akTop, akRight, akBottom]
           ScrollBars = ssVertical
@@ -325,23 +324,20 @@ object Form1: TForm1
       object TSURL: TTabSheet
         Caption = 'URLs'
         ImageIndex = 3
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object Ed4_URL: TLabeledEdit
           Left = 16
           Top = 24
-          Width = 435
+          Width = 431
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           EditLabel.Width = 22
           EditLabel.Height = 13
           EditLabel.Caption = 'URL'
           TabOrder = 0
+          Text = ''
         end
         object BtnVisitURL: TButton
           Left = 16
@@ -356,17 +352,13 @@ object Form1: TForm1
       object TSURLUserDefined: TTabSheet
         Caption = 'URLs (user defined)'
         ImageIndex = 2
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object ed4_UserDefURLDescription: TLabeledEdit
           Left = 16
           Top = 24
-          Width = 443
+          Width = 439
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           Color = clScrollBar
@@ -375,17 +367,19 @@ object Form1: TForm1
           EditLabel.Caption = 'Description'
           ReadOnly = True
           TabOrder = 0
+          Text = ''
         end
         object Ed4_UserDefURLValue: TLabeledEdit
           Left = 16
           Top = 64
-          Width = 443
+          Width = 439
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           EditLabel.Width = 22
           EditLabel.Height = 13
           EditLabel.Caption = 'URL'
           TabOrder = 1
+          Text = ''
         end
         object Btn_VisitUserDefURL: TButton
           Left = 14
@@ -400,12 +394,8 @@ object Form1: TForm1
       object TSCoverArt: TTabSheet
         Caption = 'Cover art'
         ImageIndex = 4
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object Label18: TLabel
           Left = 180
@@ -417,12 +407,13 @@ object Form1: TForm1
         object Ed4_Pic: TImage
           Left = 3
           Top = 57
-          Width = 318
+          Width = 314
           Height = 170
           Anchors = [akLeft, akTop, akRight, akBottom]
           Center = True
           Proportional = True
           Stretch = True
+          ExplicitWidth = 318
         end
         object Label5: TLabel
           Left = 8
@@ -456,11 +447,12 @@ object Form1: TForm1
           Height = 21
           Color = clScrollBar
           EditLabel.Width = 3
-          EditLabel.Height = 13
+          EditLabel.Height = 21
           EditLabel.Caption = ' '
           LabelPosition = lpLeft
           ReadOnly = True
           TabOrder = 0
+          Text = ''
         end
         object ed4_cbPictureType: TComboBox
           Left = 241
@@ -477,14 +469,15 @@ object Form1: TForm1
           Height = 21
           Color = clScrollBar
           EditLabel.Width = 3
-          EditLabel.Height = 13
+          EditLabel.Height = 21
           EditLabel.Caption = ' '
           LabelPosition = lpLeft
           ReadOnly = True
           TabOrder = 2
+          Text = ''
         end
         object BtnLoadPic: TButton
-          Left = 370
+          Left = 366
           Top = 3
           Width = 95
           Height = 25
@@ -492,6 +485,7 @@ object Form1: TForm1
           Caption = 'Load cover art'
           TabOrder = 3
           OnClick = BtnLoadPicClick
+          ExplicitLeft = 362
         end
         object BtnSavePicture: TButton
           Left = 370
@@ -506,12 +500,8 @@ object Form1: TForm1
       object TSPrivate: TTabSheet
         Caption = 'Private Frames'
         ImageIndex = 7
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object Label7: TLabel
           Left = 16
@@ -523,7 +513,7 @@ object Form1: TForm1
         object edtPrivateDescription: TLabeledEdit
           Left = 16
           Top = 24
-          Width = 443
+          Width = 439
           Height = 21
           Anchors = [akLeft, akTop, akRight]
           Color = clScrollBar
@@ -532,11 +522,12 @@ object Form1: TForm1
           EditLabel.Caption = 'Description (set by the software that uses this frame)'
           ReadOnly = True
           TabOrder = 0
+          Text = ''
         end
         object memoPrivateFrame: TMemo
           Left = 16
           Top = 70
-          Width = 443
+          Width = 439
           Height = 163
           Anchors = [akLeft, akTop, akRight, akBottom]
           Color = clScrollBar
@@ -555,12 +546,8 @@ object Form1: TForm1
       object TSBinary: TTabSheet
         Caption = 'All data'
         ImageIndex = 5
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
-          468
+          464
           236)
         object Label2: TLabel
           Left = 9
@@ -572,7 +559,7 @@ object Form1: TForm1
         object Ed4_DataMemo: TMemo
           Left = 8
           Top = 35
-          Width = 457
+          Width = 453
           Height = 194
           Anchors = [akLeft, akTop, akRight, akBottom]
           Color = clScrollBar
@@ -588,7 +575,7 @@ object Form1: TForm1
           WordWrap = False
         end
         object Btn_ExtractData: TButton
-          Left = 349
+          Left = 345
           Top = 7
           Width = 116
           Height = 21
@@ -600,7 +587,7 @@ object Form1: TForm1
       end
     end
     object BtnApplyChange: TButton
-      Left = 497
+      Left = 493
       Top = 21
       Width = 105
       Height = 25
@@ -608,9 +595,10 @@ object Form1: TForm1
       Caption = 'Apply changes'
       TabOrder = 1
       OnClick = BtnApplyChangeClick
+      ExplicitLeft = 489
     end
     object BtnAddFrame: TButton
-      Left = 497
+      Left = 493
       Top = 52
       Width = 105
       Height = 25
@@ -618,9 +606,10 @@ object Form1: TForm1
       Caption = 'Add Frame'
       TabOrder = 2
       OnClick = BtnAddFrameClick
+      ExplicitLeft = 489
     end
     object BtnSaveToFile: TButton
-      Left = 497
+      Left = 493
       Top = 183
       Width = 105
       Height = 25
@@ -628,9 +617,10 @@ object Form1: TForm1
       Caption = 'Update Mp3-File'
       TabOrder = 3
       OnClick = BtnSaveToFileClick
+      ExplicitLeft = 489
     end
     object BtnDeleteFrame: TButton
-      Left = 497
+      Left = 493
       Top = 83
       Width = 105
       Height = 25
@@ -638,9 +628,10 @@ object Form1: TForm1
       Caption = 'Delete Frame'
       TabOrder = 4
       OnClick = BtnDeleteFrameClick
+      ExplicitLeft = 489
     end
     object BtnUndo: TButton
-      Left = 497
+      Left = 493
       Top = 152
       Width = 105
       Height = 25
@@ -648,23 +639,26 @@ object Form1: TForm1
       Caption = 'Undo changes'
       TabOrder = 5
       OnClick = BtnShowInfosClick
+      ExplicitLeft = 489
     end
   end
   object GrpBoxExpert: TGroupBox
     Left = 8
     Top = 382
-    Width = 894
+    Width = 890
     Height = 121
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'Write settings'
     TabOrder = 2
+    ExplicitTop = 381
+    ExplicitWidth = 886
     DesignSize = (
-      894
+      890
       121)
     object Label3: TLabel
       Left = 248
       Top = 48
-      Width = 631
+      Width = 627
       Height = 57
       Anchors = [akLeft, akTop, akRight, akBottom]
       AutoSize = False
@@ -704,7 +698,7 @@ object Form1: TForm1
       Width = 65
       Height = 21
       EditLabel.Width = 50
-      EditLabel.Height = 13
+      EditLabel.Height = 21
       EditLabel.Caption = 'ID (0..255)'
       LabelPosition = lpLeft
       MaxLength = 3
@@ -742,11 +736,13 @@ object Form1: TForm1
   object GroupBox14: TGroupBox
     Left = 8
     Top = 510
-    Width = 894
+    Width = 890
     Height = 81
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'Frame properties'
     TabOrder = 1
+    ExplicitTop = 509
+    ExplicitWidth = 886
     object Label19: TLabel
       Left = 168
       Top = 24

@@ -7,7 +7,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, ContNrs,
   Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG, MpegFrames, ID3v1Tags, ID3v2Tags, ID3v2Frames,
-  ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage{$ENDIF};
+  AudioFiles.Declarations, ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage, Vcl.Mask{$ENDIF};
 
 type
   TForm1 = class(TForm)
@@ -219,13 +219,13 @@ begin
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
-var i: Integer;
+var i: TPictureType;
 begin
   Id3v2Tag := TId3v2Tag.Create;
 
 
-  for i := 0 to 20 do
-    ed4_cbPictureType.Items.Add(Picture_Types[i]);
+  for i := Low(TPictureType) to High(TPictureType) do
+    ed4_cbPictureType.Items.Add(cPictureTypes[i]);
 
   fNewLevel3PicureChoosed := False;
   TSText.TabVisible := False;
@@ -310,7 +310,7 @@ begin
   CBUnsync.Checked := ID3v2Tag.FlgUnsynch;
   CBUnsync.OnClick := CBUnsyncClick;
 
-  FrameList := TObjectlist.Create;
+  FrameList := TObjectlist.Create(False);
   try
       case CBFrameTypeSelection.ItemIndex of
           0: ID3v2Tag.GetAllTextFrames(FrameList) ;     //  Text-Frames
@@ -357,7 +357,7 @@ procedure TForm1.LVFramesSelectItem(Sender: TObject; Item: TListItem;
 var iFrame: TID3v2Frame;
     value, Description: UnicodeString;
     language, mime, tmpstr, privDescription: AnsiString;
-    PicType: Byte;
+    PicType: TPictureType;
     PictureData, Data: TStream;
     i: Integer;
 begin
@@ -412,10 +412,7 @@ begin
               PicStreamToImage(PictureData, Mime, Ed4_Pic.Picture.Bitmap);
               Ed4_PicMime.Text := Mime;
               Ed4_PicDescription.Text := Description;
-              if PicType in [0..20] then
-                  ed4_cbPictureType.ItemIndex := PicType
-              else
-                  ed4_cbPictureType.ItemIndex := 0;
+              ed4_cbPictureType.ItemIndex := Integer(PicType)
           finally
               PictureData.Free;
           end;
@@ -511,7 +508,7 @@ end;
 procedure TForm1.BtnSavePictureClick(Sender: TObject);
 var Stream: TMemoryStream;
     mime: AnsiString;
-    PicType: Byte;
+    PicType: TPictureType;
     Description: UnicodeString;
     iFrame: TID3v2Frame;
 
@@ -596,7 +593,7 @@ end;
 procedure TForm1.BtnApplyChangeClick(Sender: TObject);
 var iFrame: TID3v2Frame;
     dummyMime: AnsiString;
-    dummyTyp: Byte;
+    dummyTyp: TPictureType;
     dummyDesc: UnicodeString;
 
 begin
@@ -678,13 +675,13 @@ begin
                 if fNewLevel3PicureChoosed then
                 begin
                     // write the new picture into the frame
-                    iFrame.SetPicture(AnsiString(Ed4_PicMime.Text), ed4_cbPictureType.ItemIndex, Ed4_PicDescription.Text, fNewPictureData);
+                    iFrame.SetPicture(AnsiString(Ed4_PicMime.Text), TPictureType(ed4_cbPictureType.ItemIndex), Ed4_PicDescription.Text, fNewPictureData);
                 end else
                 begin
                     // just write the new "text settings" => load the existing picture data first
                     fNewPictureData.Clear;
                     iFrame.GetPicture(dummyMime, dummyTyp, dummyDesc, fNewPictureData);
-                    iFrame.SetPicture(AnsiString(Ed4_PicMime.Text), ed4_cbPictureType.ItemIndex, Ed4_PicDescription.Text, fNewPictureData);
+                    iFrame.SetPicture(AnsiString(Ed4_PicMime.Text), TPictureType(ed4_cbPictureType.ItemIndex), Ed4_PicDescription.Text, fNewPictureData);
                 end;
             end;
         end;

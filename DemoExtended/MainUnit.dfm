@@ -11,9 +11,7 @@ object MainFormAWB: TMainFormAWB
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
   OnDestroy = FormDestroy
-  PixelsPerInch = 96
   TextHeight = 13
   object GroupBox1: TGroupBox
     Left = 8
@@ -224,7 +222,7 @@ object MainFormAWB: TMainFormAWB
       ItemHeight = 13
       Mask = 
         '*.mp3;*.mp2;*.mp1;*.m4a;*.ogg;*.oga;*.flac;*.fla;*.ape;*.mac;*.w' +
-        'v;*.mpc;*.mp+;*.mpp;*.ofr;*.ofs;*.tta;*.wav;*.wma'
+        'v;*.mpc;*.mp+;*.mpp;*.ofr;*.ofs;*.tta;*.wav;*.wma;*.opus'
       TabOrder = 2
       OnChange = FileListBox1Change
     end
@@ -309,10 +307,12 @@ object MainFormAWB: TMainFormAWB
       Caption = 'File Size'
     end
     object MemoSpecific: TMemo
-      Left = 144
-      Top = 13
+      Left = 145
+      Top = 15
       Width = 167
-      Height = 123
+      Height = 138
+      Align = alRight
+      BorderStyle = bsNone
       Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
@@ -321,7 +321,6 @@ object MainFormAWB: TMainFormAWB
       Font.Style = []
       ParentFont = False
       ReadOnly = True
-      ScrollBars = ssVertical
       TabOrder = 0
       WordWrap = False
     end

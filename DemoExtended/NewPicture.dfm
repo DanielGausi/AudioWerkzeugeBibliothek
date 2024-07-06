@@ -11,8 +11,6 @@ object NewPic: TNewPic
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
-  PixelsPerInch = 96
   TextHeight = 13
   object Image1: TImage
     Left = 16
@@ -42,7 +40,6 @@ object NewPic: TNewPic
     Width = 177
     Height = 21
     Style = csDropDownList
-    ItemHeight = 13
     ItemIndex = 3
     TabOrder = 0
     Text = 'Cover Art (front)'

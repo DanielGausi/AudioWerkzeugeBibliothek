@@ -2,38 +2,34 @@ object FormNewFrame: TFormNewFrame
   Left = 1190
   Top = 162
   Caption = 'Add a new Frame to the ID3-Tag'
-  ClientHeight = 289
-  ClientWidth = 448
+  ClientHeight = 288
+  ClientWidth = 444
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'MS Sans Serif'
   Font.Style = []
-  OldCreateOrder = False
   Position = poScreenCenter
   OnCreate = FormCreate
   OnShow = FormShow
   DesignSize = (
-    448
-    289)
-  PixelsPerInch = 96
+    444
+    288)
   TextHeight = 13
   object pcFrameTypeSelection: TPageControl
     Left = 8
     Top = 8
-    Width = 432
-    Height = 234
+    Width = 424
+    Height = 233
     ActivePage = TabSheet3
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = pcFrameTypeSelectionChange
+    ExplicitWidth = 432
+    ExplicitHeight = 234
     object tsText: TTabSheet
       Caption = 'Text'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label1: TLabel
         Left = 8
         Top = 16
@@ -75,16 +71,13 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Height = 13
         EditLabel.Caption = 'Content'
         TabOrder = 1
+        Text = ''
         OnChange = Ed_TextFrameChange
       end
     end
     object TabSheet2: TTabSheet
       Caption = 'Comment'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label2: TLabel
         Left = 8
         Top = 8
@@ -135,10 +128,6 @@ object FormNewFrame: TFormNewFrame
     object TabSheet6: TTabSheet
       Caption = 'Lyrics'
       ImageIndex = 5
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label10: TLabel
         Left = 8
         Top = 8
@@ -189,10 +178,6 @@ object FormNewFrame: TFormNewFrame
     object tsURLs: TTabSheet
       Caption = 'URLs'
       ImageIndex = 3
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label7: TLabel
         Left = 8
         Top = 16
@@ -232,6 +217,7 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Height = 13
         EditLabel.Caption = 'URL'
         TabOrder = 1
+        Text = ''
         OnChange = ED_URLFrameChange
       end
     end
@@ -262,16 +248,13 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Height = 13
         EditLabel.Caption = 'Url'
         TabOrder = 1
+        Text = ''
         OnChange = Ed_UserDefURLDescriptionChange
       end
     end
     object TabSheet5: TTabSheet
       Caption = 'Cover art'
       ImageIndex = 4
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object ImgNewPic: TImage
         Left = 8
         Top = 8
@@ -324,13 +307,9 @@ object FormNewFrame: TFormNewFrame
     object tsPrivate: TTabSheet
       Caption = 'Private Frame'
       ImageIndex = 6
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
-        424
-        206)
+        416
+        205)
       object lblPrivateWarning: TLabel
         Left = 16
         Top = 170
@@ -364,7 +343,7 @@ object FormNewFrame: TFormNewFrame
       object edtPrivateDescription: TLabeledEdit
         Left = 16
         Top = 24
-        Width = 356
+        Width = 348
         Height = 21
         Anchors = [akLeft, akTop, akRight]
         Color = clScrollBar
@@ -373,6 +352,8 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Caption = 'Description (set by the software, not by the user)'
         ReadOnly = True
         TabOrder = 0
+        Text = ''
+        ExplicitWidth = 356
       end
       object BtnSelectPrivateFile: TButton
         Left = 294
@@ -386,8 +367,8 @@ object FormNewFrame: TFormNewFrame
     end
   end
   object Btn_Ok: TButton
-    Left = 276
-    Top = 256
+    Left = 268
+    Top = 255
     Width = 83
     Height = 25
     Anchors = [akRight, akBottom]
@@ -395,16 +376,20 @@ object FormNewFrame: TFormNewFrame
     ModalResult = 1
     TabOrder = 1
     OnClick = Btn_OkClick
+    ExplicitLeft = 276
+    ExplicitTop = 256
   end
   object BtnCancel: TButton
-    Left = 365
-    Top = 256
+    Left = 357
+    Top = 255
     Width = 75
     Height = 25
     Anchors = [akRight, akBottom]
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 2
+    ExplicitLeft = 365
+    ExplicitTop = 256
   end
   object OpenPictureDialog1: TOpenPictureDialog
     Filter = 'All supported files (*.jpg;*.jpeg;*.png;)|*.jpg;*.jpeg;*.png;'
