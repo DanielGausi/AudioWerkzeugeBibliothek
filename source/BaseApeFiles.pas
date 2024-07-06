@@ -18,7 +18,7 @@
         TrueAudioFiles
         WavePackFiles
 
-    Use an instance of these classes to colelct data from the files.
+    Use an instance of these classes to collect data from the files.
 
     ---------------------------------------------------------------------------
 
@@ -81,12 +81,6 @@ type
             function fGetCombinedTagSize: Cardinal;  // The Size of Ape, ID3v and ID3v2 together. Used for Bitrate calculation
 
       protected
-            function fGetFileSize   : Int64;    override;
-            function fGetDuration   : Integer;  override;
-            function fGetBitrate    : Integer;  override;
-            function fGetSamplerate : Integer;  override;
-            function fGetChannels   : Integer;  override;
-            function fGetValid      : Boolean;  override;
 
             procedure fSetTitle (aValue: UnicodeString); override;
             procedure fSetArtist(aValue: UnicodeString); override;
@@ -94,6 +88,7 @@ type
             procedure fSetYear  (aValue: UnicodeString); override;
             procedure fSetTrack (aValue: UnicodeString); override;
             procedure fSetGenre (aValue: UnicodeString); override;
+            procedure fSetAlbumArtist (value: UnicodeString); override;
 
             function fGetTitle  : UnicodeString; override;
             function fGetArtist : UnicodeString; override;
@@ -101,6 +96,7 @@ type
             function fGetYear   : UnicodeString; override;
             function fGetTrack  : UnicodeString; override;
             function fGetGenre  : UnicodeString; override;
+            function fGetAlbumArtist : UnicodeString; override;
 
             function ReadAudioDataFromStream(aStream: TStream): Boolean; virtual;
             function fGetFileType            : TAudioFileType; override;
@@ -168,7 +164,7 @@ end;
 
 function TBaseApeFile.fGetFileTypeDescription: String;
 begin
-    result := TAudioFileNames[at_AbstractApe]
+    result := cAudioFileType[at_AbstractApe]
 end;
 
 {
@@ -189,35 +185,6 @@ begin
     fValid      := False;
 end;
 
-
-
-function TBaseApeFile.fGetValid: Boolean;
-begin
-    result := fValid;
-end;
-function TBaseApeFile.fGetFileSize: Int64;
-begin
-    result := fFileSize;
-end;
-
-
-// dummy getters
-function TBaseApeFile.fGetDuration: Integer;
-begin
-    result := fDuration;
-end;
-function TBaseApeFile.fGetChannels: Integer;
-begin
-    result := fChannels;
-end;
-function TBaseApeFile.fGetSamplerate: Integer;
-begin
-    result := fSamplerate;
-end;
-function TBaseApeFile.fGetBitrate: Integer;
-begin
-    result := fBitrate;
-end;
 
 // Tag Size Getters
 function TBaseApeFile.fGetID3v1TagSize: Cardinal;
@@ -242,6 +209,11 @@ begin
     ApeTag.Album := aValue;
     fID3v1Tag.Album := aValue;
 end;
+procedure TBaseApeFile.fSetAlbumArtist(value: UnicodeString);
+begin
+  ApeTag.AlbumArtist := Value;
+end;
+
 procedure TBaseApeFile.fSetArtist(aValue: UnicodeString);
 begin
     ApeTag.Artist := aValue;
@@ -274,6 +246,10 @@ begin
     result := ApeTag.Album;
     if result = '' then
         result := fID3v1Tag.Album;
+end;
+function TBaseApeFile.fGetAlbumArtist: UnicodeString;
+begin
+  result := ApeTag.AlbumArtist;
 end;
 function TBaseApeFile.fGetArtist: UnicodeString;
 begin

@@ -109,7 +109,7 @@ type
             procedure UnRegisterClass(aClass: TBaseAudioFileClass);
 
             function GetClass(const Extension: string): TBaseAudioFileClass;
-            function CreateAudioFile(aFilename: UnicodeString): TBaseAudioFile;
+            function CreateAudioFile(aFilename: UnicodeString; ReturnDummy: Boolean = False): TBaseAudioFile;
     end;
 
 ///  --------------------------------------------------------
@@ -119,16 +119,18 @@ type
 ///
 ///  Note that neither the Dictionary implementation nor the TObjectList here is thread-safe!
 ///  --------------------------------------------------------
-function AudioFileFactory: TAudioFileFactory;
+// function AudioFileFactory: TAudioFileFactory;
+var AudioFileFactory: TAudioFileFactory;
+    CS_AccessDictionary: RTL_CRITICAL_SECTION;
 
 implementation
 
 uses
-  Mp3Files, FlacFiles, OggVorbisFiles,
+  Mp3Files, FlacFiles, OggVorbisFiles, OpusFiles,
   MonkeyFiles, WavPackFiles, MusePackFiles, OptimFrogFiles, TrueAudioFiles,
-  M4AFiles, WmaFiles, WavFiles;
+  M4AFiles, WmaFiles, WavFiles, DummyFiles;
 
-var fLocalAudioFileFactory: TAudioFileFactory;
+(*var fLocalAudioFileFactory: TAudioFileFactory;
 
 
 function AudioFileFactory: TAudioFileFactory;
@@ -138,6 +140,7 @@ begin
 
     Result := fLocalAudioFileFactory;
 end;
+*)
 
 
 {$IFNDEF USE_DICTIONARY}
@@ -165,16 +168,21 @@ begin
     RegisterClass(TMP3File, '.mp1');
     RegisterClass(TFlacFile, '.flac');
     RegisterClass(TFlacFile, '.fla');
+
+    RegisterClass(TOpusFile, '.opus');
+
     RegisterClass(TOggVorbisFile, '.ogg');
     RegisterClass(TOggVorbisFile, '.oga');
     RegisterClass(TMusePackFile, '.mpc');
     RegisterClass(TMusePackFile, '.mp+');
     RegisterClass(TMusePackFile, '.mpp');
+
     RegisterClass(TOptimFrogFile, '.ofr');
     RegisterClass(TOptimFrogFile, '.ofs');
     RegisterClass(TTrueAudioFile, '.tta');
     RegisterClass(TMonkeyFile, '.ape');
     RegisterClass(TMonkeyFile, '.mac');
+
     RegisterClass(TM4AFile, '.m4a');
     RegisterClass(TM4AFile, '.mp4');
     RegisterClass(TWavPackFile, '.wv');
@@ -239,7 +247,7 @@ var i: Integer;
 begin
     result := -1;
 
-    aExt := AnsiLowercase(aExt);
+    // aExt := AnsiLowercase(aExt);
     for i := 0 to FRegisteredFileTypes.Count - 1 do
     begin
         if TAudioFileClassData(FRegisteredFileTypes[i]).Extension = aExt then
@@ -286,28 +294,40 @@ begin
 end;
 
 
-function TAudioFileFactory.CreateAudioFile( aFilename: UnicodeString): TBaseAudioFile;
+function TAudioFileFactory.CreateAudioFile( aFilename: UnicodeString; ReturnDummy: Boolean = False): TBaseAudioFile;
 var ext: UnicodeString;
     aClass: TBaseAudioFileClass;
 begin
     ext := AnsiLowercase(ExtractFileExt(aFileName));
 
+    EnterCriticalSection(CS_AccessDictionary);
     aClass := GetClass(ext);
+    LeaveCriticalSection(CS_AccessDictionary);
+
     if assigned(aClass) then
         Result := aClass.Create
     else
-        Result := Nil;
+        begin
+            if ReturnDummy then
+                Result := TDummyFile.Create
+            else
+                Result := Nil;
+        end;
 end;
 
 
 
 initialization
 
-  fLocalAudioFileFactory := nil;
+  InitializeCriticalSection(CS_AccessDictionary);
+  AudioFileFactory := TAudioFileFactory.Create;
+  // fLocalAudioFileFactory := nil;
 
 finalization
 
-  if assigned(fLocalAudioFileFactory) then
-    fLocalAudioFileFactory.Free;
+  //if assigned(fLocalAudioFileFactory) then
+  //  fLocalAudioFileFactory.Free;
+  AudioFileFactory.Free;
+  DeleteCriticalSection(CS_AccessDictionary);
 
 end.

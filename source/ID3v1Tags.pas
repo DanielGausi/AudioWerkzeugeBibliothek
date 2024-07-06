@@ -53,7 +53,7 @@ unit ID3v1Tags;
 interface
 
 uses
-  SysUtils, Classes, Windows, Contnrs, U_CharCode
+  SysUtils, Classes, Windows, Contnrs, U_CharCode, System.WideStrUtils
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF}
   , AudioFiles.Declarations;
 
@@ -234,7 +234,7 @@ begin
         CopyFromRawTag(RawTag);
     end
     else
-      result := MP3ERR_StreamRead;
+      result := FileErr_StreamRead;
   except
     on E: Exception do
     begin
@@ -276,9 +276,9 @@ begin
         Stream.Seek(0, soEnd);
 
       if Stream.Write(NewRawTag, 128) <> 128 then
-        result := MP3ERR_StreamWrite;
+        result := FileErr_StreamWrite;
     end else
-      result := MP3ERR_StreamRead;
+      result := FileErr_StreamRead;
   except
     on E: Exception do
     begin
@@ -304,7 +304,7 @@ begin
       end;
       // else: nothing to do, there was no ID3v1Tag
     end else
-      result := MP3ERR_StreamRead;
+      result := FileErr_StreamRead;
   except
     on E: Exception do
     begin
@@ -404,38 +404,44 @@ var
 begin
     if AutoCorrectCodepage then
     begin
-        L := MultiByteToWideChar(FCharCode.CodePage,
-                  MB_PRECOMPOSED,  // Flags
-                  @Value[1],       // data to convert
-                  Length(Value),   // Size in bytes
-                  nil,             // output - not used here
-                  0);              // 0=> Get required BufferSize
+      if IsUTf8String(Value) then
+        result := UTF8ToString(Value)
+      else
+      begin
 
-        if L = 0 then
-        begin
-            // Something's wrong => Fall back to ANSI
-            setlength(tmp, 30);
-            move(Value[1], tmp[1], 30);
-            {$IFDEF UNICODE}
-                // use explicit typecast
-                result := trim(String(tmp));
-            {$ELSE}
-                result := trim(tmp);
-            {$ENDIF}
-        end else
-        begin
-            // SetBuffer, Size in WChars, not Bytes.
-            SetLength(Result, L);
-            // Convert
-            MultiByteToWideChar(FCharCode.CodePage,
-                      MB_PRECOMPOSED,
-                      @Value[1],
-                      length(Value),
-                      @Result[1],
-                      L);
-            // trim string
-            result := Trim(Result);
-        end;
+                L := MultiByteToWideChar(FCharCode.CodePage,
+                          MB_PRECOMPOSED,  // Flags
+                          @Value[1],       // data to convert
+                          Length(Value),   // Size in bytes
+                          nil,             // output - not used here
+                          0);              // 0=> Get required BufferSize
+
+                if L = 0 then
+                begin
+                    // Something's wrong => Fall back to ANSI
+                    setlength(tmp, 30);
+                    move(Value[1], tmp[1], 30);
+                    {$IFDEF UNICODE}
+                        // use explicit typecast
+                        result := trim(String(tmp));
+                    {$ELSE}
+                        result := trim(tmp);
+                    {$ENDIF}
+                end else
+                begin
+                    // SetBuffer, Size in WChars, not Bytes.
+                    SetLength(Result, L);
+                    // Convert
+                    MultiByteToWideChar(FCharCode.CodePage,
+                              MB_PRECOMPOSED,
+                              @Value[1],
+                              length(Value),
+                              @Result[1],
+                              L);
+                    // trim string
+                    result := Trim(Result);
+                end;
+      end;
     end
 
     else

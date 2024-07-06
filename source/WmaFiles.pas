@@ -85,12 +85,7 @@ type
             procedure fResetData;
             function fGetChannelMode: String;
         protected
-            function fGetFileSize   : Int64;    override;
-            function fGetDuration   : Integer;  override;
-            function fGetBitrate    : Integer;  override;
-            function fGetSamplerate : Integer;  override;
             function fGetChannels   : Integer;  override;
-            function fGetValid      : Boolean;  override;
 
             procedure fSetTitle           (aValue: UnicodeString); override;
             procedure fSetArtist          (aValue: UnicodeString); override;
@@ -98,6 +93,7 @@ type
             procedure fSetYear            (aValue: UnicodeString); override;
             procedure fSetTrack           (aValue: UnicodeString); override;
             procedure fSetGenre           (aValue: UnicodeString); override;
+            procedure fSetAlbumArtist (value: UnicodeString); override;
 
             function fGetTitle            : UnicodeString; override;
             function fGetArtist           : UnicodeString; override;
@@ -107,6 +103,7 @@ type
             function fGetGenre            : UnicodeString; override;
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
+            function fGetAlbumArtist : UnicodeString; override;
 
         public
             { Public declarations }
@@ -305,7 +302,7 @@ end;
 
 function TWMAfile.fGetFileTypeDescription: String;
 begin
-  result := TAudioFileNames[at_Wma];
+  result := cAudioFileType[at_Wma];
 end;
 
 { ********************** Private functions & procedures ********************* }
@@ -330,6 +327,12 @@ begin
 end;
 
 procedure TWMAfile.fSetAlbum(aValue: UnicodeString);
+begin
+  inherited;
+  // nothing. This Unit is read-Only
+end;
+
+procedure TWMAfile.fSetAlbumArtist(value: UnicodeString);
 begin
   inherited;
   // nothing. This Unit is read-Only
@@ -372,14 +375,14 @@ begin
     result := fAlbum;
 end;
 
+function TWMAfile.fGetAlbumArtist: UnicodeString;
+begin
+  result := ''; // not supported
+end;
+
 function TWMAfile.fGetArtist: UnicodeString;
 begin
     result := fArtist;
-end;
-
-function TWMAfile.fGetBitrate: Integer;
-begin
-    result := fBitrate;
 end;
 
 function TWMAfile.FGetChannelMode: string;
@@ -393,24 +396,9 @@ begin
     result := fChannelModeID;
 end;
 
-function TWMAfile.fGetDuration: Integer;
-begin
-    result := fDuration;
-end;
-
-function TWMAfile.fGetFileSize: Int64;
-begin
-    result := fFileSize
-end;
-
 function TWMAfile.fGetGenre: UnicodeString;
 begin
     result := fGenre;
-end;
-
-function TWMAfile.fGetSamplerate: Integer;
-begin
-    result := fSamplerate;
 end;
 
 function TWMAfile.fGetTitle: UnicodeString;
@@ -421,11 +409,6 @@ end;
 function TWMAfile.fGetTrack: UnicodeString;
 begin
     result := fTrack;
-end;
-
-function TWMAfile.fGetValid: Boolean;
-begin
-    result := fValid;
 end;
 
 function TWMAfile.fGetYear: UnicodeString;
@@ -518,13 +501,13 @@ end;
 function TWMAfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited RemoveFromFile(aFilename);
-    result := WmaErr_WritingNotSupported;
+    result := TagErr_WritingNotSupported;
 end;
 
 function TWMAfile.WriteToFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited   WriteToFile(aFilename);
-    result := WmaErr_WritingNotSupported;
+    result := TagErr_WritingNotSupported;
 end;
 
 

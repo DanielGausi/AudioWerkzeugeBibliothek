@@ -104,22 +104,24 @@ type
             fValid      : Boolean;
             fFileName   : UnicodeString;
 
-            function fGetFileSize   : Int64;    virtual; abstract;
-            function fGetDuration   : Integer;  virtual; abstract;
-            function fGetBitrate    : Integer;  virtual; abstract;
-            function fGetSamplerate : Integer;  virtual; abstract;
-            function fGetChannels   : Integer;  virtual; abstract;
-            function fGetValid      : Boolean;  virtual; abstract;
+            function fGetFileSize   : Int64;    virtual;
+            function fGetDuration   : Integer;  virtual;
+            function fGetBitrate    : Integer;  virtual;
+            function fGetSamplerate : Integer;  virtual;
+            function fGetChannels   : Integer;  virtual;
+            function fGetValid      : Boolean;  virtual;
 
             // Setter/Getter for basic Metadata
             function fGetTitle     : UnicodeString;  virtual; abstract;
             function fGetArtist    : UnicodeString;  virtual; abstract;
+            function fGetAlbumArtist : UnicodeString;  virtual; abstract;
             function fGetAlbum     : UnicodeString;  virtual; abstract;
             function fGetYear      : UnicodeString;  virtual; abstract;
             function fGetTrack     : UnicodeString;  virtual; abstract;
             function fGetGenre     : UnicodeString;  virtual; abstract;
             procedure fSetTitle    (aValue: UnicodeString);  virtual; abstract;
             procedure fSetArtist   (aValue: UnicodeString);  virtual; abstract;
+            procedure fSetAlbumArtist   (aValue: UnicodeString);  virtual; abstract;
             procedure fSetAlbum    (aValue: UnicodeString);  virtual; abstract;
             procedure fSetYear     (aValue: UnicodeString);  virtual; abstract;
             procedure fSetTrack    (aValue: UnicodeString);  virtual; abstract;
@@ -144,6 +146,7 @@ type
             // Basic Meta data from Tags
             property Title   : UnicodeString read fGetTitle  write fSetTitle ;
             property Artist  : UnicodeString read fGetArtist write fSetArtist;
+            property AlbumArtist  : UnicodeString read fGetAlbumArtist write fSetAlbumArtist;
             property Album   : UnicodeString read fGetAlbum  write fSetAlbum ;
             property Year    : UnicodeString read fGetYear   write fSetYear  ;
             property Track   : UnicodeString read fGetTrack  write fSetTrack ;
@@ -164,6 +167,37 @@ implementation
 
 
 { TBaseAudioFile }
+
+
+function TBaseAudioFile.fGetFileSize: Int64;
+begin
+  result := fFileSize;
+end;
+
+function TBaseAudioFile.fGetDuration: Integer;
+begin
+  result := fDuration;
+end;
+
+function TBaseAudioFile.fGetBitrate: Integer;
+begin
+  result := fBitrate;
+end;
+
+function TBaseAudioFile.fGetSamplerate: Integer;
+begin
+  result := fSamplerate;
+end;
+
+function TBaseAudioFile.fGetChannels: Integer;
+begin
+  result := fChannels;
+end;
+
+function TBaseAudioFile.fGetValid: Boolean;
+begin
+  result := fValid;
+end;
 
 function TBaseAudioFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
 begin

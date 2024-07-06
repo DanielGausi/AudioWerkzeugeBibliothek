@@ -75,7 +75,6 @@ uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
      AudioFiles.Base, AudioFiles.Declarations,
      Id3Basics, ApeTagItem;
 
-
 type
 
     TApeTag = class
@@ -118,6 +117,7 @@ type
             function fGetLanguage         : UnicodeString;
             function fGetBibliography     : UnicodeString;
             function fGetIntroplay        : UnicodeString;
+            function fGetAlbumArtist      : UnicodeString;
 
             procedure fSetComment         (aValue: UnicodeString);
             procedure fSetSubTitle        (aValue: UnicodeString);
@@ -142,9 +142,12 @@ type
             procedure fSetLanguage        (aValue: UnicodeString);
             procedure fSetBibliography    (aValue: UnicodeString);
             procedure fSetIntroplay       (aValue: UnicodeString);
+            procedure fSetAlbumArtist     (aValue: UnicodeString);
 
             function fComputeNewTagSize: Integer;  // Used to get the new ApeTag size before writing (EXcluding the Header)
             function fGetTagSize: Cardinal;        // The Size of the ApeTag in the File. Including Header AND Footer.
+            function fGetVersion: Cardinal;
+            function fContainsData: Boolean;
 
             procedure fPrepareFooterAndHeader;
 
@@ -172,6 +175,8 @@ type
             property ID3v1TagRaw: TID3v1Structure read fID3v1tag;
 
             property Exists: Boolean read fExists;
+            property Version: Cardinal read fGetVersion;
+            property ContainsData: Boolean read fContainsData;
 
             // Size of the Tag in Bytes
             property Apev2TagSize   : Cardinal read fGetTagSize;
@@ -207,7 +212,8 @@ type
             property Language         : UnicodeString read fGetLanguage          write fSetLanguage         ;
             property Bibliography     : UnicodeString read fGetBibliography      write fSetBibliography     ;
             property Introplay        : UnicodeString read fGetIntroplay         write fSetIntroplay        ;
-
+            // Additional properties
+            property AlbumArtist      : UnicodeString read fGetAlbumArtist       write fSetAlbumArtist      ;
 
             constructor Create;
             destructor Destroy; override;
@@ -321,6 +327,19 @@ begin
         result := 0;
 end;
 
+function TApeTag.fGetVersion: Cardinal;
+begin
+    if fIsValidHeader(fApev2TagFooter) then
+      result := fApev2TagFooter.Version Div 1000
+    else
+      result := 0;
+end;
+
+function TApeTag.fContainsData: Boolean;
+begin
+    result := fItemList.Count > 0;
+end;
+
 {
     fSetValueByKey
     Set the matching TagItem in the List to the given Value
@@ -365,6 +384,11 @@ procedure TApeTag.fSetAlbum(aValue: UnicodeString);
 begin
     SetValueByKey('Album', aValue);
 end;
+procedure TApeTag.fSetAlbumArtist(aValue: UnicodeString);
+begin
+  SetValueByKey('albumartist', aValue);
+end;
+
 procedure TApeTag.fSetArtist(aValue: UnicodeString);
 begin
     SetValueByKey('Artist', aValue);
@@ -499,6 +523,10 @@ end;
 function TApeTag.fGetAlbum: UnicodeString;
 begin
     result := GetValueByKey('Album');
+end;
+function TApeTag.fGetAlbumArtist: UnicodeString;
+begin
+  result := GetValueByKey('albumartist');
 end;
 function TApeTag.fGetArtist: UnicodeString;
 begin
@@ -764,7 +792,7 @@ begin
     // Check for ID3/APE-Markers at the end of the file
     aStream.Seek(-160, soFromEnd);
     if (aStream.Read(CombinedTagStructure, 160) <> 160) then
-        result := MP3ERR_StreamRead
+        result := FileErr_StreamRead
     else
     begin
         if IsValidID3Tag(CombinedTagStructure.ID3Tag) then

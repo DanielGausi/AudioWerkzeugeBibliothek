@@ -245,8 +245,8 @@ type
           function GetURL: AnsiString;
           procedure SetURL(Value: AnsiString);
 
-          function GetPicture(out Mime: AnsiString; out PicType: Byte; out Description: UnicodeString; PictureData: TStream): Boolean;
-          procedure SetPicture(Mime: AnsiString; PicType: Byte; Description: UnicodeString; PictureData: TStream);
+          function GetPicture(out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString; PictureData: TStream): Boolean;
+          procedure SetPicture(Mime: AnsiString; PicType: TPictureType; Description: UnicodeString; PictureData: TStream);
 
           function GetRating(out UserEMail: AnsiString): Byte;
           procedure SetRating(UserEMail: AnsiString; Value: Byte);
@@ -386,29 +386,6 @@ const  ID3v2KnownFrames : Array[TFrameIDs] of TID3v2FrameDescriptionData =
 
            ( IDs: ('TSI', 'TSIZ', '----') ; Description : 'Size')
         );
-
-        Picture_Types: Array[0..20] of string =      // Delphi-Default-String. Doesn't matter
-          (	'Other',
-            '32x32 pixels file icon (PNG only)',
-            'Other file icon',
-            'Cover (front)',
-            'Cover (back)',
-            'Leaflet page',
-            'Media (e.g. lable side of CD)',
-            'Lead artist/lead performer/soloist',
-            'Artist/performer',
-            'Conductor',
-            'Band/Orchestra',
-            'Composer',
-            'Lyricist/text writer',
-            'Recording Location',
-            'During recording',
-            'During performance',
-            'Movie/video screen capture',
-            'A bright coloured fish',
-            'Illustration',
-            'Band/artist logotype',
-            'Publisher/Studio logotype' );
 
 
 function UnSyncStream(Source, Target: TStream): Boolean;
@@ -1136,6 +1113,9 @@ begin
                     setlength(result, alength DIV 2);
                     move(fData[start], result[1], 2*length(result));
                 end;
+            // some Files seem to have a "double BOM" for whatever reasons
+            // This BOM is nowhere displayed, but it will result in "two strings that look the same are actually different"
+            if (result <> '') and ((result[1] = #$FEFF) or (result[1] = #$FFFE)) then delete(result, 1, 1);
             result := trim(result);
         end;
         TE_UTF16BE: begin
@@ -1535,7 +1515,7 @@ begin
   UpdateHeader;
 end;
 
-function TID3v2Frame.GetPicture(out Mime: AnsiString; out PicType: Byte; out Description: UnicodeString; PictureData: TStream): Boolean;
+function TID3v2Frame.GetPicture(out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString; PictureData: TStream): Boolean;
 var
     enc: TTextEncoding;
     i, dStart: Integer;
@@ -1548,7 +1528,7 @@ begin
                 if length(fData) <= 6 then  // 1 Enc, 3 Mime, 1 PicTyp, 1 Descr.-Terminierung -> 6 is minimum
                 begin
                     Mime := '';
-                    PicType := 0;
+                    PicType := ptOther;
                     Description := '';
                     result := False;
                 end else
@@ -1558,8 +1538,7 @@ begin
                     // Mime-Type always 3 characters in subversion 2.2
                     SetLength(Mime, 3);
                     Move(fData[1], Mime[1], 3);
-                    // PicType
-                    PicType := fData[4];
+                    PicType := TPictureType(fData[4]);
 
                     // description is terminated with 00 (00)
                     i := 5;
@@ -1590,7 +1569,7 @@ begin
                 if length(fData) <= 4 then  // 1 Enc, 1 mime-termination, 1 PicTyp, 1 Descr.-Terminierung -> this is minimum
                 begin
                     Mime := '';
-                    PicType := 0;
+                    PicType := ptOther;
                     Description := '';
                     result := False;
                 end else
@@ -1608,7 +1587,7 @@ begin
 
                     // PicType
                     if i < length(fData) then
-                        PicType := fData[i]
+                        PicType := TPictureType(fData[i])
                     else result := False;
 
                     inc(i);
@@ -1642,18 +1621,17 @@ begin
     begin
       result := False;
       Mime := '';
-      PicType := 0;
+      PicType := ptOther;
       Description := '';
     end;
 end;
 
 
-procedure TID3v2Frame.SetPicture(Mime: AnsiString; PicType: Byte; Description: UnicodeString; PictureData: TStream);
+procedure TID3v2Frame.SetPicture(Mime: AnsiString; PicType: TPictureType; Description: UnicodeString; PictureData: TStream);
 var UseUnicode: Boolean;
     BytesWritten, helpIdx: Integer;
 begin
     UseUnicode :=  IsUnicodeNeeded(Description);
-    if Pictype > 20 then PicType := 0;
 
     case fVersion of
         FV_2: begin
@@ -1675,7 +1653,7 @@ begin
                 fData[0] := 0;
             end;
             move(Mime[1], fData[1], 3);
-            fData[4] := PicType;
+            fData[4] := Byte(PicType);
             helpIdx := 5;
         end
         else
@@ -1692,7 +1670,7 @@ begin
             end;
             move(Mime[1], fData[1], length(Mime));
             fData[1 + length(Mime)] := 0; // termination
-            fData[2 + length(Mime)] := PicType;
+            fData[2 + length(Mime)] := Byte(PicType);
             helpIdx := 3 + length(Mime);
         end; // else
     end;  // Case

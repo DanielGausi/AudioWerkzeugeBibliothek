@@ -141,6 +141,7 @@ type
     function GetStandardLyrics: UnicodeString;
     function GetComposer: UnicodeString;
     function GetOriginalArtist: UnicodeString;
+    function GetAlbumArtist: UnicodeString;
     function GetCopyright: UnicodeString;
     function GetEncodedBy: UnicodeString;
     function GetLanguages: UnicodeString;
@@ -152,6 +153,7 @@ type
     function GetOriginalLyricist: UnicodeString;
     function GetOriginalReleaseYear: UnicodeString;
     function GetOriginalAlbumTitel: UnicodeString;
+    function GetBPM: UnicodeString;
 
     //property set functions
     procedure SetTitle(Value: UnicodeString);
@@ -165,6 +167,7 @@ type
     procedure SetStandardLyrics(Value: UnicodeString);
     procedure SetComposer(Value: UnicodeString);
     procedure SetOriginalArtist(Value: UnicodeString);
+    procedure SetAlbumArtist(Value: UnicodeString);
     procedure SetCopyright(Value: UnicodeString);
     procedure SetEncodedBy(Value: UnicodeString);
     procedure SetLanguages(Value: UnicodeString);
@@ -176,6 +179,7 @@ type
     procedure SetOriginalLyricist(Value: UnicodeString);
     procedure SetOriginalReleaseYear(Value: UnicodeString);
     procedure SetOriginalAlbumTitel(Value: UnicodeString);
+    procedure SetBPM(Value: UnicodeString);
 
     function GetStandardUserDefinedURL: AnsiString;
     procedure SetStandardUserDefinedURL(Value: AnsiString);
@@ -217,6 +221,7 @@ type
 
     property Composer:         UnicodeString read  GetComposer           write  SetComposer        ;
     property OriginalArtist:   UnicodeString read  GetOriginalArtist     write  SetOriginalArtist  ;
+    property AlbumArtist:      UnicodeString read  GetAlbumArtist        write  SetAlbumArtist     ;
     property Copyright:        UnicodeString read  GetCopyright          write  SetCopyright       ;
     property EncodedBy:        UnicodeString read  GetEncodedBy          write  SetEncodedBy       ;
     property Languages:        UnicodeString read  GetLanguages          write  SetLanguages       ;
@@ -228,6 +233,7 @@ type
     property OriginalLyricist:    UnicodeString read  GetOriginalLyricist    write SetOriginalLyricist   ;
     property OriginalReleaseYear: UnicodeString read  GetOriginalReleaseYear write SetOriginalReleaseYear;
     property OriginalAlbumTitel:  UnicodeString read  GetOriginalAlbumTitel  write SetOriginalAlbumTitel ;
+    property BPM: UnicodeString read GetBPM write SetBPM;
 
 
     property FlgUnsynch       : Boolean read fFlgUnsynch write fFlgUnsynch;
@@ -286,7 +292,7 @@ type
     // Pictures (APIC)
     // Note: Delete by setting Stream = Nil
     function GetPicture(stream: TStream; Description: UnicodeString): AnsiString; // Rückgabe: Mime-Type
-    procedure SetPicture(MimeTyp: AnsiString; PicType: Byte; Description: UnicodeString; stream: TStream);
+    procedure SetPicture(MimeTyp: AnsiString; PicType: TPictureType; Description: UnicodeString; stream: TStream);
 
     // User-defined URL (WXXX)
     // Note: Delete by Set(..., '');
@@ -348,8 +354,11 @@ type
     function ValidNewPopularimeterFrame(EMail: AnsiString): Boolean;
 
     // Get allowed Frame-IDs (not every frame is allowed in every subversion)
-    function GetAllowedTextFrames: TList;
-    function GetAllowedURLFrames: TList; // WOAR, ... Not the user definied WXXX-Frame
+    function GetAllowedTextFrames: TList; overload; deprecated;
+    function GetAllowedURLFrames: TList;  overload; deprecated;  // WOAR, ... Not the user definied WXXX-Frame
+    procedure GetAllowedTextFrames(aList: TList); overload;
+    procedure GetAllowedURLFrames(aList: TList);  overload;
+
 
     function AddFrame(aID: TFrameIDs): TID3v2Frame;
     procedure DeleteFrame(aFrame: TID3v2Frame);
@@ -620,7 +629,7 @@ var mime, idstr: AnsiString;
   i: integer;
   PictureData : TMemoryStream;
   desc: UnicodeString;
-  picTyp: Byte;
+  picTyp: TPictureType;
 begin
   result := -1;
   idstr := GetFrameIDString(IDv2_PICTURE);
@@ -786,7 +795,7 @@ begin
           result := MP3ERR_Invalid_Header;
     end;
   except
-    on EReadError do result := MP3ERR_StreamRead;
+    on EReadError do result := FileErr_StreamRead;
     on E: Exception do
     begin
       result := Mp3ERR_Unclassified;
@@ -844,7 +853,7 @@ begin
     end;
 
   except
-    on EReadError do result := MP3ERR_StreamRead;
+    on EReadError do result := FileErr_StreamRead;
     on E: Exception do
     begin
       result := Mp3ERR_Unclassified;
@@ -1054,7 +1063,7 @@ begin
                       if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> AudioDataSize then
                       begin
                           TmpStream.Free;
-                          result := Mp3ERR_Cache;
+                          result := FileErr_BackupFailed;
                           Exit;
                       end;
 
@@ -1073,7 +1082,7 @@ begin
                       TmpStream.Free;
                   end;
               except
-                  result := Mp3ERR_Cache;
+                  result := FileErr_BackupFailed;
                   // Failure -> Exit, to not damage the file
                   Exit;
               end;
@@ -1149,7 +1158,7 @@ begin
     end;
   except
     on EFCreateError do result := FileErr_FileCreate;
-    on EWriteError do result := MP3ERR_StreamWrite;
+    on EWriteError do result := FileErr_StreamWrite;
     on E: Exception do
     begin
       result := Mp3ERR_Unclassified;
@@ -1186,7 +1195,7 @@ begin
               tmpsize := Stream.Size - Stream.Position;
               if TmpStream.CopyFrom(Stream, Stream.Size - Stream.Position) <> tmpsize then
               begin
-                  result := Mp3ERR_Cache;
+                  result := FileErr_BackupFailed;
                   Exit;
               end;
               // ...cut the stream...
@@ -1197,11 +1206,11 @@ begin
               TmpStream.Seek(0, soBeginning);
               if Stream.CopyFrom(TmpStream, TmpStream.Size) <> TmpStream.Size then
               begin
-                  result := Mp3ERR_Cache;
+                  result := FileErr_BackupFailed;
                   Exit;
               end;
           except
-              on EWriteError do result := MP3ERR_StreamWrite;
+              on EWriteError do result := FileErr_StreamWrite;
               on E: Exception do
               begin
                   result := Mp3ERR_Unclassified;
@@ -1256,11 +1265,16 @@ begin
   if AudioFileExists(Filename) then
     try
       FFilename := Filename;
-      Stream := TAudioFileStream.Create(Filename, fmOpenReadWrite or fmShareDenyWrite);
-      try
-        result := WriteToStream(Stream);
-      finally
-        Stream.Free;
+      if Frames.Count = 0 then
+        result := RemoveFromFile(Filename)
+      else
+      begin
+        Stream := TAudioFileStream.Create(Filename, fmOpenReadWrite or fmShareDenyWrite);
+        try
+          result := WriteToStream(Stream);
+        finally
+          Stream.Free;
+        end;
       end;
     except
       result := FileErr_FileOpenRW;
@@ -1535,7 +1549,7 @@ end;
 function TID3v2Tag.GetPicture(stream: TStream; Description: UnicodeString): AnsiString;
 var idx: Integer;
     mime: AnsiString;
-    DummyPicTyp: Byte;
+    DummyPicTyp: TPictureType;
     DummyDesc: UnicodeString;
 begin
     IDX := GetPictureFrameIndex( Description);
@@ -1549,17 +1563,17 @@ end;
 // ------------------------------------------
 // set pictures
 // ------------------------------------------
-procedure TID3v2Tag.SetPicture(MimeTyp: AnsiString; PicType: Byte; Description: UnicodeString; stream: TStream);
+procedure TID3v2Tag.SetPicture(MimeTyp: AnsiString; PicType: TPictureType; Description: UnicodeString; stream: TStream);
 var IDX: Integer;
     NewFrame: TID3v2Frame;
     idStr: AnsiString;
     oldMime: AnsiString;
     oldDescription: UnicodeString;
-    oldType: Byte;
+    oldType: TPictureType;
     oldStream: TMemoryStream;
 begin
     idStr := GetFrameIDString(IDv2_PICTURE);
-    IDX := GetPictureFrameIndex({PicType,} Description);
+    IDX := GetPictureFrameIndex(Description);
     if IDX <> -1 then
     begin
         if Stream = NIL then
@@ -1886,6 +1900,11 @@ procedure TID3v2Tag.SetAlbum(Value: UnicodeString);
 begin
   SetText(IDv2_ALBUM, Value);
 end;
+procedure TID3v2Tag.SetAlbumArtist(Value: UnicodeString);
+begin
+  SetText(IDv2_BANDACCOMPANIMENT, Value);
+end;
+
 function TID3v2Tag.BuildID3v2Genre(value: UnicodeString): UnicodeString;
 begin
   // (<Index>)<Name>
@@ -1978,6 +1997,11 @@ begin
   SetText(Idv2_ORIGINALALBUMTITEL, value);
 end;
 
+procedure TID3v2Tag.SetBPM(Value: UnicodeString);
+begin
+  SetText(IDv2_BPM, Value);
+end;
+
 
 // ------------------------------------------
 // Getter for properties
@@ -1994,6 +2018,11 @@ function TID3v2Tag.GetAlbum: UnicodeString;
 begin
   result := GetText(IDv2_ALBUM);
 end;
+function TID3v2Tag.GetAlbumArtist: UnicodeString;
+begin
+  result := GetText(IDv2_BANDACCOMPANIMENT);
+end;
+
 function TID3v2Tag.ParseID3v2Genre(value: UnicodeString): UnicodeString;
 var posauf, poszu: integer;
   GenreID:Byte;
@@ -2087,6 +2116,10 @@ end;
 function TID3v2Tag.GetOriginalAlbumTitel: UnicodeString;
 begin
   result := GetText(IDv2_ORIGINALALBUMTITEL);
+end;
+function TID3v2Tag.GetBPM: UnicodeString;
+begin
+  result := GetText(IDv2_BPM);
 end;
 
 
@@ -2266,24 +2299,33 @@ end;
 
 
 function TID3v2Tag.GetAllowedTextFrames: TList;
-var i: TFrameIDs;
 begin
     result := TList.Create;
-    for i := IDv2_ARTIST to IDv2_SETSUBTITLE do
-      if (GetFrameIDString(i)[1] <> '-') AND (GetFrameIndex(i) = -1)
-      then
-        result.Add(Pointer(i));
+    GetAllowedTextFrames(result);
 end;
 
 function TID3v2Tag.GetAllowedURLFrames: TList;
-var i: TFrameIDs;
 begin
     result := TList.Create;
-    for i := IDv2_AUDIOFILEURL to IDv2_PAYMENTURL do
-      if (GetFrameIDString(i)[1] <> '-') AND (GetFrameIndex(i) = -1)
-      then
-        result.Add(Pointer(i));
+    GetAllowedURLFrames(result);
 end;
+
+procedure TID3v2Tag.GetAllowedTextFrames(aList: TList);
+var i: TFrameIDs;
+begin
+    for i := IDv2_ARTIST to IDv2_SETSUBTITLE do
+      if (GetFrameIDString(i)[1] <> '-') AND (GetFrameIndex(i) = -1) then
+        aList.Add(Pointer(i));
+end;
+
+procedure TID3v2Tag.GetAllowedURLFrames(aList: TList);
+var i: TFrameIDs;
+begin
+    for i := IDv2_AUDIOFILEURL to IDv2_PAYMENTURL do
+      if (GetFrameIDString(i)[1] <> '-') AND (GetFrameIndex(i) = -1) then
+        aList.Add(Pointer(i));
+end;
+
 
 function TID3v2Tag.AddFrame(aID: TFrameIDs): TID3v2Frame;
 begin

@@ -73,12 +73,10 @@ type
 
         protected
 
-            function fGetFileSize   : Int64;    override;
             function fGetDuration   : Integer;  override;
             function fGetBitrate    : Integer;  override;
             function fGetSamplerate : Integer;  override;
             function fGetChannels   : Integer;  override;
-            function fGetValid      : Boolean;  override;
 
             // standard properties
             // Setter
@@ -89,6 +87,7 @@ type
             procedure fSetTrack      (aValue: UnicodeString); override;
             procedure fSetGenre      (aValue: UnicodeString); override;
             procedure fSetComment    (aValue: UnicodeString);
+            procedure fSetAlbumArtist (value: UnicodeString); override;
             // Getter
             function fGetTitle       : UnicodeString; override;
             function fGetArtist      : UnicodeString; override;
@@ -97,6 +96,7 @@ type
             function fGetTrack       : UnicodeString; override;
             function fGetGenre       : UnicodeString; override;
             function fGetComment     : UnicodeString;
+            function fGetAlbumArtist : UnicodeString; override;
 
             procedure fSetDisc      (aValue: UnicodeString);
             function fGetDisc       : UnicodeString;
@@ -207,7 +207,7 @@ end;
 
 function TM4AFile.fGetFileTypeDescription: String;
 begin
-    result := TAudioFileNames[at_M4A];
+    result := cAudioFileType[at_M4A];
 end;
 
 procedure TM4AFile.Clear;
@@ -218,24 +218,10 @@ begin
     fValid      := False;
 end;
 
-
-function TM4AFile.fGetValid: Boolean;
-begin
-    result := fValid;
-end;
-
-
-function TM4AFile.fGetFileSize: Int64;
-begin
-    result := fFileSize;
-end;
-
-
 function TM4AFile.fGetSamplerate: Integer;
 begin
     result := MOOV.Samplerate
 end;
-
 
 function TM4AFile.fGetDuration: Integer;
 begin
@@ -268,6 +254,11 @@ end;
 function TM4AFile.fGetAlbum: UnicodeString;
 begin
     result := MOOV.UdtaAtom.GetTextData('©alb');
+end;
+
+function TM4AFile.fGetAlbumArtist: UnicodeString;
+begin
+  result := MOOV.UdtaAtom.GetTextData('aART');
 end;
 
 function TM4AFile.fGetComment: UnicodeString;
@@ -304,6 +295,11 @@ end;
 procedure TM4AFile.fSetAlbum(aValue: UnicodeString);
 begin
     MOOV.UdtaAtom.SetTextData('©alb', aValue);
+end;
+
+procedure TM4AFile.fSetAlbumArtist(value: UnicodeString);
+begin
+  MOOV.UdtaAtom.SetTextData('aART', Value);
 end;
 
 procedure TM4AFile.fSetComment(aValue: UnicodeString);
@@ -495,7 +491,7 @@ end;
 function TM4AFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited RemoveFromFile(aFilename);
-    result := M4aErr_RemovingNotSupported;
+    result := TagErr_RemovingNotSupported;
 end;
 
 
@@ -563,7 +559,7 @@ begin
             fs.Free;
         end;
     except
-        result := FlacErr_BackupFailed;
+        result := FileErr_BackupFailed;
     end;
 end;
 
@@ -572,6 +568,7 @@ var ExistingTag: TM4AFile;
     tmpMetaStream: TMemoryStream;
     FreeAtom: TFreeAtom;
     fs: TAudioFileStream;
+    backupFilename: String;
 
           function WriteData: TAudioError;
           begin
@@ -649,22 +646,23 @@ begin
                             fs := TAudioFileStream.Create(aFilename, fmOpenReadWrite or fmShareDenyWrite);
                             try
                                 fs.Seek(ExistingTag.fBytesBeforeMDTA, soBeginning);
-                                result := BackupAudioData(fs, aFilename+'~');
+                                backupFilename := GetBackupFilename(aFilename);
+                                result := BackupAudioData(fs, backupFilename);
                                 if result = FileErr_None then
                                 begin
                                     fs.Seek(0, soBeginning);
                                     // copy the new tmpMetaStream into the file
                                     fs.CopyFrom(tmpMetaStream, 0);
                                     // write AudioData back to the File
-                                    result := self.AppendBackup(fs, aFilename+'~');
+                                    result := self.AppendBackup(fs, backupFilename);
                                     // cleanup
                                     if result = FileErr_None then
                                     begin
                                         // Set End of File here (in case new Metadata is smaller)
                                         SetEndOfFile((fs as THandleStream).Handle);
                                         //delete backupfile
-                                        if not DeleteFile(aFilename + '~') then
-                                            result := FlacErr_DeleteBackupFailed;
+                                        if not DeleteFile(backupFilename) then
+                                            result := FileErr_DeleteBackupFailed;
                                     end;
                                 end;
                             finally

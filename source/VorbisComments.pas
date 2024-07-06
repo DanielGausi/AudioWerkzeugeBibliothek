@@ -52,11 +52,32 @@ unit VorbisComments;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, ContNrs, Classes
+  Windows, Messages, SysUtils, Variants, ContNrs, Classes, System.NetEncoding,
+  AudioFiles.Declarations
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF} ;
 
 const
     VORBIS_ID = 'vorbis';
+    Opus_ID = 'OpusTags';
+
+    VORBIS_ALBUM        = 'ALBUM'        ;
+    VORBIS_ARTIST       = 'ARTIST'       ;
+    VORBIS_CONTACT      = 'CONTACT'      ;
+    VORBIS_COPYRIGHT    = 'COPYRIGHT'    ;
+    VORBIS_DATE         = 'DATE'         ;
+    VORBIS_YEAR         = 'YEAR'         ;
+    VORBIS_DESCRIPTION  = 'DESCRIPTION'  ;
+    VORBIS_GENRE        = 'GENRE'        ;
+    VORBIS_ISRC         = 'ISRC'         ;
+    VORBIS_LICENSE      = 'LICENSE'      ;
+    VORBIS_LOCATION     = 'LOCATION'     ;
+    VORBIS_ORGANIZATION = 'ORGANIZATION' ;
+    VORBIS_PERFORMER    = 'PERFORMER'    ;
+    VORBIS_TITLE        = 'TITLE'        ;
+    VORBIS_TRACKNUMBER  = 'TRACKNUMBER'  ;
+    VORBIS_VERSION      = 'VERSION'      ;
+    VORBIS_ALBUMARTIST  = 'ALBUMARTIST'  ;
+    METADATA_BLOCK_PICTURE = 'METADATA_BLOCK_PICTURE';
 
 type
 
@@ -64,10 +85,16 @@ type
         UnicodeString = WideString;
     {$ENDIF}
 
+    teOggContainerType = (octInvalid, octOgg, octFlac, octOpus);
+
 
     TVorbisHeader = packed record
         PacketType: Byte;                       // 1, 3, 5 for the first 3 Vorbis-Header in an Ogg-Stream (we need only the first and second)
         ID: array [1..6] of AnsiChar;           // always "vorbis"
+    end;
+
+    TOpusHeader = packed record
+        ID: array [1..8] of AnsiChar;           // always "OpusTags"
     end;
 
     TVorbisIdentification = packed record
@@ -104,13 +131,56 @@ type
             function WriteToStream(Destination: TStream): Boolean;
     end;
 
+    TMetaDataBlockPicture = class
+      private
+        fPictureType: TPictureType;
+        fMime: AnsiString;
+        fDescription: Utf8String;
+        fWidth         : Cardinal;
+        fHeight        : Cardinal;
+        fColorDepth    : Cardinal;
+        fNumberOfColors: Cardinal;
+        fPicData: TMemoryStream;
+        function GetDescription: UnicodeString;
+        procedure SetDescription(value: UnicodeString);
+        function CalculateBlockSize: Cardinal;
+
+        function GetAsBase64: UTF8String;
+        procedure SetAsBase64(Value: UTF8String);
+
+    public
+        property PicData: TMemoryStream read fPicData;
+        property PictureType: TPictureType read fPictureType write fPictureType;
+        property Mime: AnsiString read fMime write fMime;
+        property Description: UnicodeString read GetDescription write SetDescription;
+        property Width         : Cardinal read fWidth          write fWidth          ;
+        property Height        : Cardinal read fHeight         write fHeight         ;
+        property ColorDepth    : Cardinal read fColorDepth     write fColorDepth     ;
+        property NumberOfColors: Cardinal read fNumberOfColors write fNumberOfColors ;
+        property Size: Cardinal read CalculateBlockSize;
+        property AsBase64: UTF8String read GetAsBase64 write SetAsBase64;
+
+        constructor Create;
+        destructor Destroy; override;
+        procedure Clear;
+        function IsEmpty: Boolean;
+
+        procedure CopyPicData(Target: TStream);
+        function ReadFromStream(Source: TStream): Boolean;
+        function WriteToStream(Destination: TStream): Boolean;
+
+    end;
+
     {
     TVorbisComments:
         class for VorbisComments
     }
     TVorbisComments = class
         private
-            fHeader: TVorbisHeader;
+            fContainerType: teOggContainerType;
+            fVorbisHeader: TVorbisHeader;
+            fOpusHeader: TOpusHeader;
+
             fVendorString: UTF8String;
             fCommentVectorList: TObjectList;
             fValidComment: Boolean;
@@ -132,6 +202,7 @@ type
             function fGetLocation    : UnicodeString;
             function fGetContact     : UnicodeString;
             function fGetISRC        : UnicodeString;
+            function fGetAlbumArtist : UnicodeString;
 
             procedure fSetPropertyByFieldname(aField: String; aValue: UnicodeString);
             procedure fSetTitle       (value: UnicodeString);
@@ -149,9 +220,13 @@ type
             procedure fSetLocation    (value: UnicodeString);
             procedure fSetContact     (value: UnicodeString);
             procedure fSetISRC        (value: UnicodeString);
+            procedure fSetAlbumArtist (value: UnicodeString);
 
+            function PicDataToBase64(Source: TStream; aMime: AnsiString;
+                      aDescription: UnicodeString; aPicType: TPictureType): UTF8String;
 
         public
+            property ContainerType: teOggContainerType read fContainerType write fContainerType;
             property ValidComment: Boolean read fValidComment;
             property VendorString: UTF8String read fVendorString    ;
             property Title       : UnicodeString read fGetTitle        write fSetTitle       ;
@@ -169,14 +244,15 @@ type
             property Location    : UnicodeString read fGetLocation     write fSetLocation    ;
             property Contact     : UnicodeString read fGetContact      write fSetContact     ;
             property ISRC        : UnicodeString read fGetISRC         write fSetISRC        ;
+            property AlbumArtist : UnicodeString read fGetAlbumArtist  write fSetAlbumArtist ;
 
             //property CommentVectorList: TObjectList read fCommentVectorList;
 
             constructor Create;
             destructor Destroy; override;
             procedure Clear;
-            function ReadFromStream(Source: TStream; Size: Integer; SkipHeader: Boolean=False): Boolean;
-            function WriteToStream(Destination: TStream; SkipHeader: Boolean=False): Boolean;
+            function ReadFromStream(Source: TStream; Size: Integer): Boolean;
+            function WriteToStream(Destination: TStream): Boolean;
             // The SizeInStream is just the size of the Comments.
             // It does NOT include optional padding!
             function GetSizeInStream: Integer;
@@ -191,10 +267,51 @@ type
             // Give Access to these Fields (note: Fieldnames dont have to be unique)
             function GetPropertyByIndex(aIndex: Integer): UnicodeString;
             function SetPropertyByIndex(aIndex: Integer; aValue: UnicodeString): Boolean;
+
+            function GetPictureStream(Destination: TStream;
+                                        var aPicType: TPictureType;
+                                        var aMime: AnsiString;
+                                        var aDescription: UnicodeString): Boolean; overload;
+
+            function GetPictureStream(aCommentVector: TCommentVector;
+                                        Destination: TStream;
+                                        var aPicType: TPictureType;
+                                        var aMime: AnsiString;
+                                        var aDescription: UnicodeString): Boolean; overload;
+
+            procedure SetPicture(Source: TStream; aMime: AnsiString;
+                      aDescription: UnicodeString; aPicType: TPictureType);  // use Source=NIL, to delete the picture
+
+            procedure GetAllPictureComments(Target: TObjectList);
+            // Add a new Picture
+            procedure AddPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString;
+                  aDescription: UnicodeString);
+            // Delete a specified Picture
+            procedure DeletePicture(aCommentVector: TCommentVector);
     end;
 
 
 implementation
+
+uses
+  WinApi.WinSock;
+
+
+// In FlacFiles, all Integers (except in the Comments) are stored BigEndian
+// We need to convert them to LittleEndian
+function ReadBigEndianCardinal(source: TStream): Cardinal;
+begin
+    Source.Read(result, SizeOf(result));
+    result := ntohl(result);
+end;
+
+procedure WriteBigEndianCardinal(Destination: TStream; value: Cardinal);
+var x: Cardinal;
+begin
+    x := htonl(value);
+    Destination.Write(x, sizeOf(value));
+end;
+
 
 { TCommentVector }
 
@@ -264,8 +381,9 @@ end;
 
 procedure TVorbisComments.Clear;
 begin
-    fheader.PacketType := 0;
-    fHeader.ID := '123456';
+    fVorbisHeader.PacketType := 0;
+    fVorbisHeader.ID := '123456'; // invalid
+    fOpusHeader.ID := '12345678'; // invalid
     fVendorString := '';
     fCommentVectorList.Clear;
     fValidComment := False;
@@ -300,79 +418,84 @@ end;
 
 function TVorbisComments.fGetAlbum: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('album');
+    result := fGetPropertyByFieldname(VORBIS_ALBUM);
+end;
+
+function TVorbisComments.fGetAlbumArtist: UnicodeString;
+begin
+  result := fGetPropertyByFieldName(VORBIS_ALBUMARTIST);
 end;
 
 function TVorbisComments.fGetArtist: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('artist');
+    result := fGetPropertyByFieldname(VORBIS_ARTIST);
 end;
 
 function TVorbisComments.fGetContact: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('contact');
+    result := fGetPropertyByFieldname(VORBIS_CONTACT);
 end;
 
 function TVorbisComments.fGetCopyright: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('copyright');
+    result := fGetPropertyByFieldname(VORBIS_COPYRIGHT);
 end;
 
 function TVorbisComments.fGetDate: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('date');
+    result := fGetPropertyByFieldname(VORBIS_DATE);
     if result = '' then
-        result := fGetPropertyByFieldname('year');
+        result := fGetPropertyByFieldname(VORBIS_YEAR);
 end;
 
 function TVorbisComments.fGetDescription: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('description');
+    result := fGetPropertyByFieldname(VORBIS_DESCRIPTION);
 end;
 
 function TVorbisComments.fGetGenre: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('genre');
+    result := fGetPropertyByFieldname(VORBIS_GENRE);
 end;
 
 function TVorbisComments.fGetISRC: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('isrc');
+    result := fGetPropertyByFieldname(VORBIS_ISRC);
 end;
 
 function TVorbisComments.fGetLicense: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('license');
+    result := fGetPropertyByFieldname(VORBIS_LICENSE);
 end;
 
 function TVorbisComments.fGetLocation: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('location');
+    result := fGetPropertyByFieldname(VORBIS_LOCATION);
 end;
 
 function TVorbisComments.fGetOrganization: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('organization');
+    result := fGetPropertyByFieldname(VORBIS_ORGANIZATION);
 end;
 
 function TVorbisComments.fGetPerformer: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('performer');
+    result := fGetPropertyByFieldname(VORBIS_PERFORMER);
 end;
 
 function TVorbisComments.fGetTitle: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('title');
+    result := fGetPropertyByFieldname(VORBIS_TITLE);
 end;
 
 function TVorbisComments.fGetTrackNumber: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('tracknumber');
+    result := fGetPropertyByFieldname(VORBIS_TRACKNUMBER);
 end;
 
 function TVorbisComments.fGetVersion: UnicodeString;
 begin
-    result := fGetPropertyByFieldname('version');
+    result := fGetPropertyByFieldname(VORBIS_VERSION);
 end;
 
 
@@ -405,7 +528,7 @@ begin
         if not assigned(matchingVector)  then
         begin
             matchingVector := TCommentVector.Create;
-            matchingVector.FieldName := aField;
+            matchingVector.FieldName := AnsiUppercase(aField);
             fCommentVectorList.Add(matchingVector);
         end;
 
@@ -416,110 +539,125 @@ end;
 
 procedure TVorbisComments.fSetAlbum(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('album', Value);
+    fSetPropertyByFieldname(VORBIS_ALBUM, Value);
+end;
+
+procedure TVorbisComments.fSetAlbumArtist(value: UnicodeString);
+begin
+  fSetPropertyByFieldName(VORBIS_ALBUMARTIST, value);
 end;
 
 procedure TVorbisComments.fSetArtist(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('artist', Value);
+    fSetPropertyByFieldname(VORBIS_ARTIST, Value);
 end;
 
 procedure TVorbisComments.fSetContact(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('contact', Value);
+    fSetPropertyByFieldname(VORBIS_CONTACT, Value);
 end;
 
 procedure TVorbisComments.fSetCopyright(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('copyright', Value);
+    fSetPropertyByFieldname(VORBIS_COPYRIGHT, Value);
 end;
 
 procedure TVorbisComments.fSetDate(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('date', Value);
+    fSetPropertyByFieldname(VORBIS_DATE, Value);
 end;
 
 procedure TVorbisComments.fSetDescription(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('description', Value);
+    fSetPropertyByFieldname(VORBIS_DESCRIPTION, Value);
 end;
 
 procedure TVorbisComments.fSetGenre(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('genre', Value);
+    fSetPropertyByFieldname(VORBIS_GENRE, Value);
 end;
 
 procedure TVorbisComments.fSetISRC(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('isrc', Value);
+    fSetPropertyByFieldname(VORBIS_ISRC, Value);
 end;
 
 procedure TVorbisComments.fSetLicense(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('license', Value);
+    fSetPropertyByFieldname(VORBIS_LICENSE, Value);
 end;
 
 procedure TVorbisComments.fSetLocation(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('location', Value);
+    fSetPropertyByFieldname(VORBIS_LOCATION, Value);
 end;
 
 procedure TVorbisComments.fSetOrganization(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('organization', Value);
+    fSetPropertyByFieldname(VORBIS_ORGANIZATION, Value);
 end;
 
 procedure TVorbisComments.fSetPerformer(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('performer', Value);
+    fSetPropertyByFieldname(VORBIS_PERFORMER, Value);
 end;
 
 procedure TVorbisComments.fSetTitle(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('title', Value);
+    fSetPropertyByFieldname(VORBIS_TITLE, Value);
 end;
 
 procedure TVorbisComments.fSetTrackNumber(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('tracknumber', Value);
+    fSetPropertyByFieldname(VORBIS_TRACKNUMBER, Value);
 end;
 
 procedure TVorbisComments.fSetVersion(value: UnicodeString);
 begin
-    fSetPropertyByFieldname('version', Value);
+    fSetPropertyByFieldname(VORBIS_VERSION, Value);
 end;
 
 
-function TVorbisComments.ReadFromStream(Source: TStream; Size: Integer; SkipHeader: Boolean=False): Boolean;
+function TVorbisComments.ReadFromStream(Source: TStream; Size: Integer): Boolean;
 var vendorLength: Integer;
     i, CommentCount: Integer;
     newCommentVector: TCommentVector;
     framingBit: Byte;
-
     currentPos: Int64;
+    ValidHeader: Boolean;
 begin
     // store currentPos in the Stream
     currentPos := Source.Position;
     Clear;
-    if Not SkipHeader then
-    begin
-        // read Header
-        source.Read(fHeader, sizeOf(fHeader));
-        if not ((fHeader.PacketType = 3) and (fHeader.ID = VORBIS_ID)) then
-        begin
-            fValidComment := False;
-            result := False;
-            Source.Seek(currentPos + Size, soBeginning);
-            exit;
-        end;
-        // ok, valid Vorbis-Header found. Proceed with comments.
+
+    ValidHeader := True;
+    case fContainerType of
+      octOgg: begin
+        source.Read(fVorbisHeader, sizeOf(fVorbisHeader));
+        ValidHeader := (fVorbisHeader.PacketType = 3) and (fVorbisHeader.ID = VORBIS_ID);
+      end;
+      octFlac: ValidHeader := True; // nothing else to to
+      octOpus: begin
+        source.Read(fOpusHeader, sizeOf(fOpusHeader));
+        ValidHeader := fOpusHeader.ID = Opus_ID
+      end;
     end;
+
+    if not ValidHeader then begin
+      fValidComment := False;
+      result := False;
+      Source.Seek(currentPos + Size, soBeginning);
+      exit;
+    end;
+
 
     // first: VendorString
     // should be something like "Xiph.Org libVorbis I 20020717"
     source.Read(vendorLength, sizeOf(vendorlength));
-    setlength(fVendorString, vendorLength);
-    source.Read(fVendorString[1], length(fVendorString));
+    if vendorLength > 0 then begin
+      setlength(fVendorString, vendorLength);
+      source.Read(fVendorString[1], length(fVendorString));
+    end;
 
     // read Number of Comments ...
     source.Read(CommentCount, sizeOf(CommentCount));
@@ -532,15 +670,17 @@ begin
         fCommentVectorList.Add(newCommentVector);
     end;
 
-    // read closing framing bit
-    if Not SkipHeader then
-    begin
+    case fContainerType of
+      octOgg: begin
         source.Read(framingBit, sizeOf(framingBit));
         // this should be 1, otherwise the Header is invalid
         fValidComment := framingBit = 1;
-    end else
-        fValidComment := True;
-
+      end;
+      octFlac: fValidComment := True;
+      octOpus: begin
+        fValidComment := True; // xxxxxxxxxxxxxxxxxxxxxx CHECK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      end;
+    end;
     result := ValidComment;
 
     // Seek in the Stream after the Comment-Packet (which could include some padding
@@ -551,20 +691,23 @@ end;
 
 
 
-function TVorbisComments.WriteToStream(Destination: TStream; SkipHeader: Boolean=False): Boolean;
+function TVorbisComments.WriteToStream(Destination: TStream): Boolean;
 var l,c,i: integer;
     framingBit: Byte;
 begin
     result := True;
     try
-        if not SkipHeader then
-            // write header
-            Destination.Write(fHeader, SizeOf(fHeader)); // #3 + vorbis
+        case fContainerType of
+          octOgg: Destination.Write(fVorbisHeader, SizeOf(fVorbisHeader)); // #3 + vorbis
+          octFlac: ;
+          octOpus: Destination.Write(fOpusHeader, SizeOf(fOpusHeader)); // "OpusTags"
+        end;
 
         // write vendorstring
         l := length(fVendorString);
         Destination.Write(l, sizeOf(l));
-        Destination.Write(fVendorString[1], l);
+        if l > 0 then
+          Destination.Write(fVendorString[1], l);
         // write number of comments
         c := fCommentVectorList.Count;
         Destination.Write(c, sizeOf(c));
@@ -573,14 +716,120 @@ begin
             if not TCommentVector(fCommentVectorList[i]).WriteToStream(Destination) then
                 result := False;
 
-        if Not SkipHeader then
-        begin
+        case fContainerType of
+          octOgg: begin
             framingBit := 1;
             Destination.Write(framingBit, sizeOf(framingBit));
+          end;
+          octFlac: ;
+          octOpus: ;
         end;
+
     except
         result := False;
     end;
+end;
+
+function TVorbisComments.GetPictureStream(Destination: TStream;
+  var aPicType: TPictureType; var aMime: AnsiString;
+  var aDescription: UnicodeString): Boolean;
+var
+  aPicVector: TCommentVector;
+  i: Integer;
+
+begin
+  result := False;
+  aPicVector := Nil;
+  for i := 0 to fCommentVectorList.Count - 1 do begin
+    if SameText(METADATA_BLOCK_PICTURE, TCommentVector(fCommentVectorList[i]).FieldName) then begin
+      aPicVector := TCommentVector(fCommentVectorList[i]);
+      break;
+    end;
+  end;
+  if assigned(aPicVector) then
+    result := GetPictureStream(aPicVector, Destination, aPicType, aMime, aDescription);
+end;
+
+function TVorbisComments.GetPictureStream(aCommentVector: TCommentVector; Destination: TStream;
+  var aPicType: TPictureType; var aMime: AnsiString;
+  var aDescription: UnicodeString): Boolean;
+var
+  base64Pic: UnicodeString;
+  PicBlock: TMetaDataBlockPicture;
+begin
+  result := False;
+  base64Pic := aCommentVector.Value;
+
+  if base64Pic <> '' then begin
+    PicBlock := TMetaDataBlockPicture.Create;
+    try
+      PicBlock.AsBase64 := UTF8String(base64Pic);
+      result := PicBlock.Size > 0;
+      if result then
+        Destination.CopyFrom(picBlock.PicData, 0);
+      aPicType := picBlock.PictureType;
+      aMime := picBlock.Mime;
+      aDescription := picBlock.Description;
+    finally
+      PicBlock.Free;
+    end;
+  end;
+end;
+
+function TVorbisComments.PicDataToBase64(Source: TStream; aMime: AnsiString;
+                      aDescription: UnicodeString; aPicType: TPictureType): UTF8String;
+var
+  PicBlock: TMetaDataBlockPicture;
+begin
+  // returns the data as a base64 encoded TMetaDataBlockPicture structure
+  PicBlock := TMetaDataBlockPicture.Create;
+  try
+    picBlock.PictureType := aPicType;
+    picBlock.Mime := aMime;
+    picBlock.Description := aDescription;
+    picBlock.PicData.Clear;
+    picBlock.PicData.CopyFrom(Source, 0);
+    result := PicBlock.AsBase64;
+  finally
+    PicBlock.Free;
+  end;
+end;
+
+procedure TVorbisComments.SetPicture(Source: TStream; aMime: AnsiString; aDescription: UnicodeString; aPicType: TPictureType);
+begin
+  if Source = Nil then
+    // delete the Picture-Comment
+    fSetPropertyByFieldname(METADATA_BLOCK_PICTURE, '')
+  else
+    // set the picture data
+    fSetPropertyByFieldname(METADATA_BLOCK_PICTURE, String(PicDataToBase64(Source, aMime, aDescription, aPicType)));
+end;
+
+procedure TVorbisComments.GetAllPictureComments(Target: TObjectList);
+var i: Integer;
+begin
+  Target.Clear;
+  for i := 0 to fCommentVectorList.Count - 1 do
+    if SameText(METADATA_BLOCK_PICTURE, TCommentVector(fCommentVectorList[i]).FieldName) then
+      Target.Add(TCommentVector(fCommentVectorList[i]));
+end;
+
+procedure TVorbisComments.AddPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString;
+      aDescription: UnicodeString);
+var
+  newCommentVector: TCommentVector;
+begin
+  if assigned(Source) and (Source.Size > 0) then begin
+    newCommentVector := TCommentVector.Create;
+    newCommentVector.FieldName := AnsiUppercase(METADATA_BLOCK_PICTURE);
+    newCommentVector.Value := String(PicDataToBase64(Source, aMime, aDescription, aPicType));
+    fCommentVectorList.Add(newCommentVector);
+  end;
+end;
+
+procedure TVorbisComments.DeletePicture(aCommentVector: TCommentVector);
+begin
+  fCommentVectorList.Remove(aCommentVector);
 end;
 
 function TVorbisComments.GetPropertyByFieldname(aField: String): UnicodeString;
@@ -653,6 +902,161 @@ begin
     finally
         ms.Free;
     end;
+end;
+
+{ TMetaDataBlockPicture }
+
+
+
+constructor TMetaDataBlockPicture.Create;
+begin
+  fPicData := TMemoryStream.Create;
+end;
+
+destructor TMetaDataBlockPicture.Destroy;
+begin
+  fPicData.Free;
+  inherited;
+end;
+
+procedure TMetaDataBlockPicture.Clear;
+begin
+  fPicData.Clear;
+  Mime := '';
+  Description := '';
+  fWidth := 0;
+  fHeight := 0;
+  fColorDepth := 0;
+  fNumberOfColors:= 0;
+end;
+
+function TMetaDataBlockPicture.CalculateBlockSize: Cardinal;
+begin
+  result := 8*4 // the Integers/lengths stored in the block
+        + length(fMime)
+        + length(fDescription)
+        + fPicData.Size;
+end;
+
+procedure TMetaDataBlockPicture.CopyPicData(Target: TStream);
+begin
+  Target.CopyFrom(fPicData, 0);
+end;
+
+
+function TMetaDataBlockPicture.IsEmpty: Boolean;
+begin
+  result := fPicData.Size = 0;
+end;
+
+function TMetaDataBlockPicture.GetDescription: UnicodeString;
+begin
+  {$IFDEF UNICODE}
+  result := UnicodeString(fDescription);
+  {$ELSE}
+  result := UTF8Decode(fDescription);
+  {$ENDIF}
+end;
+
+procedure TMetaDataBlockPicture.SetAsBase64(Value: UTF8String);
+var
+  InputStream, OutputStream: TMemoryStream;
+begin
+  InputStream := TMemoryStream.Create;
+  OutputStream := TMemoryStream.Create;
+  try
+    InputStream.Write(Value[1], Length(Value));
+    InputStream.Position := 0;
+    TNetEncoding.Base64.Decode(InputStream, OutPutStream);
+    OutPutStream.Position := 0;
+    ReadFromStream(OutputStream);
+  finally
+    InputStream.Free;
+    OutputStream.Free;
+  end;
+end;
+
+function TMetaDataBlockPicture.GetAsBase64: UTF8String;
+var
+  Base64: TBase64Encoding;
+  InputStream, OutputStream: TMemoryStream;
+begin
+  Base64 := TBase64Encoding.Create(0); // no LineBreaks!!
+  try
+    InputStream := TMemoryStream.Create;
+    OutputStream := TMemoryStream.Create;
+    try
+      WriteToStream(InputStream);
+      InputStream.Position := 0;
+      Base64.Encode(InputStream, OutputStream);
+      OutputStream.Position := 0;
+      SetLength(result, OutputStream.Size);
+      OutputStream.Read(result[1], length(result));
+    finally
+      OutputStream.Free;
+      InputStream.Free;
+    end;
+  finally
+    Base64.Free;
+  end;
+end;
+
+
+procedure TMetaDataBlockPicture.SetDescription(value: UnicodeString);
+begin
+  {$IFDEF UNICODE}
+  fDescription := Utf8String(value);
+  {$ELSE}
+  fDescription := UTF8Encode(value);
+  {$ENDIF}
+end;
+
+function TMetaDataBlockPicture.ReadFromStream(Source: TStream): Boolean;
+var
+  mimeLength, descLength, picSize: Cardinal;
+begin
+  // 1. Picture-Type
+  fPictureType := TPictureType(ReadBigEndianCardinal(Source));
+  // 2. Mime-type
+  mimeLength := ReadBigEndianCardinal(Source);
+  SetLength(fMime, mimeLength);
+  Source.Read(fMime[1], mimeLength);
+  // 3. Description
+  descLength := ReadBigEndianCardinal(Source);
+  SetLength(fDescription, descLength);
+  Source.Read(fDescription[1], descLength);
+  // 4. Some data about the Picture
+  fWidth          := ReadBigEndianCardinal(Source);
+  fHeight         := ReadBigEndianCardinal(Source);
+  fColorDepth     := ReadBigEndianCardinal(Source);
+  fNumberOfColors := ReadBigEndianCardinal(Source);
+  // 5. Picture Data
+  picSize := ReadBigEndianCardinal(Source);
+  fPicData.Clear;
+  fPicData.CopyFrom(Source, PicSize);
+  result := True;
+end;
+
+function TMetaDataBlockPicture.WriteToStream(Destination: TStream): Boolean;
+begin
+
+    // 1. Picture-Type
+    WriteBigEndianCardinal(Destination, Cardinal(fPictureType));
+    // 2. Mime-type
+    WriteBigEndianCardinal(Destination, length(fMime));
+    Destination.Write(fMime[1], length(fMime));
+    // 3. Description
+    WriteBigEndianCardinal(Destination, length(fDescription));
+    Destination.Write(fDescription[1], length(fDescription));
+    // 4. Some data about the Picture
+    WriteBigEndianCardinal(Destination, fWidth         );
+    WriteBigEndianCardinal(Destination, fHeight        );
+    WriteBigEndianCardinal(Destination, fColorDepth    );
+    WriteBigEndianCardinal(Destination, fNumberOfColors);
+    // 5. Picture Data
+    WriteBigEndianCardinal(Destination, fPicData.Size);
+    Destination.CopyFrom(fPicData, 0);
+    result := True;
 end;
 
 end.

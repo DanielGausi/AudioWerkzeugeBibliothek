@@ -117,15 +117,9 @@ type
 
         protected
 
-            function fGetFileSize   : Int64;    override;
-            function fGetDuration   : Integer;  override;
-            function fGetBitrate    : Integer;  override;
-            function fGetSamplerate : Integer;  override;
-            function fGetChannels   : Integer;  override;
-            function fGetValid      : Boolean;  override;
-
             procedure fSetTitle           (aValue: UnicodeString); override;
             procedure fSetArtist          (aValue: UnicodeString); override;
+            procedure fSetAlbumArtist     (aValue: UnicodeString); override;
             procedure fSetAlbum           (aValue: UnicodeString); override;
             procedure fSetYear            (aValue: UnicodeString); override;
             procedure fSetTrack           (aValue: UnicodeString); override;
@@ -134,6 +128,7 @@ type
 
             function fGetTitle            : UnicodeString; override;
             function fGetArtist           : UnicodeString; override;
+            function fGetAlbumArtist      : UnicodeString; override;
             function fGetAlbum            : UnicodeString; override;
             function fGetYear             : UnicodeString; override;
             function fGetTrack            : UnicodeString; override;
@@ -226,7 +221,7 @@ begin
     fDefaultTags     := [mt_ID3v1, mt_ID3v2];
     fTagsToBeDeleted := [mt_Existing];
 
-    fTagScanMode := id3_read_complete;
+    fTagScanMode :=    id3_read_complete; //id3_read_smart
     fSecondaryTagsProcessed          := False;
     fSmartRead_IgnoreComment         := True;
     fSmartRead_AvoidInconsistentData := True;
@@ -322,29 +317,7 @@ end;
 
 function TMP3File.fGetFileTypeDescription: String;
 begin
-    result := TAudioFileNames[at_Mp3];
-end;
-
-function TMP3File.fGetFileSize: Int64;
-begin
-    result := fFileSize;
-end;
-
-function TMP3File.fGetBitrate: Integer;
-begin
-    result := fBitrate;
-end;
-function TMP3File.fGetDuration: Integer;
-begin
-    result := fDuration;
-end;
-function TMP3File.fGetSamplerate: Integer;
-begin
-    result := fSamplerate;
-end;
-function TMP3File.fGetChannels: Integer;
-begin
-    result := fChannels;
+    result := cAudioFileType[at_Mp3];
 end;
 
 function TMP3File.fGetComment: UnicodeString;
@@ -364,6 +337,13 @@ begin
     if result = '' then
         result := fApeTag.Album;
 end;
+function TMP3File.fGetAlbumArtist: UnicodeString;
+begin
+  result := fID3v2Tag.AlbumArtist;
+  if result = '' then
+    result := fApeTag.AlbumArtist;
+end;
+
 function TMP3File.fGetArtist: UnicodeString;
 begin
     result := fID3v2Tag.Artist;
@@ -413,6 +393,14 @@ begin
   fID3v1Tag.Album := aValue;
   fID3v2Tag.Album := aValue;
   fApeTag.Album := aValue;
+end;
+
+procedure TMP3File.fSetAlbumArtist(aValue: UnicodeString);
+begin
+  inherited;
+  EnforceSecondaryTagsAreProcessed;
+  fID3v2Tag.AlbumArtist := aValue;
+  fApeTag.AlbumArtist := aValue;
 end;
 
 procedure TMP3File.fSetArtist(aValue: UnicodeString);
@@ -488,12 +476,6 @@ begin
         result := fApeTag.Apev2TagSize
     else
         result := 0;
-end;
-
-
-function TMP3File.fGetValid: Boolean;
-begin
-    result := fValid;
 end;
 
 
