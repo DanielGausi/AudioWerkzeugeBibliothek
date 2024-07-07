@@ -65,6 +65,7 @@ type
     procedure Btn_OkClick(Sender: TObject);
     procedure pcFrameTypeSelectionChange(Sender: TObject);
     procedure BtnSelectPrivateFileClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     { Private-Deklarationen }
     fNewPicureChoosed: Boolean;
@@ -100,8 +101,9 @@ var
 begin
     // textframes: get list of unused frames
     cbTextframe.Items.Clear;
-    if assigned(allowedTextFrameList) then allowedTextFrameList.Free;
-    allowedTextFrameList := Id3v2Tag.GetAllowedTextFrames;
+
+    allowedTextFrameList.Clear;
+    Id3v2Tag.GetAllowedTextFrames(allowedTextFrameList);
     for i := 0 to allowedTextFrameList.Count-1 do
         cbTextframe.Items.Add(
           ID3v2KnownFrames[ TFrameIDs(allowedTextFrameList[i])].Description
@@ -114,8 +116,8 @@ begin
 
     // URL frames: get list of unused frames
     cbURLFrame.Items.Clear;
-    if assigned(allowedURLFrameList) then allowedURLFrameList.Free;
-    allowedURLFrameList := Id3v2Tag.GetAllowedURLFrames;
+    allowedURLFrameList.Clear;
+    Id3v2Tag.GetAllowedURLFrames(allowedURLFrameList);
     for i := 0 to allowedURLFrameList.Count-1 do
         cbURLFrame.Items.Add(
           ID3v2KnownFrames[ TFrameIDs(allowedURLFrameList[i])].Description
@@ -191,6 +193,16 @@ begin
 
     fNewPictureData := TMemoryStream.Create;
     fNewMimeType := '';
+
+    allowedTextFrameList := TList.Create;
+    allowedURLFrameList := TList.Create;
+end;
+
+procedure TFormNewFrame.FormDestroy(Sender: TObject);
+begin
+  allowedTextFrameList.Free;
+  allowedURLFrameList.Free;
+  fNewPictureData.Free;
 end;
 
 procedure TFormNewFrame.Ed_TextFrameChange(Sender: TObject);

@@ -6,14 +6,6 @@
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
-    contains parts of
-        Audio Tools Library
-        http://mac.sourceforge.net/atl/
-        e-mail: macteam@users.sourceforge.net
-
-        Copyright (c) 2000-2002 by Jurgen Faul
-        Copyright (c) 2003-2005 by The MAC Team
-    -----------------------------------
 
     Unit DummyFiles
 

@@ -9,7 +9,7 @@
 
     Unit VorbisComments
 
-    Helper class for Ogg-Vorbis-Comments (as used in *.ogg and *.flac)
+    Helper class for Ogg-Vorbis-Comments (as used in *.ogg, *.opus and *.flac)
 
     ---------------------------------------------------------------------------
 
@@ -131,6 +131,12 @@ type
             function WriteToStream(Destination: TStream): Boolean;
     end;
 
+    {
+      TMetaDataBlockPicture is a structure from the FLAC documentation.
+      However, it is recommended to uses this structure in VorbisComments as well
+      for storing CoverArt (Encoded as Base64 in that case).
+      Therefore we need it here already, not in unit FlacFiles.pas
+    }
     TMetaDataBlockPicture = class
       private
         fPictureType: TPictureType;
@@ -677,9 +683,7 @@ begin
         fValidComment := framingBit = 1;
       end;
       octFlac: fValidComment := True;
-      octOpus: begin
-        fValidComment := True; // xxxxxxxxxxxxxxxxxxxxxx CHECK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      end;
+      octOpus: fValidComment := True;
     end;
     result := ValidComment;
 

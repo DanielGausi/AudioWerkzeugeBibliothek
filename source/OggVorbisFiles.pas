@@ -62,7 +62,6 @@ uses
   VorbisComments, ID3Basics, OggContainer,
   AudioFiles.Base, AudioFiles.Declarations, BaseVorbisFiles;
 
-
 type
 
     TOggIdentificationPacket = class(TOggPacket)
@@ -307,7 +306,7 @@ begin
                         // "GetMaxSample" searches from the end of the file and is usually faster.
                         // However, parsing the complete OggContainer may be safer.
                         fMaxSamples := GetMaxSample(fs);
-                        if fMaxSamples = 0 then
+                        if fMaxSamples <= 0 then
                           fMaxSamples := OggContainer.GetMaxGranulePosition(0);
                         fValid := True;
                     end else

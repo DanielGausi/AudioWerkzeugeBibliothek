@@ -29,7 +29,10 @@ uses
   VorbisComments in '..\source\VorbisComments.pas',
   WavFiles in '..\source\WavFiles.pas',
   WavPackFiles in '..\source\WavPackFiles.pas',
-  WmaFiles in '..\source\WmaFiles.pas';
+  WmaFiles in '..\source\WmaFiles.pas',
+  OpusFiles in '..\source\OpusFiles.pas',
+  BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
+  OggContainer in '..\source\OggContainer.pas';
 
 {$R *.res}
 

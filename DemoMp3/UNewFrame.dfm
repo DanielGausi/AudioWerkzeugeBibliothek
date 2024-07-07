@@ -12,6 +12,7 @@ object FormNewFrame: TFormNewFrame
   Font.Style = []
   Position = poScreenCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnShow = FormShow
   DesignSize = (
     444
@@ -20,14 +21,14 @@ object FormNewFrame: TFormNewFrame
   object pcFrameTypeSelection: TPageControl
     Left = 8
     Top = 8
-    Width = 424
+    Width = 420
     Height = 233
     ActivePage = TabSheet3
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = pcFrameTypeSelectionChange
-    ExplicitWidth = 432
-    ExplicitHeight = 234
+    ExplicitWidth = 416
+    ExplicitHeight = 232
     object tsText: TTabSheet
       Caption = 'Text'
       object Label1: TLabel
@@ -308,7 +309,7 @@ object FormNewFrame: TFormNewFrame
       Caption = 'Private Frame'
       ImageIndex = 6
       DesignSize = (
-        416
+        412
         205)
       object lblPrivateWarning: TLabel
         Left = 16
@@ -343,7 +344,7 @@ object FormNewFrame: TFormNewFrame
       object edtPrivateDescription: TLabeledEdit
         Left = 16
         Top = 24
-        Width = 348
+        Width = 344
         Height = 21
         Anchors = [akLeft, akTop, akRight]
         Color = clScrollBar
@@ -367,7 +368,7 @@ object FormNewFrame: TFormNewFrame
     end
   end
   object Btn_Ok: TButton
-    Left = 268
+    Left = 264
     Top = 255
     Width = 83
     Height = 25
@@ -376,11 +377,11 @@ object FormNewFrame: TFormNewFrame
     ModalResult = 1
     TabOrder = 1
     OnClick = Btn_OkClick
-    ExplicitLeft = 276
-    ExplicitTop = 256
+    ExplicitLeft = 260
+    ExplicitTop = 254
   end
   object BtnCancel: TButton
-    Left = 357
+    Left = 353
     Top = 255
     Width = 75
     Height = 25
@@ -388,8 +389,8 @@ object FormNewFrame: TFormNewFrame
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 2
-    ExplicitLeft = 365
-    ExplicitTop = 256
+    ExplicitLeft = 349
+    ExplicitTop = 254
   end
   object OpenPictureDialog1: TOpenPictureDialog
     Filter = 'All supported files (*.jpg;*.jpeg;*.png;)|*.jpg;*.jpeg;*.png;'

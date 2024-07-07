@@ -121,9 +121,9 @@ type
     StreamVersion: Byte;             // Stream structure version
     TypeFlag: Byte;                  // Header type flag
     AbsolutePosition: Int64;         // Absolute granule position
-    Serial: Integer;                 // Stream serial number
-    PageNumber: Integer;             // Page sequence number
-    Checksum: Cardinal;              // Page checksum             // 23, 24, 25, 26
+    Serial: Cardinal;                // Stream serial number
+    PageNumber: Cardinal;            // Page sequence number
+    Checksum: Cardinal;              // Page checksum
     Segments: Byte;                  // Number of page segments
   end;
 
@@ -161,7 +161,7 @@ type
       fData: TMemoryStream; // internal, temporary Stream
       fCurrentPackageComplete: Boolean;
 
-      procedure WriteHeader(Target: TStream);          // ?????
+      procedure WriteHeader(Target: TStream);
 
       function GetDataSize: Cardinal;
       function GetCurrentPacketSize: Cardinal;
@@ -212,11 +212,9 @@ type
       procedure Clear;
       procedure ClearHeader; overload;
       procedure ClearHeader(aSerial, aPageNumber: Integer); overload;
-
       procedure Assign(Value: TOggPage);
 
       function CalculateChecksum: Cardinal;
-
       function ReadFromStream(Source: TStream): TAudioError;
       function WriteToStream(Target: TStream): TAudioError;
 
@@ -225,17 +223,6 @@ type
       function ReadPacketData(Source, Target: TStream): TAudioError;
 
       function SkipData(Source: TStream): TAudioError;
-
-      {
-        Handling der Daten auf der Seite:
-
-          Beim Lesen könnte ich direkt den SourceStream benutzen
-
-          Beim Schreiben von *neuen* Daten aber muss ich einen temporären Buffer nehmen.
-          Da kann ich weder den "realen" ZielStream nutzen (weil die Länge der LacingValues noch unbekannt sind!)
-          Auch später beim kopieren und neu durchnummerieren der originalen Rest-Seiten, um den neuen Stream mit den
-          neuen Metadaten (ggf. auf mehr Seiten!) darf ich nicht in den originalen Stream schreiben ...
-      }
   end;
 
 
@@ -261,11 +248,10 @@ type
       function ReadPacket(Target: TOggPacket; PageBuffer: TOggPage = Nil): TAudioError;
       function ReadPage(Target: TOggPage): TAudioError;
       function ReadPages(Target: TObjectList): TAudioError;
-
       function GetMaxGranulePosition(StartPos: Int64 = -1): Int64;
 
       // ReplacePacket tries to replace the following Packet in the PhysicalStream with the Source Packet
-      // This is possible, if the size of teh Source Packet is of the same size as the following Packet,
+      // This is possible, if the size of the Source Packet is of the same size as the following Packet,
       // or if the Source Packet is smaller, and we allow some padding to fill up the remaining space
       function ReplacePacket(Source: TOggPacket; maxPadding: Integer): Boolean;
 
@@ -274,7 +260,6 @@ type
       procedure CopyRemainsTo(Target: TStream); // Copy remaining parts of the Stream into Target
       procedure CopyRemainsFrom(Source: TStream; ReNumberPages: Boolean);
       procedure SetEndOfStream;
-
   end;
 
 
@@ -373,7 +358,6 @@ begin
   fData.Position := 0;
   SetLength(DataBuffer, fData.Size);
   fData.Read(DataBuffer[0], fData.Size);
-
   fHeader.Checksum := 0;
   crc := 0;
 
@@ -382,7 +366,6 @@ begin
   CalculateCRC(crc, DataBuffer[0], fData.Size);
 
   fHeader.Checksum := crc;
-
   result := crc;
 end;
 
@@ -569,21 +552,19 @@ end;
 
 procedure TOggPage.WriteHeader(Target: TStream);
 begin
-  // more stuff to do ??    refactoring needed ..... or not ??
+  // Note: The Header should be valid here, including the Checksum
   Target.Write(fHeader, SizeOf(fHeader));
   Target.Write(fLacingValues[0], length(fLacingValues));
 end;
 
-{ TOggContainer }
 
+{ TOggContainer }
 
 constructor TOggContainer.Create(aStream: TStream);
 begin
   inherited Create;
   fPhysicalStream := aStream;
-
   fCurrentPage := TOggPage.Create;
-
 end;
 
 constructor TOggContainer.Create(aFilename: String);
@@ -709,12 +690,6 @@ end;
 
 function TOggContainer.ReadPage(Target: TOggPage): TAudioError;
 begin
-  // frage: wie verhält sich Target zu fCurrentPage
-  // brauche ich das überhaupt? oder vielleicht doch nur (als Bonus-Feature und Debug-Dings) ein ReadPages(Target: TObjectList)
-  // ne, ich brauche einzelne Seite hinterher beim Schreiben:
-    // lese Seite aus OriginalDatei, neue Seitennummer, neuer CRC, schreibe in tmp-Ziel-Stream, ersetze Original-Datei
-
-  // ggf. Target = NIL erlauben? Und in dem Fall auf interne FCurrentPage zurückfallen?
   if not assigned(Target) then
     Target := fCurrentPage;
 
@@ -785,7 +760,6 @@ begin
   end;
   fPhysicalStream.Position := oldPos;
 end;
-
 
 
 procedure TOggContainer.DoReplacePacket(Source: TOggPacket; Target: TOggPage);
@@ -883,22 +857,9 @@ var
   AllNewLacingIdx, PageLacingIdx: Integer;
   i, NextChunkCount: Integer;
 begin
-  // result := FileErr_None;
   if PageBuffer = Nil then
     PageBuffer := fCurrentPage;
 
-  {
-    Note to self:
-    After a call of OggContainer.Reset:
-      - the fCurrentPage should be Empty,
-      - the MainSerial should be set
-      - Pagenumber should be 0
-      - Flags (first/last/continued) are set correctly
-      - fLacingValues are deleted (= zero length)
-      - fCurrentLacingIndex is 0
-  }
-
-  //NewPageNumber := PageBuffer.fHeader.PageNumber;
   Source.Data.Position := 0;
   AllNewLacingIdx := 0;
   SetLength(AllNewLacingValues, (Source.Data.Size Div 255) + 1);
@@ -958,20 +919,6 @@ begin
       end;
     end;
   end;  // while
-
-    // ClearPage, BuildNewPage, keep Serialnumber (set it again
-    {
-
-        Page.Clear LÖSCHT den HEADER KOMPLETT (wegen Verwendung von Default())
-              (ok) ID: array [1..4] of AnsiChar;    // "OggS"
-              (ok) StreamVersion: Byte;             // Stream structure version
-    TypeFlag: Byte;                  // Header type flag
-    AbsolutePosition: Int64;         // Absolute granule position
-    Serial: Integer;                 // Stream serial number
-    PageNumber: Integer;             // Page sequence number
-    Checksum: Cardinal;              // Page checksum             // 23, 24, 25, 26
-    Segments: Byte;                  // Number of page segments
-    }
 
 end;
 

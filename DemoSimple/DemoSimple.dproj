@@ -74,6 +74,7 @@
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
         <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
+        <DCC_ExeOutput>F:\Github\AudioWerkzeugeBibliothek\bin\</DCC_ExeOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
@@ -82,9 +83,8 @@
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
-        <Icon_MainIcon>DemoSimple_Icon.ico</Icon_MainIcon>
-        <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
         <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
+        <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
@@ -156,6 +156,9 @@
         <DCCReference Include="..\source\WavFiles.pas"/>
         <DCCReference Include="..\source\WavPackFiles.pas"/>
         <DCCReference Include="..\source\WmaFiles.pas"/>
+        <DCCReference Include="..\source\OpusFiles.pas"/>
+        <DCCReference Include="..\source\BaseVorbisFiles.pas"/>
+        <DCCReference Include="..\source\OggContainer.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -210,8 +213,8 @@
                     <VersionInfoKeys Name="Comments"/>
                 </VersionInfoKeys>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k260.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
-                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp260.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k280.bpl">Microsoft Office 2000 Beispiele für gekapselte Komponenten für Automatisierungsserver</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp280.bpl">Microsoft Office XP Beispiele für gekapselte Komponenten für Automation Server</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>
@@ -219,6 +222,12 @@
                 <Platform value="Win64">False</Platform>
             </Platforms>
             <Deployment Version="4">
+                <DeployFile LocalName="..\bin\DemoSimple.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>DemoSimple.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="DemoSimple.exe" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployClass Name="AdditionalDebugSymbols">
                     <Platform Name="iOSSimulator">

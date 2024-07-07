@@ -1,0 +1,24 @@
+AudioWerkzeugeBibliothek - ChangeLog
+
+New in Version 2.1 (07/2024)
+- Support for *.opus-Files
+- Support for CoverArt in VorbisComments (*.ogg and *.opus)
+  Support only for the "official" version, using METADATA_BLOCK_PICTURE as Key. The
+  unofficial, deprecated variant "COVERART" is NOT directly supported. However, you 
+  can check for this Key, and try to get the picture data from it.
+  
+Changes in version 2.1 (07/2024)
+- New enumeration type TPictureType (Unit `AudioFiles.Declarations`).
+  This type replaces the Byte or Cardinal parameter "PicType" (or similar) for 
+  picture-related methods in Flac and ID3v2.
+  Both metadata constructs use a fixed set of 21 different picture types (like "other", "icon", "front cover", "back cover", "artist", ...) for additional
+  information about this picture. Instead of a simple Integer value, AWB now uses
+  a more "readable" enumeration type.
+  For interaction with e.g. ComboBox.ItemIndex a simple typecast should work.
+- Array Picture_Types with names for the defined picture types changed to
+  cPictureTypes: Array[TPictureType] of string = (...). 
+  Loops using the old Picture_Types-array should be changed to use index tpye TPictureType instead of Integer.
+- Cleanup in type TAudioError. Renamed/removed/added some error types.
+- Classes TFlacFile, TOggVorbisFile and (new) TOpusFile are derived from a common
+  ancestor TBaseVorbisFile that provides access to the VorbisComments.
+  Note that CoverArt in Flac files is NOT stored within the VorbisComments.

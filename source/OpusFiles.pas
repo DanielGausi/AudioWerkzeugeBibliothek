@@ -284,7 +284,7 @@ begin
                         // "GetMaxSample" searches from the end of the file and is usually faster.
                         // However, parsing the complete OggContainer may be safer.
                         fMaxSamples := GetMaxSample(fs) - fIdentificationHeader.fOpusIdentification.Preskip;
-                        if fMaxSamples = 0 then
+                        if fMaxSamples <= 0 then
                           fMaxSamples := OggContainer.GetMaxGranulePosition(0) - fIdentificationHeader.fOpusIdentification.Preskip;
                         if fMaxSamples < 0 then
                           fMaxSamples := 0;

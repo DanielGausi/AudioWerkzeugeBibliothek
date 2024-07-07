@@ -252,21 +252,6 @@ begin
     result := aHeader[1] and $7F; // the Type is determined by the last 7 bits
 end;
 
-// In FlacFiles, all Integers (except in the Comments) are stored BigEndian
-// We need to convert them to LittleEndian
-function ReadBigEndianCardinal(source: TStream): Cardinal;
-begin
-    Source.Read(result, SizeOf(result));
-    result := ntohl(result);
-end;
-
-procedure WriteBigEndianCardinal(Destination: TStream; value: Cardinal);
-var x: Cardinal;
-begin
-    x := htonl(value);
-    Destination.Write(x, sizeOf(value));
-end;
-
 //--------------------------------------------------------------------
 // Get a "reasonable" padding-size (i.e.: fill the last used cluster)
 //--------------------------------------------------------------------

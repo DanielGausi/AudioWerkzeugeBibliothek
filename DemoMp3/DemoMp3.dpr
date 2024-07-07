@@ -30,7 +30,8 @@ uses
   VorbisComments in '..\source\VorbisComments.pas',
   WavFiles in '..\source\WavFiles.pas',
   WavPackFiles in '..\source\WavPackFiles.pas',
-  WmaFiles in '..\source\WmaFiles.pas';
+  WmaFiles in '..\source\WmaFiles.pas',
+  OpusFiles in '..\source\OpusFiles.pas';
 
 {$R *.res}
 

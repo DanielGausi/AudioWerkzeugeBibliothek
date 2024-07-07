@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2012-2020, Daniel Gaussmann
+    (c) 2012-2024, Daniel Gaussmann
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
@@ -53,45 +53,6 @@ interface
 
 uses Classes, SysUtils, AudioFiles.Declarations;
 
-
-{    const
-      AudioErrorString: Array[TAudioError] of String = (
-              'No Error',
-              'File not found',
-              'FileCreate failed.',
-              'Could not read from file',
-              'Could not write into file',
-              'File is read-only',
-              'Reading from stream failed',
-              'Writing to stream failed',
-              // Id3
-              'Caching audiodata failed',
-              'No ID3-Tag found',
-              'Invalid header for ID3v2-Tag',
-              'Compressed ID3-Tag found',
-              'Unknown ID3-Error',
-              // mpeg
-              'Invalid MP3-File: No audioframe found',
-              // Ogg
-              'Invalid Ogg-Vorbis-File: First Vorbis-Header corrupt',
-              'Invalid Ogg-Vorbis-File: First Ogg-Page corrupt',
-              'Invalid Ogg-Vorbis-File: Second Vorbis-Header corrupt',
-              'Invalid Ogg-Vorbis-File: Second Ogg-Page corrupt',
-              'Comment too large (sorry, Flogger limitation)',
-              'Backup failed',
-              'Delete backup failed',
-              'Removing Tag not supported.',
-              // Flac
-              'Invalid Flac-File',
-              'Metadata-Block exceeds maximum size',
-              'Type of Metadata is not supported - use mp3, ogg or flac',
-              'Quick access to metadata denied',
-              'Removing Tag not supported.',
-
-               'Invalid Apev2 file',
-               'Invalid Apev2Tag',
-               'No Apev2tag found' );
-       }
 type
 
     TBaseAudioFile = class

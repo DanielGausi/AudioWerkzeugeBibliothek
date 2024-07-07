@@ -456,22 +456,6 @@ begin
               end;
             end else
               Image1.Picture.Assign(Nil);
-
-              (*
-
-            // GetPictureStream(Destination: TStream;
-            //var aPicType: Cardinal; var aMime: AnsiString;
-            //var aDescription: UnicodeString): Boolean;
-            stream := TMemoryStream.Create;
-            try
-              if TOggVorbisFile(AudioFile).GetPictureStream(stream, PicTypeCardinal, Mime, Description) then
-                StreamToBitmap(stream, Image1.Picture.Bitmap)
-              else
-                Image1.Picture.Assign(Nil);
-            finally
-              stream.Free;
-            end;    *)
-
         end;
         at_M4a: begin
             cbPictures.Items.Clear;
@@ -500,10 +484,7 @@ begin
             begin
                 PicType := TFlacPictureBlock(FlacPictureFrames[i]).PictureType;
                 Description := TFlacPictureBlock(FlacPictureFrames[i]).Description;
-                //if PicType < length(Picture_Types) then
-                    cbPictures.Items.Insert(0, Format('[%s] %s', [cPictureTypes[PicType], Description]))
-                //else
-                //    cbPictures.Items.Insert(0, Format('[%s] %s', [Picture_Types[0], Description]));
+                cbPictures.Items.Insert(0, Format('[%s] %s', [cPictureTypes[PicType], Description]))
             end;
             if cbPictures.Items.Count > 0 then
             begin
