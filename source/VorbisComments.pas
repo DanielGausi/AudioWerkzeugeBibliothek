@@ -53,7 +53,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, ContNrs, Classes, System.NetEncoding,
-  AudioFiles.Declarations
+  AudioFiles.Declarations, AudioFiles.BaseTags
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF} ;
 
 const
@@ -78,6 +78,13 @@ const
     VORBIS_VERSION      = 'VERSION'      ;
     VORBIS_ALBUMARTIST  = 'ALBUMARTIST'  ;
     METADATA_BLOCK_PICTURE = 'METADATA_BLOCK_PICTURE';
+    COVERART = 'COVERART'; // deprecated, not directly supported by this Library
+
+    cTextVorbisKeys: Array[0..16] of String = (
+        VORBIS_ALBUM, VORBIS_ARTIST, VORBIS_CONTACT, VORBIS_COPYRIGHT, VORBIS_DATE, VORBIS_YEAR,
+        VORBIS_DESCRIPTION, VORBIS_GENRE, VORBIS_ISRC, VORBIS_LICENSE, VORBIS_LOCATION,
+        VORBIS_ORGANIZATION, VORBIS_PERFORMER, VORBIS_TITLE, VORBIS_TRACKNUMBER, VORBIS_VERSION,
+        VORBIS_ALBUMARTIST);
 
 type
 
@@ -110,7 +117,7 @@ type
         StopFlag: Byte;                         // always 1
     end;
 
-    TCommentVector = class
+    TCommentVector = class(TTagItem)
         private
             // FieldName is AnsiString
             // Value is UTf8String
@@ -124,11 +131,29 @@ type
             procedure fSetFieldname(aName: String);
             function fGetValue: UnicodeString;
             procedure fSetValue(aValue: UnicodeString);
+
+            function PicDataToBase64(Source: TStream; aMime: AnsiString;
+                      aPicType: TPictureType; aDescription: UnicodeString): UTF8String;
+
+        protected
+          function GetKey: UnicodeString; override;
+          function GetTagContentType: teTagContentType; override;
+
         public
-            property FieldName: String read fGetFieldName write fSetFieldName;
-            property Value: UnicodeString read fGetValue write fSetValue;
+            property FieldName: String read fGetFieldName write fSetFieldName;  // = TTagItem.Key
+            property Value: UnicodeString read fGetValue write fSetValue;       // = TTagItem.Get/SetText(tmForced)
+
+            constructor Create;
             function ReadFromStream(Source: TStream): Boolean;
             function WriteToStream(Destination: TStream): Boolean;
+
+            function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
+            function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
+
+            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+
+
     end;
 
     {
@@ -191,6 +216,9 @@ type
             fCommentVectorList: TObjectList;
             fValidComment: Boolean;
 
+            function GetCount: Integer;
+
+            function fGetCommentVectorByFieldname(aField: String): TCommentVector;
             function fGetPropertyByFieldname(aField: String): UnicodeString;
             // The following fields are listed in the official Ogg-Vorbis-Documentation
             function fGetTitle       : UnicodeString;
@@ -209,6 +237,7 @@ type
             function fGetContact     : UnicodeString;
             function fGetISRC        : UnicodeString;
             function fGetAlbumArtist : UnicodeString;
+            function fGetLyrics      : UnicodeString;
 
             procedure fSetPropertyByFieldname(aField: String; aValue: UnicodeString);
             procedure fSetTitle       (value: UnicodeString);
@@ -227,11 +256,10 @@ type
             procedure fSetContact     (value: UnicodeString);
             procedure fSetISRC        (value: UnicodeString);
             procedure fSetAlbumArtist (value: UnicodeString);
-
-            function PicDataToBase64(Source: TStream; aMime: AnsiString;
-                      aDescription: UnicodeString; aPicType: TPictureType): UTF8String;
+            procedure fSetLyrics      (value: UnicodeString);
 
         public
+            property Count: Integer read GetCount;
             property ContainerType: teOggContainerType read fContainerType write fContainerType;
             property ValidComment: Boolean read fValidComment;
             property VendorString: UTF8String read fVendorString    ;
@@ -251,6 +279,7 @@ type
             property Contact     : UnicodeString read fGetContact      write fSetContact     ;
             property ISRC        : UnicodeString read fGetISRC         write fSetISRC        ;
             property AlbumArtist : UnicodeString read fGetAlbumArtist  write fSetAlbumArtist ;
+            property Lyrics      : UnicodeString read fGetLyrics       write fSetLyrics      ;
 
             //property CommentVectorList: TObjectList read fCommentVectorList;
 
@@ -261,39 +290,29 @@ type
             function WriteToStream(Destination: TStream): Boolean;
             // The SizeInStream is just the size of the Comments.
             // It does NOT include optional padding!
-            function GetSizeInStream: Integer;
+            // function GetSizeInStream: Integer;   // not needed any more
 
             // public versions of the private Methods
             function GetPropertyByFieldname(aField: String): UnicodeString;
             // the Set-method also implements some Validations
             function SetPropertyByFieldname(aField: String; aValue: UnicodeString): Boolean;
 
-            // Get All FieldNames in the CommentVectorList
-            procedure GetAllFields(Target: TStrings);
-            // Give Access to these Fields (note: Fieldnames dont have to be unique)
-            function GetPropertyByIndex(aIndex: Integer): UnicodeString;
-            function SetPropertyByIndex(aIndex: Integer; aValue: UnicodeString): Boolean;
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+            procedure DeleteTagItem(aTagItem: TTagItem);
 
-            function GetPictureStream(Destination: TStream;
-                                        var aPicType: TPictureType;
+            function GetUnusedTextTags: TTagItemInfoDynArray;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+
+            function GetPicture(Destination: TStream;
                                         var aMime: AnsiString;
+                                        var aPicType: TPictureType;
                                         var aDescription: UnicodeString): Boolean; overload;
 
-            function GetPictureStream(aCommentVector: TCommentVector;
-                                        Destination: TStream;
-                                        var aPicType: TPictureType;
-                                        var aMime: AnsiString;
-                                        var aDescription: UnicodeString): Boolean; overload;
-
-            procedure SetPicture(Source: TStream; aMime: AnsiString;
-                      aDescription: UnicodeString; aPicType: TPictureType);  // use Source=NIL, to delete the picture
-
-            procedure GetAllPictureComments(Target: TObjectList);
+            function SetPicture(Source: TStream; aMime: AnsiString;
+                        aPicType: TPictureType; aDescription: UnicodeString): Boolean;  // use Source=NIL, to delete the picture
             // Add a new Picture
-            procedure AddPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString;
+            procedure AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
                   aDescription: UnicodeString);
-            // Delete a specified Picture
-            procedure DeletePicture(aCommentVector: TCommentVector);
     end;
 
 
@@ -321,6 +340,11 @@ end;
 
 { TCommentVector }
 
+constructor TCommentVector.Create;
+begin
+  inherited create(ttVorbis);
+end;
+
 function TCommentVector.fGetFieldName: String;
 begin
     result := String(fFieldName);
@@ -328,6 +352,8 @@ end;
 
 procedure TCommentVector.fSetFieldname(aName: String);
 begin
+  // A case-insensitive field name that may consist of ASCII 0x20 through 0x7D, 0x3D ('=') excluded.
+  // ASCII 0x41 through 0x5A inclusive (A-Z) is to be considered equivalent to ASCII 0x61 through 0x7A inclusive (a-z).
     fFieldname := AnsiString(aName);
 end;
 
@@ -339,6 +365,109 @@ end;
 procedure TCommentVector.fSetValue(aValue: UnicodeString);
 begin
     fValue := aValue;
+end;
+
+function TCommentVector.GetKey: UnicodeString;
+begin
+  result := UnicodeString(FieldName);
+end;
+
+function TCommentVector.GetTagContentType: teTagContentType;
+begin
+  // note: by design, *ALL* CommentVectors contain text data.
+  // However, there are workarounds for coverart, using Base64 encoding
+  // for binary data.
+  // There may be other fieldnames containing Base64 encoded binary data.
+  // It is up to the developer (= YOU ;-) ) to decide how to deal with it
+  // in the application.
+  if SameText(Key, METADATA_BLOCK_PICTURE)  then
+    result := tctPicture
+  else if SameText(Key, COVERART) then
+    result := tctBinary
+  else
+    result := tctText;
+end;
+
+function TCommentVector.GetText(TextMode: teTextMode = tmReasonable): UnicodeString;
+begin
+  if TagContentType = tctText then
+    result := Value
+  else begin
+    if TextMode = tmForced then
+      result := Value
+    else
+      result := '';
+  end;
+end;
+
+function TCommentVector.SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean;
+begin
+  if TagContentType = tctText then begin
+    Value := aValue;
+    result := True;
+  end
+  else begin
+    if TextMode = tmForced then begin
+      Value := aValue;
+      result := True;
+    end
+    else
+      result := False;
+  end;
+end;
+
+function TCommentVector.PicDataToBase64(Source: TStream; aMime: AnsiString;
+                      aPicType: TPictureType; aDescription: UnicodeString): UTF8String;
+var
+  PicBlock: TMetaDataBlockPicture;
+begin
+  // returns the data as a base64 encoded TMetaDataBlockPicture structure
+  PicBlock := TMetaDataBlockPicture.Create;
+  try
+    picBlock.PictureType := aPicType;
+    picBlock.Mime := aMime;
+    picBlock.Description := aDescription;
+    picBlock.PicData.Clear;
+    picBlock.PicData.CopyFrom(Source, 0);
+    result := PicBlock.AsBase64;
+  finally
+    PicBlock.Free;
+  end;
+end;
+
+function TCommentVector.GetPicture(Dest: TStream; out Mime: AnsiString;
+  out PicType: TPictureType; out Description: UnicodeString): Boolean;
+var
+  PicBlock: TMetaDataBlockPicture;
+begin
+  result := (TagContentType = tctPicture) and (fValue <> '');
+  Mime := '';
+  PicType := ptOther;
+  Description := '';
+
+  if result then begin
+    PicBlock := TMetaDataBlockPicture.Create;
+    try
+      PicBlock.AsBase64 := UTF8String(fValue);
+      result := PicBlock.Size > 0;
+      if result then begin
+        Dest.CopyFrom(picBlock.PicData, 0);
+        Mime := picBlock.Mime;
+        PicType := picBlock.PictureType;
+        Description := picBlock.Description;
+      end;
+    finally
+      PicBlock.Free;
+    end;
+  end;
+end;
+
+function TCommentVector.SetPicture(Source: TStream; Mime: AnsiString;
+  PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := TagContentType = tctPicture;
+  if result then
+    Value := UnicodeString(PicDataToBase64(Source, Mime, PicType, Description));
 end;
 
 function TCommentVector.ReadFromStream(Source: TStream): Boolean;
@@ -406,6 +535,25 @@ begin
     inherited;
 end;
 
+function TVorbisComments.GetCount: Integer;
+begin
+  result := fCommentVectorList.Count;
+end;
+
+function TVorbisComments.fGetCommentVectorByFieldname(aField: String): TCommentVector;
+var
+  i: Integer;
+begin
+    result := Nil;
+    for i := 0 to fCommentVectorList.Count - 1 do
+    begin
+        if SameText(aField, TCommentVector(fCommentVectorList[i]).FieldName) then
+        begin
+            result := TCommentVector(fCommentVectorList[i]);
+            break;
+        end;
+    end;
+end;
 
 function TVorbisComments.fGetPropertyByFieldname(aField: String): UnicodeString;
 var i: integer;
@@ -502,6 +650,18 @@ end;
 function TVorbisComments.fGetVersion: UnicodeString;
 begin
     result := fGetPropertyByFieldname(VORBIS_VERSION);
+end;
+
+function TVorbisComments.fGetLyrics: UnicodeString;
+var
+  i: Integer;
+begin
+  result := '';
+  i := 0;
+  while (result = '') and (i <= High(AWB_SupportedLyricsKeys)) do begin
+    result := fGetPropertyByFieldname(AWB_SupportedLyricsKeys[i]);
+    inc(i);
+  end;
 end;
 
 
@@ -623,6 +783,35 @@ begin
     fSetPropertyByFieldname(VORBIS_VERSION, Value);
 end;
 
+procedure TVorbisComments.fSetLyrics(value: UnicodeString);
+var
+  i: Integer;
+  lyricVector: TCommentVector;
+begin
+  lyricVector := Nil;
+  i := 0;
+  while (lyricVector = Nil) and (i <= High(AWB_SupportedLyricsKeys)) do begin
+    lyricVector := fGetCommentVectorByFieldname(AWB_SupportedLyricsKeys[i]);
+    inc(i);
+  end;
+
+  if trim(Value) = '' then begin
+    if assigned(lyricVector) then begin
+      fCommentVectorList.Extract(lyricVector);
+      FreeAndNil(lyricVector);
+    end;
+  end else
+  begin
+    // if no lyric Vector was found: Create a new one and add it to the VectorList
+    if not assigned(lyricVector) then begin
+      lyricVector := TCommentVector.Create;
+      lyricVector.FieldName := AnsiUppercase(AWB_DefaultLyricsKey);
+      fCommentVectorList.Add(lyricVector);
+    end;
+    lyricVector.Value := Value;
+  end;
+end;
+
 
 function TVorbisComments.ReadFromStream(Source: TStream; Size: Integer): Boolean;
 var vendorLength: Integer;
@@ -655,7 +844,6 @@ begin
       Source.Seek(currentPos + Size, soBeginning);
       exit;
     end;
-
 
     // first: VendorString
     // should be something like "Xiph.Org libVorbis I 20020717"
@@ -692,7 +880,6 @@ begin
     if Size >= 0 then
         Source.Seek(currentPos + Size, soBeginning);
 end;
-
 
 
 function TVorbisComments.WriteToStream(Destination: TStream): Boolean;
@@ -734,91 +921,53 @@ begin
     end;
 end;
 
-function TVorbisComments.GetPictureStream(Destination: TStream;
-  var aPicType: TPictureType; var aMime: AnsiString;
+function TVorbisComments.GetPicture(Destination: TStream;
+  var aMime: AnsiString; var aPicType: TPictureType;
   var aDescription: UnicodeString): Boolean;
 var
-  aPicVector: TCommentVector;
-  i: Integer;
-
+  picTags: TTagItemList;
 begin
   result := False;
-  aPicVector := Nil;
-  for i := 0 to fCommentVectorList.Count - 1 do begin
-    if SameText(METADATA_BLOCK_PICTURE, TCommentVector(fCommentVectorList[i]).FieldName) then begin
-      aPicVector := TCommentVector(fCommentVectorList[i]);
-      break;
-    end;
-  end;
-  if assigned(aPicVector) then
-    result := GetPictureStream(aPicVector, Destination, aPicType, aMime, aDescription);
-end;
-
-function TVorbisComments.GetPictureStream(aCommentVector: TCommentVector; Destination: TStream;
-  var aPicType: TPictureType; var aMime: AnsiString;
-  var aDescription: UnicodeString): Boolean;
-var
-  base64Pic: UnicodeString;
-  PicBlock: TMetaDataBlockPicture;
-begin
-  result := False;
-  base64Pic := aCommentVector.Value;
-
-  if base64Pic <> '' then begin
-    PicBlock := TMetaDataBlockPicture.Create;
-    try
-      PicBlock.AsBase64 := UTF8String(base64Pic);
-      result := PicBlock.Size > 0;
-      if result then
-        Destination.CopyFrom(picBlock.PicData, 0);
-      aPicType := picBlock.PictureType;
-      aMime := picBlock.Mime;
-      aDescription := picBlock.Description;
-    finally
-      PicBlock.Free;
-    end;
-  end;
-end;
-
-function TVorbisComments.PicDataToBase64(Source: TStream; aMime: AnsiString;
-                      aDescription: UnicodeString; aPicType: TPictureType): UTF8String;
-var
-  PicBlock: TMetaDataBlockPicture;
-begin
-  // returns the data as a base64 encoded TMetaDataBlockPicture structure
-  PicBlock := TMetaDataBlockPicture.Create;
+  picTags := TTagItemList.Create;
   try
-    picBlock.PictureType := aPicType;
-    picBlock.Mime := aMime;
-    picBlock.Description := aDescription;
-    picBlock.PicData.Clear;
-    picBlock.PicData.CopyFrom(Source, 0);
-    result := PicBlock.AsBase64;
+    GetTagList(picTags, [tctPicture]);
+    if picTags.Count > 0 then begin
+      result := picTags[0].GetPicture(Destination, aMime, aPicType, aDescription);
+    end;
   finally
-    PicBlock.Free;
+     picTags.Free;
   end;
 end;
 
-procedure TVorbisComments.SetPicture(Source: TStream; aMime: AnsiString; aDescription: UnicodeString; aPicType: TPictureType);
+function TVorbisComments.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
+var
+  picTags: TTagItemList;
 begin
-  if Source = Nil then
-    // delete the Picture-Comment
-    fSetPropertyByFieldname(METADATA_BLOCK_PICTURE, '')
-  else
-    // set the picture data
-    fSetPropertyByFieldname(METADATA_BLOCK_PICTURE, String(PicDataToBase64(Source, aMime, aDescription, aPicType)));
+  picTags := TTagItemList.Create;
+  try
+    GetTagList(picTags, [tctPicture]);
+
+    result := picTags.Count > 0;
+    // currently no pic in the file, and stream contains a pic: Add a pic.
+    if (picTags.Count = 0) and assigned(Source) then begin
+      AddPicture(Source, aMime, aPicType, aDescription);
+      result := True;
+    end;
+    // otherwise: replace a current pic (or delete it)
+    if picTags.Count > 0 then begin
+      if assigned(Source) then
+        result := picTags[0].SetPicture(Source, aMime, aPicType, aDescription)
+      else begin
+        fCommentVectorList.Extract(picTags[0]);
+        FreeAndNil(picTags[0]);
+      end;
+    end;
+  finally
+    picTags.Free;
+  end;
 end;
 
-procedure TVorbisComments.GetAllPictureComments(Target: TObjectList);
-var i: Integer;
-begin
-  Target.Clear;
-  for i := 0 to fCommentVectorList.Count - 1 do
-    if SameText(METADATA_BLOCK_PICTURE, TCommentVector(fCommentVectorList[i]).FieldName) then
-      Target.Add(TCommentVector(fCommentVectorList[i]));
-end;
-
-procedure TVorbisComments.AddPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString;
+procedure TVorbisComments.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
       aDescription: UnicodeString);
 var
   newCommentVector: TCommentVector;
@@ -826,14 +975,9 @@ begin
   if assigned(Source) and (Source.Size > 0) then begin
     newCommentVector := TCommentVector.Create;
     newCommentVector.FieldName := AnsiUppercase(METADATA_BLOCK_PICTURE);
-    newCommentVector.Value := String(PicDataToBase64(Source, aMime, aDescription, aPicType));
+    newCommentVector.SetPicture(Source, aMime, aPicType, aDescription);
     fCommentVectorList.Add(newCommentVector);
   end;
-end;
-
-procedure TVorbisComments.DeletePicture(aCommentVector: TCommentVector);
-begin
-  fCommentVectorList.Remove(aCommentVector);
 end;
 
 function TVorbisComments.GetPropertyByFieldname(aField: String): UnicodeString;
@@ -865,38 +1009,50 @@ begin
         fSetPropertyByFieldname(aField, aValue);
 end;
 
-
-procedure TVorbisComments.GetAllFields(Target: TStrings);
-var i: Integer;
+procedure TVorbisComments.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+var
+  i: Integer;
 begin
-    Target.Clear;
-    for i := 0 to fCommentVectorList.Count - 1 do
-        Target.Add(String(TCommentVector(fCommentVectorList[i]).fFieldName));
+  for i := 0 to fCommentVectorList.Count - 1 do
+    if TCommentVector(fCommentVectorList[i]).MatchContentType(ContentTypes) then
+      Dest.Add(TCommentVector(fCommentVectorList[i]));
 end;
 
-function TVorbisComments.GetPropertyByIndex(aIndex: Integer): UnicodeString;
+procedure TVorbisComments.DeleteTagItem(aTagItem: TTagItem);
 begin
-    if (aIndex >= 0) and (aIndex <= fCommentVectorList.Count - 1) then
-        result := TCommentVector(fCommentVectorList[aIndex]).Value
-    else
-        result := '';
+  fCommentVectorList.Remove(aTagItem);
 end;
 
-function TVorbisComments.SetPropertyByIndex(aIndex: Integer;
-  aValue: UnicodeString): Boolean;
+function TVorbisComments.GetUnusedTextTags: TTagItemInfoDynArray;
+var
+  iKey, iRes: Integer;
+  resultArray: TTagItemInfoDynArray;
 begin
-    if (aIndex >= 0) and (aIndex <= fCommentVectorList.Count - 1) then
-    begin
-        if trim(aValue) = '' then
-            fCommentVectorList.Delete(aIndex)
-        else
-            TCommentVector(fCommentVectorList[aIndex]).Value := aValue;
-        result := True;
-    end else
-        result := False;
+  SetLength(resultArray, Length(cTextVorbisKeys));  // max. possible length
+  iRes := 0;
+  for iKey := Low(cTextVorbisKeys) to High(cTextVorbisKeys) do begin
+    if not assigned(fGetCommentVectorByFieldname(cTextVorbisKeys[iKey])) then begin
+      resultArray[iRes].Key := cTextVorbisKeys[iKey];
+      resultArray[iRes].Description := '';
+      resultArray[iRes].TagType := ttVorbis;
+      resultArray[iRes].TagContentType := tctText;
+      inc(iRes);
+    end;
+  end;
+  SetLength(resultArray, iRes); // correct length
+  result := resultArray;
 end;
 
-function TVorbisComments.GetSizeInStream: Integer;
+function TVorbisComments.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  if SetPropertyByFieldname(aKey, aValue) then
+    result := fGetCommentVectorByFieldname(aKey)
+  else
+    result := Nil;
+end;
+
+
+(*function TVorbisComments.GetSizeInStream: Integer;
 var ms: TMemoryStream;
 begin
     ms := TMemoryStream.Create;
@@ -906,11 +1062,9 @@ begin
     finally
         ms.Free;
     end;
-end;
+end;*)
 
 { TMetaDataBlockPicture }
-
-
 
 constructor TMetaDataBlockPicture.Create;
 begin

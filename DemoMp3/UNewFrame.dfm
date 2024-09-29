@@ -7,8 +7,8 @@ object FormNewFrame: TFormNewFrame
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'MS Sans Serif'
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
   OnCreate = FormCreate
@@ -17,40 +17,40 @@ object FormNewFrame: TFormNewFrame
   DesignSize = (
     444
     288)
-  TextHeight = 13
+  TextHeight = 15
   object pcFrameTypeSelection: TPageControl
     Left = 8
     Top = 8
-    Width = 420
+    Width = 416
     Height = 233
-    ActivePage = TabSheet3
+    ActivePage = tsPrivate
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = pcFrameTypeSelectionChange
-    ExplicitWidth = 416
+    ExplicitWidth = 412
     ExplicitHeight = 232
     object tsText: TTabSheet
       Caption = 'Text'
       object Label1: TLabel
         Left = 8
         Top = 16
-        Width = 87
-        Height = 13
+        Width = 104
+        Height = 15
         Caption = 'Kind of information'
       end
       object lblURLWarningText: TLabel
         Left = 8
         Top = 120
-        Width = 359
-        Height = 13
+        Width = 342
+        Height = 15
         Caption = 
           'Hint: All possible Text-Frames are already set. Editing disabled' +
           '.'
         Color = clBtnFace
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'MS Sans Serif'
+        Font.Height = -12
+        Font.Name = 'Segoe UI'
         Font.Style = [fsBold]
         ParentColor = False
         ParentFont = False
@@ -59,7 +59,7 @@ object FormNewFrame: TFormNewFrame
         Left = 8
         Top = 32
         Width = 393
-        Height = 21
+        Height = 23
         Style = csDropDownList
         TabOrder = 0
       end
@@ -67,9 +67,9 @@ object FormNewFrame: TFormNewFrame
         Left = 8
         Top = 80
         Width = 393
-        Height = 21
-        EditLabel.Width = 37
-        EditLabel.Height = 13
+        Height = 23
+        EditLabel.Width = 43
+        EditLabel.Height = 15
         EditLabel.Caption = 'Content'
         TabOrder = 1
         Text = ''
@@ -82,29 +82,29 @@ object FormNewFrame: TFormNewFrame
       object Label2: TLabel
         Left = 8
         Top = 8
-        Width = 48
-        Height = 13
+        Width = 52
+        Height = 15
         Caption = 'Language'
       end
       object Label3: TLabel
         Left = 104
         Top = 8
-        Width = 79
-        Height = 13
+        Width = 90
+        Height = 15
         Caption = 'Short description'
       end
       object Label6: TLabel
         Left = 8
         Top = 64
-        Width = 44
-        Height = 13
+        Width = 54
+        Height = 15
         Caption = 'Comment'
       end
       object cbLanguageComment: TComboBox
         Left = 8
         Top = 24
         Width = 73
-        Height = 21
+        Height = 23
         Style = csDropDownList
         TabOrder = 0
         OnChange = EdtCommentDescriptionChange
@@ -113,7 +113,7 @@ object FormNewFrame: TFormNewFrame
         Left = 104
         Top = 24
         Width = 297
-        Height = 21
+        Height = 23
         TabOrder = 1
         OnChange = EdtCommentDescriptionChange
       end
@@ -132,40 +132,40 @@ object FormNewFrame: TFormNewFrame
       object Label10: TLabel
         Left = 8
         Top = 8
-        Width = 48
-        Height = 13
+        Width = 52
+        Height = 15
         Caption = 'Language'
       end
       object Label11: TLabel
         Left = 104
         Top = 8
-        Width = 79
-        Height = 13
+        Width = 90
+        Height = 15
         Caption = 'Short description'
       end
       object Label12: TLabel
         Left = 8
         Top = 64
-        Width = 27
-        Height = 13
+        Width = 29
+        Height = 15
         Caption = 'Lyrics'
       end
       object cbLanguageLyrics: TComboBox
         Left = 8
         Top = 24
         Width = 73
-        Height = 21
+        Height = 23
         Style = csDropDownList
         TabOrder = 0
-        OnChange = EdtCommentDescriptionChange
+        OnChange = EdtLyricDescriptionChange
       end
       object edtLyricDescription: TEdit
         Left = 104
         Top = 24
         Width = 297
-        Height = 21
+        Height = 23
         TabOrder = 1
-        OnChange = EdtCommentDescriptionChange
+        OnChange = EdtLyricDescriptionChange
       end
       object MemoLyrics: TMemo
         Left = 8
@@ -173,7 +173,7 @@ object FormNewFrame: TFormNewFrame
         Width = 393
         Height = 121
         TabOrder = 2
-        OnChange = EdtCommentDescriptionChange
+        OnChange = EdtLyricDescriptionChange
       end
     end
     object tsURLs: TTabSheet
@@ -182,21 +182,21 @@ object FormNewFrame: TFormNewFrame
       object Label7: TLabel
         Left = 8
         Top = 16
-        Width = 76
-        Height = 13
+        Width = 82
+        Height = 15
         Caption = 'Kind of the URL'
       end
       object lblURLWarningURLs: TLabel
         Left = 8
         Top = 120
-        Width = 321
-        Height = 13
+        Width = 301
+        Height = 15
         Caption = 'Hint: All possible URLs are already set. Editing disabled.'
         Color = clBtnFace
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'MS Sans Serif'
+        Font.Height = -12
+        Font.Name = 'Segoe UI'
         Font.Style = [fsBold]
         ParentColor = False
         ParentFont = False
@@ -205,7 +205,7 @@ object FormNewFrame: TFormNewFrame
         Left = 8
         Top = 32
         Width = 329
-        Height = 21
+        Height = 23
         Style = csDropDownList
         TabOrder = 0
       end
@@ -213,9 +213,9 @@ object FormNewFrame: TFormNewFrame
         Left = 8
         Top = 80
         Width = 329
-        Height = 21
-        EditLabel.Width = 22
-        EditLabel.Height = 13
+        Height = 23
+        EditLabel.Width = 21
+        EditLabel.Height = 15
         EditLabel.Caption = 'URL'
         TabOrder = 1
         Text = ''
@@ -228,25 +228,25 @@ object FormNewFrame: TFormNewFrame
       object Label4: TLabel
         Left = 8
         Top = 5
-        Width = 79
-        Height = 13
+        Width = 90
+        Height = 15
         Caption = 'Short description'
       end
       object Ed_UserDefURLDescription: TEdit
         Left = 8
         Top = 24
         Width = 193
-        Height = 21
+        Height = 23
         TabOrder = 0
         OnChange = Ed_UserDefURLDescriptionChange
       end
       object EdUserDefURL: TLabeledEdit
         Left = 8
-        Top = 64
+        Top = 72
         Width = 385
-        Height = 21
-        EditLabel.Width = 13
-        EditLabel.Height = 13
+        Height = 23
+        EditLabel.Width = 15
+        EditLabel.Height = 15
         EditLabel.Caption = 'Url'
         TabOrder = 1
         Text = ''
@@ -268,22 +268,22 @@ object FormNewFrame: TFormNewFrame
       object Label8: TLabel
         Left = 208
         Top = 8
-        Width = 64
-        Height = 13
+        Width = 74
+        Height = 15
         Caption = 'Kind of image'
       end
       object Label9: TLabel
         Left = 208
         Top = 56
-        Width = 79
-        Height = 13
+        Width = 90
+        Height = 15
         Caption = 'Short description'
       end
       object cbPictureType: TComboBox
         Left = 208
         Top = 24
         Width = 193
-        Height = 21
+        Height = 23
         Style = csDropDownList
         TabOrder = 0
       end
@@ -291,7 +291,7 @@ object FormNewFrame: TFormNewFrame
         Left = 208
         Top = 72
         Width = 193
-        Height = 21
+        Height = 23
         TabOrder = 1
         OnChange = EdtPictureDescriptionChange
       end
@@ -309,21 +309,21 @@ object FormNewFrame: TFormNewFrame
       Caption = 'Private Frame'
       ImageIndex = 6
       DesignSize = (
-        412
-        205)
+        408
+        203)
       object lblPrivateWarning: TLabel
         Left = 16
         Top = 170
-        Width = 353
-        Height = 26
+        Width = 347
+        Height = 30
         Caption = 
           'Hint: The Private Frame for this demo already exists. It cannot ' +
           'be created again.'
         Color = clBtnFace
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'MS Sans Serif'
+        Font.Height = -12
+        Font.Name = 'Segoe UI'
         Font.Style = [fsBold]
         ParentColor = False
         ParentFont = False
@@ -344,17 +344,17 @@ object FormNewFrame: TFormNewFrame
       object edtPrivateDescription: TLabeledEdit
         Left = 16
         Top = 24
-        Width = 344
-        Height = 21
+        Width = 340
+        Height = 23
         Anchors = [akLeft, akTop, akRight]
         Color = clScrollBar
-        EditLabel.Width = 227
-        EditLabel.Height = 13
+        EditLabel.Width = 255
+        EditLabel.Height = 15
         EditLabel.Caption = 'Description (set by the software, not by the user)'
         ReadOnly = True
         TabOrder = 0
         Text = ''
-        ExplicitWidth = 356
+        ExplicitWidth = 336
       end
       object BtnSelectPrivateFile: TButton
         Left = 294
@@ -368,7 +368,7 @@ object FormNewFrame: TFormNewFrame
     end
   end
   object Btn_Ok: TButton
-    Left = 264
+    Left = 260
     Top = 255
     Width = 83
     Height = 25
@@ -377,11 +377,11 @@ object FormNewFrame: TFormNewFrame
     ModalResult = 1
     TabOrder = 1
     OnClick = Btn_OkClick
-    ExplicitLeft = 260
+    ExplicitLeft = 256
     ExplicitTop = 254
   end
   object BtnCancel: TButton
-    Left = 353
+    Left = 349
     Top = 255
     Width = 75
     Height = 25
@@ -389,7 +389,7 @@ object FormNewFrame: TFormNewFrame
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 2
-    ExplicitLeft = 349
+    ExplicitLeft = 345
     ExplicitTop = 254
   end
   object OpenPictureDialog1: TOpenPictureDialog

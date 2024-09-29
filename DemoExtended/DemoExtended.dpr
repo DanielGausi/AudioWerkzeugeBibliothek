@@ -1,5 +1,7 @@
 program DemoExtended;
 
+
+
 uses
   Forms,
   MainUnit in 'MainUnit.pas' {MainFormAWB},
@@ -32,7 +34,10 @@ uses
   WavPackFiles in '..\source\WavPackFiles.pas',
   WmaFiles in '..\source\WmaFiles.pas',
   OggContainer in '..\source\OggContainer.pas',
-  OpusFiles in '..\source\OpusFiles.pas';
+  OpusFiles in '..\source\OpusFiles.pas',
+  AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
+  BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
+  FNewTagItem in 'FNewTagItem.pas' {FormNewTagItem};
 
 {$R *.res}
 
@@ -41,5 +46,6 @@ begin
   //Application.MainFormOnTaskbar := True;
   Application.CreateForm(TMainFormAWB, MainFormAWB);
   Application.CreateForm(TNewPic, NewPic);
+  Application.CreateForm(TFormNewTagItem, FormNewTagItem);
   Application.Run;
 end.

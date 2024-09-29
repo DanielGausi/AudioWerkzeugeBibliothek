@@ -58,7 +58,7 @@ unit WavFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 
 type
@@ -75,6 +75,7 @@ type
             procedure fSetTrack           (aValue: UnicodeString); override;
             procedure fSetGenre           (aValue: UnicodeString); override;
             procedure fSetAlbumArtist (value: UnicodeString); override;
+            procedure fSetLyrics          (aValue: UnicodeString); override;
 
             function fGetTitle            : UnicodeString; override;
             function fGetArtist           : UnicodeString; override;
@@ -85,6 +86,7 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
             function fGetAlbumArtist : UnicodeString; override;
+            function fGetLyrics           : UnicodeString;  override;
 
         public
             { Public declarations }
@@ -92,6 +94,12 @@ type
             function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
+            // dummy methods
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+            procedure DeleteTagItem(aTagItem: TTagItem); override;
+            function GetUnusedTextTags: TTagItemInfoDynArray; override;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
         end;
 
 implementation
@@ -148,6 +156,12 @@ begin
   // nothing. This Unit is read-Only
 end;
 
+procedure Twavfile.fSetLyrics(aValue: UnicodeString);
+begin
+  inherited;
+  // nothing. This Unit is read-Only
+end;
+
 procedure TWavfile.fSetTitle(aValue: UnicodeString);
 begin
   inherited;
@@ -188,6 +202,11 @@ begin
     result := '';
 end;
 
+function Twavfile.fGetLyrics: UnicodeString;
+begin
+    result := '';
+end;
+
 function TWavfile.fGetTitle: UnicodeString;
 begin
     result := '';
@@ -204,6 +223,35 @@ begin
 end;
 
 { ********************** Public functions & procedures ********************** }
+
+procedure TWavfile.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+begin
+  // not supported
+end;
+
+procedure TWavfile.DeleteTagItem(aTagItem: TTagItem);
+begin
+  // not supported
+end;
+
+function TWavfile.GetUnusedTextTags: TTagItemInfoDynArray;
+begin
+  // not supported
+  SetLength(Result, 0);
+end;
+
+function TWavfile.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  // not supported
+  result := Nil;
+end;
+
+function TWavfile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  // not supported
+  result := False;
+end;
+
 
 
 { --------------------------------------------------------------------------- }

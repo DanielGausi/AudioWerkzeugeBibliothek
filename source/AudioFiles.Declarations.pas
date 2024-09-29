@@ -38,6 +38,7 @@ type
       TAudioFileStream = TFileStream;
     {$ENDIF}
 
+
     TBuffer = Array of byte;
     String4  = String[4];
     String30 =  String[30];
@@ -348,6 +349,7 @@ begin
     result := (aID3v1Tag.ID = ID3V1_PREAMBLE)
           and (hiddenApeFooter.Preamble <> APE_PREAMBLE);
 end;
+
 
 
 end.

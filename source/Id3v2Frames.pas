@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2012, Daniel Gaussmann
+    (c) 2012-2024, Daniel Gaussmann
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
@@ -52,7 +52,7 @@ unit ID3v2Frames;
 interface
 
 uses
-  SysUtils, Classes, Windows, dialogs, U_CharCode, AudioFiles.Declarations;
+  SysUtils, Classes, Windows, dialogs, U_CharCode, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 type
 
@@ -129,7 +129,7 @@ type
 
   TBuffer = Array of byte;
 
-  TID3v2Frame = class(TObject)
+  TID3v2Frame = class(TTagItem)
       private
 
           fVersion: TID3v2FrameVersions;  //(2,3,4)
@@ -147,12 +147,12 @@ type
           fParsable: Boolean;
 
           function ValidFrameID: Boolean;
-          function GetFrameType: TID3v2FrameTypes;    // Textframe, URLFrame, Picture-Frame, etc...
+          //function GetFrameType: TID3v2FrameTypes;    // Textframe, URLFrame, Picture-Frame, etc...
           function GetFrameTypeDescription: String;   // Description of content according to ID3.org
                                                       // use Delphi-Default-String, its just for displaying the info
           function GetFrameTypeID: TFrameIDs;
 
-          // Get teh flags of the frame
+          // Get the flags of the frame
           // "Unimportant Flags"
           // Note for future versions: Do what they want me to do ;-)
           function GetFlagTagAlterPreservation: Boolean;
@@ -180,6 +180,7 @@ type
 
           function IsUnicodeNeeded(aString: UnicodeString): Boolean;   // Must be Unicodestring - otherwise senseless. ;-)
 
+          function GetNullTerminatedString(Encoding: TTextEncoding; var DataIdx: Integer): UnicodeString;
           // Reads Bytes from "Start" to "Ende" into an UnicodeString
           // Must be UnicodeString
           function GetConvertedUnicodeText(Start, Ende: integer; TextEncoding: TTextEncoding): UnicodeString;
@@ -187,10 +188,16 @@ type
           function WideStringToData(Value: UnicodeString; start: integer; UnicodeIsNeeded: Boolean): integer;
           function AnsiStringToData(Value: AnsiString; start: integer): integer;
 
+          function DoSetText(aValue: UnicodeString): Boolean;
+      protected
+          function GetKey: UnicodeString; override;    // = FrameID
+          function GetTagContentType: teTagContentType; override;
+          function GetDescription: UnicodeString; override;
+
       public
-          property FrameType: TID3v2FrameTypes read GetFrameType;
+          // property FrameType: TID3v2FrameTypes read GetFrameType;
           property FrameTypeDescription: String read GetFrameTypeDescription;   // Delphi-Default-String
-          property FrameIDString: AnsiString read fIDString;                    // Must be AnsiString
+          property FrameIDString: AnsiString read fIDString;                    // = Key (Must be AnsiString)
           property FrameID: TFrameIDs read GetFrameTypeID;
 
           property FlagTagAlterPreservation : Boolean read  GetFlagTagAlterPreservation;
@@ -226,40 +233,61 @@ type
           // be written NOT unsynched
           procedure WriteUnsyncedToStream(aStream: TStream);
 
-          // Texts, Lyrics: Unicode
-          // Language-IDs, Mime: Ansi
-          // Descriptions: Unicode
-          // URLs: Ansi
-          function GetText: UnicodeString;
-          procedure SetText(Value: UnicodeString);
 
+          // Main method to Get/Set text frames (derived from base TTagItem)
+          function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
+          function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
+
+          // Other get/set methods for text-like frametypes
+          // No param TextMode - only "tmStrict" makes sense anyway.
+          {
+             <Header for 'User defined text information frame', ID: "TXXX">
+             Text encoding     $xx
+             Description       <text string according to encoding> $00 (00)
+             Value             <text string according to encoding>
+
+             <Header for 'Comment', ID: "COMM">
+             or <Header for 'Unsynchronised lyrics/text transcription', ID: "USLT">
+             Text encoding          $xx
+             Language               $xx xx xx
+             Short content descrip. <text string according to encoding> $00 (00)
+             The actual text        <full text string according to encoding>
+
+             <Header for 'URL link frame', ID: "W000" - "WZZZ", excluding "WXXX" described in 4.3.2.>
+              URL              <text string>  (AnsiString)
+
+             <Header for 'User defined URL link frame', ID: "WXXX">
+             Text encoding     $xx
+             Description       <text string according to encoding> $00 (00)
+             URL               <text string>  (AnsiString)
+          }
           function GetUserText(out Description: UnicodeString): UnicodeString;
-          procedure SetUserText(Description, Value: UnicodeString);
+          function SetUserText(Description, Value: UnicodeString): Boolean;
 
           function GetCommentsLyrics(out Language: AnsiString; out Description: UnicodeString): UnicodeString;
-          procedure SetCommentsLyrics(Language: AnsiString; Description, Value: UnicodeString);
+          function SetCommentsLyrics(Language: AnsiString; Description, Value: UnicodeString): Boolean;
 
-          function GetUserdefinedURL(out Description: UnicodeString): AnsiString;
-          procedure SetUserdefinedURL(Description: UnicodeString; URL: AnsiString);
+          function GetUserDefinedURL(out Description: UnicodeString): AnsiString;
+          function SetUserDefinedURL(Description: UnicodeString; URL: AnsiString): Boolean;
 
           function GetURL: AnsiString;
-          procedure SetURL(Value: AnsiString);
+          function SetURL(Value: AnsiString): Boolean;
 
-          function GetPicture(out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString; PictureData: TStream): Boolean;
-          procedure SetPicture(Mime: AnsiString; PicType: TPictureType; Description: UnicodeString; PictureData: TStream);
+          function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
+          function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
 
           function GetRating(out UserEMail: AnsiString): Byte;
-          procedure SetRating(UserEMail: AnsiString; Value: Byte);
+          function SetRating(UserEMail: AnsiString; Value: Byte): Boolean;
 
           // PersonalCounter:
           // This is the Counter within the Popularimeter(=Rating)-Frames
           // NOT the PCNT-Frame!
           function GetPersonalPlayCounter(out UserEMail: AnsiString): Cardinal;
-          procedure SetPersonalPlayCounter(UserEMail: AnsiString; Value: Cardinal);
+          function SetPersonalPlayCounter(UserEMail: AnsiString; Value: Cardinal): Boolean;
 
           // Private Frames
           function GetPrivateFrame(out OwnerID: AnsiString; Data: TStream): Boolean;
-          procedure SetPrivateFrame(aOwnerID: AnsiString; Data: TStream);
+          function SetPrivateFrame(aOwnerID: AnsiString; Data: TStream): Boolean;
 
           procedure GetData(Data: TStream);
           // WARNING. Use SetData only, when you exactly know what you are doing
@@ -463,7 +491,7 @@ end;
 
 constructor TID3v2Frame.Create(aID: AnsiString; aVersion: TID3v2FrameVersions);
 begin
-    inherited Create;
+    inherited Create(ttID3v2);
     fVersion := aVersion;
     fIDString := aID;
     fID := IDv2_UNKNOWN;
@@ -703,71 +731,57 @@ begin
         end;
 end;
 
-
-function TID3v2Frame.GetFrameType: TID3v2FrameTypes;
+function TID3v2Frame.GetKey: UnicodeString;
 begin
-    if Not ValidFrameID then
-    begin
-       result := FT_INVALID;
-       exit;
-    end;
+  result := UniCodeString(fIDString);
+end;
 
-    case self.fVersion of
+function TID3v2Frame.GetDescription: UnicodeString;
+begin
+  if TagContentType = tctUserText then begin
+    GetUserText(Result);
+    if result = '' then
+      result := GetFrameTypeDescription;
+  end else
+    result := GetFrameTypeDescription;
+end;
+
+
+function TID3v2Frame.GetTagContentType: teTagContentType;
+begin
+  if not ValidFrameID then begin
+    result := tctInvalid;
+    exit;
+  end;
+
+  case fVersion of
       FV_2: begin
-        if (fIDString[1] = 'T') and (fIDString <> 'TXX') then
-          result := FT_TextFrame
-        else
-          if (fIDString = 'TXX') then
-            result := FT_UserTextFrame
-          else
-            if (fIDString = 'WXX') then
-              result := FT_UserDefinedURLFrame
-            else
-              if (fIDString = 'COM') then
-                result := FT_CommentFrame
-              else
-                if (fIDString = 'ULT') then
-                  result := FT_LyricFrame
-                else
-                  if (fIDString = 'PIC') then
-                    result := FT_PictureFrame
-                  else
-                    if (fIDString = 'POP') then
-                      result := FT_PopularimeterFrame
-                    else
-                          if (fIDString = 'WCM') OR (fIDString = 'WCP') OR (fIDString = 'WAF') OR
-                             (fIDString = 'WAR') OR (fIDString = 'WAS') OR (fIDString = 'WPB') then
-                            result := FT_URLFrame
-                          else
-                            result := FT_UNKNOWN;
+        if (fIDString[1] = 'T') and (fIDString <> 'TXX') then result := tctText
+        else if (fIDString = 'COM') then result := tctComment
+        else if (fIDString = 'ULT') then result := tctLyrics
+        else if (fIDString = 'POP') then result := tctPopularimeter
+        else if (fIDString = 'TXX') then result := tctUserText
+        else if (fIDString = 'WXX') then result := tctUserURL
+        else if (fIDString = 'PIC') then result := tctPicture
+        else if (fIDString = 'PRV') then result := tctPrivate
+        else if (fIDString = 'WCM') OR (fIDString = 'WCP') OR (fIDString = 'WAF') OR
+                (fIDString = 'WAR') OR (fIDString = 'WAS') OR (fIDString = 'WPB')
+             then result := tctURL
+        else result := tctUnknown;
       end
       else begin
-        if (fIDString[1] = 'T') and (fIDString <> 'TXXX') then
-          result := FT_TextFrame
-        else
-          if (fIDString = 'TXXX') then
-            result := FT_UserTextFrame
-          else
-            if (fIDString = 'WXXX') then
-              result := FT_UserDefinedURLFrame
-            else
-              if (fIDString = 'COMM') then
-                result := FT_CommentFrame
-              else
-                if (fIDString = 'USLT') then
-                  result := FT_LyricFrame
-                else
-                  if (fIDString = 'APIC') then
-                    result := FT_PictureFrame
-                  else
-                    if (fIDString = 'POPM') then
-                      result := FT_PopularimeterFrame
-                    else
-                          if (fIDString = 'WCOM') OR (fIDString = 'WCOP') OR (fIDString = 'WOAF') OR (fIDString = 'WOAR') OR
-                             (fIDString = 'WOAS') OR (fIDString = 'WORS') OR (fIDString = 'WPAY') OR (fIDString = 'WPUB') then
-                            result := FT_URLFrame
-                          else
-                            result := FT_UNKNOWN;
+        if (fIDString[1] = 'T') and (fIDString <> 'TXXX') then result := tctText
+        else if (fIDString = 'COMM') then result := tctComment
+        else if (fIDString = 'USLT') then result := tctLyrics
+        else if (fIDString = 'POPM') then result := tctPopularimeter
+        else if (fIDString = 'TXXX') then result := tctUserText
+        else if (fIDString = 'WXXX') then result := tctUserURL
+        else if (fIDString = 'APIC') then result := tctPicture
+        else if (fIDString = 'PRIV') then result := tctPrivate
+        else if (fIDString = 'WCOM') OR (fIDString = 'WCOP') OR (fIDString = 'WOAF') OR (fIDString = 'WOAR') OR
+                (fIDString = 'WOAS') OR (fIDString = 'WORS') OR (fIDString = 'WPAY') OR (fIDString = 'WPUB')
+             then result := tctURL
+        else result := tctUnknown;
       end;
     end; //case
 end;
@@ -1006,6 +1020,25 @@ begin
     end;
 end;
 
+function TID3v2Frame.GetNullTerminatedString(Encoding: TTextEncoding; var DataIdx: Integer): UnicodeString;
+var
+  StartIdx: Integer;
+begin
+  StartIdx := DataIdx;
+
+  if Encoding in [TE_UTF16, TE_UTF16BE] then begin
+    while (DataIdx < length(fData)-1) and ((fData[DataIdx] <> 0) or (fData[DataIdx+1] <> 0)) do
+      inc(DataIdx, 2);
+    result := GetConvertedUnicodetext(StartIdx, DataIdx, Encoding);
+    inc(DataIdx, 2) // 2 bytes termination (00 00)
+  end
+  else begin
+    while (DataIdx < length(fData)) and (fData[DataIdx] <> 0) do
+      inc(DataIdx);
+    result := GetConvertedUnicodetext(StartIdx, DataIdx, Encoding);
+    inc(DataIdx, 1); // 1 byte termination (00)
+  end;
+end;
 
 function TID3v2Frame.GetConvertedUnicodeText(Start, Ende: integer; TextEncoding: TTextEncoding): UnicodeString;
 var
@@ -1179,65 +1212,131 @@ begin
 end;
 
 
-function TID3v2Frame.GetText: UnicodeString;
+function TID3v2Frame.GetText(TextMode: teTextMode = tmReasonable): UnicodeString;
+var
+  ct: teTagContentType;
+  Lang: AnsiString;
+  Description: UnicodeString;
 begin
-    if fParsable then
-      result :=
-        GetConvertedUnicodeText(
-        1,                            // start at second byte
-        length(fData)-1,              // read to the end
-        ByteToTextEncoding(fData[0])  // first byte contains the "TextEncoding"
-        )
-    else
-      result := '';
-end;
+  if not fParsable then
+    result := ''
+  else begin
+    ct := TagContentType;
+    if ct = tctText then
+      // text fields: start at second byte (idx=1), read to the end, first byte contains the "TextEncoding"
+      result := GetConvertedUnicodeText(1, length(fData) - 1, ByteToTextEncoding(fData[0]))
+    else begin
+      case ct of
+        tctComment,
+        tctLyrics: begin
+          if TextMode in [tmReasonable, tmForced] then
+            result := GetCommentsLyrics(Lang, Description);
+        end;
 
+        tctURL: begin
+          if TextMode in [tmReasonable, tmForced] then
+            result := UnicodeString(GetURL);
+        end;
 
-      {
- <Header for 'User defined text information frame', ID: "TXXX">
-     Text encoding     $xx
-     Description       <text string according to encoding> $00 (00)
-     Value             <text string according to encoding>
+        tctUserText: begin
+          if TextMode in [tmReasonable, tmForced] then
+            result := GetUserText(Description);
+            //if (Description <> '') and (TextMode in [tmReasonableEX, tmForced]) then
+            //  result := '(' + Description + ') ' + result;
+        end;
 
- <Header for 'Comment', ID: "COMM">
-     Text encoding          $xx
-     Language               $xx xx xx
-     Short content descrip. <text string according to encoding> $00 (00)
-     The actual text        <full text string according to encoding>
-             }
+        tctUserURL: begin
+          if TextMode in [tmReasonable, tmForced] then
+            result := UnicodeString(GetUserDefinedURL(Description));
+        end;
 
+        tctPicture,
+        tctBinary,
+        tctPopularimeter,
+        tctPrivate,
+        tctUnknown: begin
+          if TextMode = tmForced then
+            result := ByteArrayToString(fData);
+        end
 
-
-
-procedure TID3v2Frame.SetText(Value: UnicodeString);
-var UseUnicode: Boolean;
-begin
-    UseUnicode := fAlwaysWriteUnicode OR IsUnicodeNeeded(Value);
-    If UseUnicode then
-    begin
-        // 2 bytes per character + 1 byte TextEncoding + 2 bytes byteorder (FF FE)
-        Setlength(fData, length(Value) * SizeOf(WideChar) + 3);
-        // TextEncoding "UTF-16 with BOM"
-        fData[0] := 1;
-    end else
-    begin
-        // 1 byte per character + 1 byte TextEncoding
-        Setlength(fData, length(Value)+1);
-        // TextEncoding "IS0-8859-1"
-        fData[0] := 0;
+      else
+        result := '';
+      end;
     end;
-    // write data. Conversion "Unicodestring <-> Ansistring"
-    // will be done in method WideStringToData
-    WideStringToData(Value, 1, UseUnicode);
-    UnSetFlagSomeFlagsAfterDataSet;
-    UpdateHeader;
+  end;
 end;
+
+function TID3v2Frame.DoSetText(aValue: UnicodeString): Boolean;
+var
+  UseUnicode: Boolean;
+begin
+  UseUnicode := fAlwaysWriteUnicode OR IsUnicodeNeeded(aValue);
+  if UseUnicode then begin
+      // 2 bytes per character + 1 byte TextEncoding + 2 bytes byteorder (FF FE)
+      Setlength(fData, length(aValue) * SizeOf(WideChar) + 3);
+      // TextEncoding "UTF-16 with BOM"
+      fData[0] := 1;
+  end else begin
+      // 1 byte per character + 1 byte TextEncoding
+      Setlength(fData, length(aValue)+1);
+      // TextEncoding "IS0-8859-1"
+      fData[0] := 0;
+  end;
+  // write data. Conversion "Unicodestring <-> Ansistring"
+  // will be done in method WideStringToData
+  WideStringToData(aValue, 1, UseUnicode);
+  UnSetFlagSomeFlagsAfterDataSet;
+  UpdateHeader;
+  result := True;
+end;
+
+function TID3v2Frame.SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean;
+var
+  ct: teTagContentType;
+  dummyA, curLang: AnsiString;
+  dummy, curDesc: UnicodeString;
+begin
+  result := False;
+  ct := TagContentType;
+  if ct = tctText then
+    result := DoSetText(aValue) // always true :)
+  else begin
+    // Try to set "reasonable" text frames
+    // Mode "tmForced" for binary or unknown frames doesn't make any sense here, it will just make the frame invalid
+    if TextMode in [tmReasonable, tmForced] then begin
+      case ct of
+        tctComment,
+        tctLyrics: begin
+          dummy := GetCommentsLyrics(curLang, curDesc);
+          result := SetCommentsLyrics(curLang, curDesc, aValue);
+        end;
+
+        tctURL: begin
+          result := SetURL(AnsiString(aValue));
+        end;
+
+        tctUserText: begin
+          dummy := GetUserText(curDesc);
+          result := SetUserText(curDesc, aValue);
+        end;
+
+        tctUserURL: begin
+          dummyA := GetUserDefinedURL(curDesc);
+          result := SetUserDefinedURL(curDesc, AnsiString(aValue));
+        end;
+      else
+        result := False;
+      end;
+    end;
+  end;
+end;
+
 
 function TID3v2Frame.GetUserText(out Description: UnicodeString): UnicodeString;
 var enc: TTextEncoding;
   i: Integer;
 begin
-    if fParsable then
+    if fParsable and (TagContentType = tctUserText) then
     begin
         if length(fData) < 3 then
         begin
@@ -1248,21 +1347,7 @@ begin
         // get TextEncoding
         enc := ByteToTextEncoding(fData[0]);
         i := 1;
-        if (enc = TE_UTF16) or (enc = TE_UTF16BE) then
-        begin
-            While (i < length(fData)-1) and ((fData[i] <> 0) or (fData[i+1] <> 0)) do
-                inc(i,2);
-            Description := GetConvertedUnicodetext(1, i, enc);
-            inc(i,2) // 2 bytes termination (00 00)
-        end
-        else
-        begin
-            While (i < length(fData)) and (fData[i] <> 0) do
-                inc(i);
-            Description := GetConvertedUnicodetext(1, i, enc);
-            inc(i,1); // 1 byte termination (00)
-        end;
-
+        Description := GetNullTerminatedString(enc, i);
         result := GetConvertedUnicodetext(i, length(fData)-1, enc);
     end
     else
@@ -1272,10 +1357,14 @@ begin
     end;
 end;
 
-procedure TID3v2Frame.SetUserText(Description, Value: UnicodeString);
+function TID3v2Frame.SetUserText(Description, Value: UnicodeString): Boolean;
 var UseUnicode: Boolean;
     BytesWritten: Integer;
 begin
+    result := (TagContentType = tctUserText);
+    if not result  then
+        exit;
+
     UseUnicode := AlwaysWriteUnicode OR IsUnicodeNeeded(Value) OR IsUnicodeNeeded(Description);
 
     If UseUnicode then
@@ -1321,7 +1410,7 @@ begin
     // <..> 00 (00) Description (enc)
     // <..> Value (enc)
 
-    if fParsable then
+    if fParsable and (TagContentType in [tctComment, tctLyrics]) then
     begin
         if length(fData) < 5 then
         begin
@@ -1338,22 +1427,7 @@ begin
         Move(fData[1], Language[1], 3);
         //get description
         i := 4;
-
-        if (enc = TE_UTF16) or (enc = TE_UTF16BE) then
-        begin
-            While (i < length(fData)-1) and ((fData[i] <> 0) or (fData[i+1] <> 0)) do
-                inc(i,2);
-            Description := GetConvertedUnicodetext(4, i, enc);
-            inc(i,2) // 2 bytes termination (00 00)
-        end
-        else
-        begin
-            While (i < length(fData)) and (fData[i] <> 0) do
-                inc(i);
-            Description := GetConvertedUnicodetext(4, i, enc);
-            inc(i,1); // 1 byte termination (00)
-        end;
-
+        Description := GetNullTerminatedString(enc, i);
         result := GetConvertedUnicodetext(i, length(fData)-1, enc);
     end else
     begin
@@ -1363,10 +1437,14 @@ begin
     end;
 end;
 
-procedure TID3v2Frame.SetCommentsLyrics(Language: AnsiString; Description, Value: UnicodeString);
+function TID3v2Frame.SetCommentsLyrics(Language: AnsiString; Description, Value: UnicodeString): Boolean;
 var UseUnicode: Boolean;
     BytesWritten: Integer;
 begin
+    result := (TagContentType in [tctComment, tctLyrics]);
+    if not result  then
+        exit;
+
     UseUnicode := AlwaysWriteUnicode OR IsUnicodeNeeded(Value) OR IsUnicodeNeeded(Description);
     if length(Language) <> 3 then Language := 'eng';
 
@@ -1403,7 +1481,7 @@ begin
     UpdateHeader;
 end;
 
-function TID3v2Frame.GetUserdefinedURL(out Description: UnicodeString): AnsiString;
+function TID3v2Frame.GetUserDefinedURL(out Description: UnicodeString): AnsiString;
 var enc: TTextEncoding;
   i: Integer;
 begin
@@ -1411,7 +1489,7 @@ begin
     // 1 Byte Encoding
     // <..> 00 (00) Description (enc)
     // <..> Value (ansii)
-    if fParsable then
+    if fParsable and (TagContentType = tctUserURL) then
     begin
         if length(fData) < 2 then
         begin
@@ -1424,21 +1502,7 @@ begin
         enc := ByteToTextEncoding(fData[0]);
         //get description
         i := 1;
-
-        if (enc = TE_UTF16) or (enc = TE_UTF16BE) then
-        begin
-            While (i < length(fData)-1) and ((fData[i] <> 0) or (fData[i+1] <> 0)) do
-                inc(i,2);
-            Description := GetConvertedUnicodetext(1, i, enc);
-            inc(i,2) //  2 bytes termination
-        end
-        else
-        begin
-            While (i < length(fData)) and (fData[i] <> 0) do
-                inc(i);
-            Description := GetConvertedUnicodetext(1, i, enc);
-            inc(i,1); // 1 byte termination
-        end;
+        Description := GetNullTerminatedString(enc, i);
 
         setlength(result, length(fData) - i);
         move(fData[i], result[1], length(result));
@@ -1455,10 +1519,14 @@ begin
     end;
 end;
 
-procedure TID3v2Frame.SetUserdefinedURL(Description: UnicodeString; URL: AnsiString);
+function TID3v2Frame.SetUserDefinedURL(Description: UnicodeString; URL: AnsiString): Boolean;
 var UseUnicode: Boolean;
     BytesWritten: Integer;
 begin
+    result := (TagContentType = tctUserURL);
+    if not result  then
+        exit;
+
     UseUnicode := IsUnicodeNeeded(Description);
     If UseUnicode then
     begin
@@ -1494,7 +1562,7 @@ end;
 
 function TID3v2Frame.GetURL: AnsiString;
 begin
-    if fParsable then
+    if fParsable and (TagContentType = tctURL)  then
     begin
         setlength(result, length(fData));
         if length(result) > 0 then
@@ -1505,8 +1573,12 @@ begin
         result := '';
 end;
 
-procedure TID3v2Frame.SetURL(Value: AnsiString);
+function TID3v2Frame.SetURL(Value: AnsiString): Boolean;
 begin
+  result := (TagContentType = tctURL);
+  if not result  then
+    exit;
+
   if Value = '' then
     Value := ' ';
   Setlength(fData, length(Value));
@@ -1515,12 +1587,13 @@ begin
   UpdateHeader;
 end;
 
-function TID3v2Frame.GetPicture(out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString; PictureData: TStream): Boolean;
+
+function TID3v2Frame.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
 var
     enc: TTextEncoding;
-    i, dStart: Integer;
+    i: Integer;
 begin
-    if fParsable then
+    if fParsable and (TagContentType = tctPicture)  then
     begin
         result := True;
         case fVersion of
@@ -1539,27 +1612,13 @@ begin
                     SetLength(Mime, 3);
                     Move(fData[1], Mime[1], 3);
                     PicType := TPictureType(fData[4]);
-
                     // description is terminated with 00 (00)
                     i := 5;
-                    if (enc = TE_UTF16) or (enc = TE_UTF16BE) then
-                    begin
-                        While (i < length(fData)-1) and ((fData[i] <> 0) or (fData[i+1] <> 0)) do
-                            inc(i,2);
-                        Description := GetConvertedUnicodetext(5, i, enc);
-                        inc(i,2) // 2 Bytes termination
-                    end
-                    else
-                    begin
-                        While (i < length(fData)) and (fData[i] <> 0) do
-                            inc(i);
-                        Description := GetConvertedUnicodetext(5, i, enc);
-                        inc(i,1); // 1 Byte termination
-                    end;
+                    Description := GetNullTerminatedString(enc, i);
 
                     // here the image-data starts
                     if i < length(fData) then
-                      PictureData.Write(fData[i], length(fData) - i)
+                      Dest.Write(fData[i], length(fData) - i)
                     else
                       result := False;
                 end;
@@ -1591,27 +1650,13 @@ begin
                     else result := False;
 
                     inc(i);
-                    //  get termination of description
-                    dStart := i;
-
-                    if (enc = TE_UTF16) or (enc = TE_UTF16BE) then
-                    begin
-                        While (i < length(fData)-1) and ((fData[i] <> 0) or (fData[i+1] <> 0)) do
-                            inc(i,2);
-                        Description := GetConvertedUnicodetext(dStart, i, enc);
-                        inc(i,2) // 2 Bytes
-                    end
-                    else
-                    begin
-                        While (i < length(fData)) and (fData[i] <> 0) do
-                            inc(i);
-                        Description := GetConvertedUnicodetext(dStart, i, enc);
-                        inc(i,1); // 1 Byte
-                    end;
+                    // get termination of description
+                    // dStart := i;
+                    Description := GetNullTerminatedString(enc, i);
 
                     // here the image-data starts
                     if i < length(fData) then
-                      PictureData.Write(fData[i], length(fData) - i)
+                      Dest.Write(fData[i], length(fData) - i)
                     else
                       result := False;
                 end
@@ -1626,11 +1671,14 @@ begin
     end;
 end;
 
-
-procedure TID3v2Frame.SetPicture(Mime: AnsiString; PicType: TPictureType; Description: UnicodeString; PictureData: TStream);
+function TID3v2Frame.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
 var UseUnicode: Boolean;
     BytesWritten, helpIdx: Integer;
 begin
+    result := (TagContentType = tctPicture);
+    if not result  then
+        exit;
+
     UseUnicode :=  IsUnicodeNeeded(Description);
 
     case fVersion of
@@ -1638,18 +1686,18 @@ begin
             // adjust mime-type for subversion 2.2
             If length(Mime) <> 3 then
             begin
-                if Mime = 'image/png'  then
+                if Mime = AWB_MimePNG  then
                     Mime := 'PNG'
                 else
                     Mime := 'JPG';
             end;
             if UseUnicode then
             begin
-                setlength(fData, 1 + 3 + 1 + (length(Description) + 1) * SizeOf(Widechar) + PictureData.size);
+                setlength(fData, 1 + 3 + 1 + (length(Description) + 1) * SizeOf(Widechar) + Source.size);
                 fData[0] := 1;
             end else
             begin
-                setlength(fData, 1 + 3 + 1 + length(Description) + 1 + PictureData.size);
+                setlength(fData, 1 + 3 + 1 + length(Description) + 1 + Source.size);
                 fData[0] := 0;
             end;
             move(Mime[1], fData[1], 3);
@@ -1661,11 +1709,11 @@ begin
             // subversion 2.3 or 2.4
             if UseUnicode then
             begin
-                setlength(fData, 1 + length(Mime) + 1 + 1 + (length(Description) + 1) * SizeOf(Widechar) + PictureData.size);
+                setlength(fData, 1 + length(Mime) + 1 + 1 + (length(Description) + 1) * SizeOf(Widechar) + Source.size);
                 fData[0] := 1;
             end else
             begin
-                setlength(fData, 1 + length(Mime) + 1 + 1 + length(Description) + 1 + PictureData.size);
+                setlength(fData, 1 + length(Mime) + 1 + 1 + length(Description) + 1 + Source.size);
                 fData[0] := 0;
             end;
             move(Mime[1], fData[1], length(Mime));
@@ -1683,8 +1731,8 @@ begin
       fData[helpIdx + BytesWritten] := 0;
       inc(BytesWritten);
     end;
-    PictureData.Seek(0, soFromBeginning);
-    PictureData.Read(fData[helpIdx + BytesWritten], PictureData.Size);
+    Source.Seek(0, soFromBeginning);
+    Source.Read(fData[helpIdx + BytesWritten], Source.Size);
     UnSetFlagSomeFlagsAfterDataSet;
     UpdateHeader;
 end;
@@ -1693,7 +1741,7 @@ end;
 function TID3v2Frame.GetRating(out UserEMail: AnsiString): Byte;
 var i: Integer;
 begin
-    if fParsable then
+    if fParsable and (TagContentType = tctPopularimeter) then
     begin
         i := 0;
         result := 0; // undef.
@@ -1715,12 +1763,15 @@ begin
     end;
 end;
 
-procedure TID3v2Frame.SetRating(UserEMail: AnsiString; Value: Byte);
+function TID3v2Frame.SetRating(UserEMail: AnsiString; Value: Byte): Boolean;
 var tmpmail: AnsiString;
     BackUpCounter: Cardinal;
     i: Integer;
 begin
-    // Todo:
+    result := (TagContentType = tctPopularimeter);
+    if not result  then
+        exit;
+
     // Check for an PlayCounter after the rating, backup it, write it
     BackUpCounter := GetPersonalPlayCounter(tmpmail);
 
@@ -1754,11 +1805,11 @@ end;
 function TID3v2Frame.GetPersonalPlayCounter(out UserEMail: AnsiString): Cardinal;
 var i: Integer;
 begin
-    if fParsable then
+    if fParsable and (TagContentType = tctPopularimeter) then
     begin
         i := 0;
         //get length of user-mail
-        While (i < length(fData)) and (fData[i] <> 0) do
+        while (i < length(fData)) and (fData[i] <> 0) do
             inc(i);
         // get user-mail
         Setlength(UserEMail, i);
@@ -1803,14 +1854,17 @@ begin
     end;
 end;
 
-procedure TID3v2Frame.SetPersonalPlayCounter(UserEMail: AnsiString; Value: Cardinal);
+function TID3v2Frame.SetPersonalPlayCounter(UserEMail: AnsiString; Value: Cardinal): Boolean;
 var tmpmail: AnsiString;
     BackUpRating: Byte;
     i: Integer;
 begin
+    result := (TagContentType = tctPopularimeter);
+    if not result  then
+        exit;
+
     // Read the rating, backup it
     BackUpRating := GetRating(tmpmail);
-
     // if Value = 0, the write no Counting-information into the frame
     if Value = 0 then
         Setlength(fData, length(UserEMail) + 2)
@@ -1842,7 +1896,7 @@ function TID3v2Frame.GetPrivateFrame(out OwnerID: AnsiString;
   Data: TStream): Boolean;
 var i: Integer;
 begin
-    if fParsable then
+    if fParsable and (TagContentType = tctPrivate) then
     begin
         i := 0;
         result := True;
@@ -1853,31 +1907,28 @@ begin
         Setlength(OwnerID, i);
         Move(fData[0], OwnerID[1], i);
         inc(i);   // termination byte
-
         if i < length(fData) then
             Data.Write(fData[i], length(fData) - i)
         else
             result := False;
-
     end else
         result := False;
-
 end;
-procedure TID3v2Frame.SetPrivateFrame(aOwnerID: AnsiString; Data: TStream);
-begin
-    SetLength(fData, Length(aOwnerID) + 1 + Data.Size);
-    // write OwnerID to fData
-    Move(aOwnerID[1], fData[0], length(aOwnerID));
-    // Termination Byte
-    fData[length(aOwnerID)] := 0;
-    // Write Data
-    Data.Seek(0, soFromBeginning);
-    Data.Read(fData[length(aOwnerID) + 1], Data.Size);
 
+function TID3v2Frame.SetPrivateFrame(aOwnerID: AnsiString; Data: TStream): Boolean;
+begin
+    result := (TagContentType = tctPrivate);
+    if not result  then
+        exit;
+
+    SetLength(fData, Length(aOwnerID) + 1 + Data.Size);
+    Move(aOwnerID[1], fData[0], length(aOwnerID)); // write OwnerID to fData
+    fData[length(aOwnerID)] := 0;                  // Termination Byte
+    Data.Seek(0, soFromBeginning);                 // Write Data
+    Data.Read(fData[length(aOwnerID) + 1], Data.Size);
     UnSetFlagSomeFlagsAfterDataSet;
     UpdateHeader;
 end;
-
 
 
 procedure TID3v2Frame.GetData(Data: TStream);

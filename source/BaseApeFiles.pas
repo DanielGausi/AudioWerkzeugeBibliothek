@@ -59,7 +59,7 @@ unit BaseApeFiles;
 interface
 
 uses Windows, SysUtils, Classes,
-     AudioFiles.Base, AudioFiles.Declarations,
+     AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags,
      Id3Basics, ID3v1Tags, ApeV2Tags, ApeTagItem;
 
 type
@@ -89,6 +89,7 @@ type
             procedure fSetTrack (aValue: UnicodeString); override;
             procedure fSetGenre (aValue: UnicodeString); override;
             procedure fSetAlbumArtist (value: UnicodeString); override;
+            procedure fSetLyrics (value: UnicodeString); override;
 
             function fGetTitle  : UnicodeString; override;
             function fGetArtist : UnicodeString; override;
@@ -97,6 +98,7 @@ type
             function fGetTrack  : UnicodeString; override;
             function fGetGenre  : UnicodeString; override;
             function fGetAlbumArtist : UnicodeString; override;
+            function fGetLyrics      : UnicodeString; override;
 
             function ReadAudioDataFromStream(aStream: TStream): Boolean; virtual;
             function fGetFileType            : TAudioFileType; override;
@@ -134,6 +136,13 @@ type
             function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
+
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+            procedure DeleteTagItem(aTagItem: TTagItem); override;
+            function GetUnusedTextTags: TTagItemInfoDynArray; override;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
+
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
     end;
 
 implementation
@@ -240,6 +249,10 @@ begin
     fID3v1Tag.Genre := aValue;
 end;
 
+procedure TBaseApeFile.fSetLyrics(value: UnicodeString);
+begin
+  ApeTag.Lyrics := value;
+end;
 
 function TBaseApeFile.fGetAlbum: UnicodeString;
 begin
@@ -280,6 +293,36 @@ begin
     result := ApeTag.Year;
     if result = '' then
         result := UnicodeString(fID3v1Tag.Year);
+end;
+
+function TBaseApeFile.fGetLyrics: UnicodeString;
+begin
+  result := ApeTag.Lyrics;
+end;
+
+procedure TBaseApeFile.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+begin
+  ApeTag.GetTagList(Dest, ContentTypes);
+end;
+
+procedure TBaseApeFile.DeleteTagItem(aTagItem: TTagItem);
+begin
+  ApeTag.DeleteTagItem(aTagItem);
+end;
+
+function TBaseApeFile.GetUnusedTextTags: TTagItemInfoDynArray;
+begin
+  result := ApeTag.GetUnusedTextTags;
+end;
+
+function TBaseApeFile.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  result := ApeTag.AddTextTagItem(aKey, aValue);
+end;
+
+function TBaseApeFile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := ApeTag.SetPicture(PicType, Description, Source);
 end;
 
 {

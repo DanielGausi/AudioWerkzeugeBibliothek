@@ -3,8 +3,8 @@ object MainFormAWB: TMainFormAWB
   Top = 0
   BorderStyle = bsSingle
   Caption = 'AudioWerkzeugeBibliothek (Demo Level 2)'
-  ClientHeight = 608
-  ClientWidth = 755
+  ClientHeight = 646
+  ClientWidth = 966
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -150,10 +150,12 @@ object MainFormAWB: TMainFormAWB
   end
   object GroupBox3: TGroupBox
     Left = 8
-    Top = 399
-    Width = 417
-    Height = 155
-    Caption = 'Meta tag overview (in this demo: read only)'
+    Top = 401
+    Width = 953
+    Height = 185
+    Caption = 
+      'Meta tag overview (in this demo: limited editing, use popup menu' +
+      ')'
     TabOrder = 2
     object Label7: TLabel
       Left = 16
@@ -165,15 +167,20 @@ object MainFormAWB: TMainFormAWB
     object lvMetaTags: TListView
       Left = 2
       Top = 15
-      Width = 413
-      Height = 138
+      Width = 949
+      Height = 168
       Align = alClient
       Columns = <
         item
           Caption = 'Tag'
+          Width = 75
         end
         item
           Caption = 'Key'
+          Width = 100
+        end
+        item
+          Caption = 'Description'
           Width = 100
         end
         item
@@ -182,8 +189,10 @@ object MainFormAWB: TMainFormAWB
         end>
       ReadOnly = True
       RowSelect = True
+      PopupMenu = PopupMenu1
       TabOrder = 0
       ViewStyle = vsReport
+      OnCustomDrawItem = lvMetaTagsCustomDrawItem
     end
   end
   object GroupBox7: TGroupBox
@@ -215,7 +224,7 @@ object MainFormAWB: TMainFormAWB
     end
     object FileListBox1: TFileListBox
       Left = 231
-      Top = 24
+      Top = 29
       Width = 178
       Height = 169
       Anchors = [akLeft, akTop, akRight, akBottom]
@@ -243,12 +252,13 @@ object MainFormAWB: TMainFormAWB
       Width = 281
       Height = 152
       Anchors = [akLeft, akTop, akRight, akBottom]
+      ScrollBars = ssVertical
       TabOrder = 0
     end
   end
   object BtnRemoveTag: TButton
-    Left = 545
-    Top = 569
+    Left = 753
+    Top = 603
     Width = 98
     Height = 25
     Caption = 'Remove Tag'
@@ -256,8 +266,8 @@ object MainFormAWB: TMainFormAWB
     OnClick = BtnRemoveTagClick
   end
   object BtnSave: TButton
-    Left = 649
-    Top = 569
+    Left = 857
+    Top = 603
     Width = 96
     Height = 25
     Caption = 'Save changes'
@@ -265,53 +275,58 @@ object MainFormAWB: TMainFormAWB
     OnClick = BtnSaveClick
   end
   object GroupBox4: TGroupBox
-    Left = 431
-    Top = 399
-    Width = 314
-    Height = 155
+    Left = 751
+    Top = 8
+    Width = 210
+    Height = 387
     Caption = 'Audio information'
     TabOrder = 7
     object LblAudioType: TLabel
-      Left = 10
+      Left = 8
       Top = 22
       Width = 52
       Height = 13
       Caption = 'Audio type'
     end
     object LblBitrate: TLabel
-      Left = 12
+      Left = 8
       Top = 67
       Width = 32
       Height = 13
       Caption = 'Bitrate'
     end
     object LblChannels: TLabel
-      Left = 12
+      Left = 8
       Top = 82
       Width = 65
       Height = 13
       Caption = 'Channelmode'
     end
     object LblDuration: TLabel
-      Left = 12
+      Left = 8
       Top = 52
       Width = 41
       Height = 13
       Caption = 'Duration'
     end
     object LblFileSize: TLabel
-      Left = 10
+      Left = 8
       Top = 37
       Width = 38
       Height = 13
       Caption = 'File Size'
     end
     object MemoSpecific: TMemo
-      Left = 145
-      Top = 15
-      Width = 167
-      Height = 138
-      Align = alRight
+      AlignWithMargins = True
+      Left = 10
+      Top = 104
+      Width = 190
+      Height = 273
+      Margins.Left = 8
+      Margins.Top = 0
+      Margins.Right = 8
+      Margins.Bottom = 8
+      Align = alBottom
       BorderStyle = bsNone
       Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
@@ -326,8 +341,8 @@ object MainFormAWB: TMainFormAWB
     end
   end
   object grpTagSelection: TGroupBox
-    Left = 250
-    Top = 560
+    Left = 458
+    Top = 594
     Width = 289
     Height = 42
     Caption = 'Tags to update/remove'
@@ -365,6 +380,20 @@ object MainFormAWB: TMainFormAWB
       Height = 17
       Caption = 'APEv2'
       TabOrder = 3
+    end
+  end
+  object PopupMenu1: TPopupMenu
+    Left = 304
+    Top = 481
+    object pmEdit: TMenuItem
+      Caption = 'Edit'
+      ShortCut = 113
+      OnClick = pmEditClick
+    end
+    object pmNew: TMenuItem
+      Caption = 'New'
+      ShortCut = 16462
+      OnClick = pmNewClick
     end
   end
 end

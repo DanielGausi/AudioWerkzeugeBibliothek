@@ -31,7 +31,9 @@ uses
   WavFiles in '..\source\WavFiles.pas',
   WavPackFiles in '..\source\WavPackFiles.pas',
   WmaFiles in '..\source\WmaFiles.pas',
-  OpusFiles in '..\source\OpusFiles.pas';
+  OpusFiles in '..\source\OpusFiles.pas',
+  AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
+  BaseVorbisFiles in '..\source\BaseVorbisFiles.pas';
 
 {$R *.res}
 

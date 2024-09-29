@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2010-2012, Daniel Gaussmann
+    (c) 2010-2024, Daniel Gaussmann
                    Website : www.gausi.de
                    EMail   : mail@gausi.de
     -----------------------------------
@@ -54,33 +54,15 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, ContNrs, Classes
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF},
-  AudioFiles.Base, AudioFiles.Declarations, BaseVorbisFiles,
+  AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations, BaseVorbisFiles,
   VorbisComments, Id3Basics , winsock;
 
 const
     FLAC_MARKER = 'fLaC';
 
-//type
-
-    {TFlacError = (FlacErr_None, FlacErr_NoFile, FlacErr_FileCreate,
-          FlacErr_FileOpenR, FlacErr_FileOpenRW,
-          FlacErr_InvalidFlacFile,
-          FlacErr_MetaDataTooLarge,
-          FlacErr_BackupFailed,
-          FlacErr_DeleteBackupFailed);  }
-  {
-const
-      FlacErrorErrorString: Array[TFlacError] of String =
-  ( 'No Error',
-    'File not found',
-    'FileCreate failed.',
-    'FileOpenRead failed',
-    'FileOpenReadWrite failed',
-    'Invalid Flac File',
-    'Metadata-Block exceeds maximum size',
-    'Backup failed',
-    'Delete backup failed'
-  );       }
+    cFlacMetaDataBlockTypes: array[0..6] of String = ('STREAMINFO', 'PADDING', 'APPLICATION', 'SEEKTABLE', 'VORBIS_COMMENT', 'CUESHEET', 'PICTURE' );
+    cUnkownFlacMetaDataBlockType = 'FLACMETADATABLOCK';
+    cMaxBlockSize = 16777216; // = 256*256*256
 
 type
     TMetaDataBlockHeader = array[1..4] of Byte;
@@ -94,10 +76,10 @@ type
     end;
 
     // Basic-Class for Metadata-Blocks
-    TFlacMetaBlock = class
+    TFlacMetaBlock = class(TTagItem)
         private
             fHeader: TMetaDataBlockHeader;           // Store the Header
-            fData: TMetaDataBlockData;               // ... the data
+            fData: TMetaDataBlockData;               // ... the data (not always used in derived classes)
             fPositionInStream: Int64;
 
             function fGetDataSize: Cardinal;          // compute DataSize from the Header
@@ -107,16 +89,27 @@ type
             procedure fCopyHeader(aSourceHeader: TMetaDataBlockHeader);
             function fGetBlockType: Byte;
             procedure fSetBlockType(value: Byte);
+        protected
+            function GetKey: UnicodeString; override;
+            function GetTagContentType: teTagContentType; override;
 
         public
             property BlockType: Byte read fGetBlockType write fSetBlockType;
             property LastBlockInFile: Boolean read fGetLastBlock write fSetLastBlock;
 
+            constructor create;
             // read Data from the Stream. Ancestors should overwrite this method
             // to parse the data properly
             function ReadFromStream(aSourceHeader: TMetaDataBlockHeader; Source: TStream): Boolean; virtual;
             // write it into a Stream
             function WriteToStream(Destination: TStream): Boolean; virtual;
+
+            // TTagItem methods
+            function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
+            function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
+
+            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
     end;
 
     TFlacCommentsBlock = class (TFlacMetaBlock)
@@ -135,8 +128,9 @@ type
         private
             fMetaDataBlockPicture: TMetaDataBlockPicture;
 
-            function GetDescription: UnicodeString;
-            procedure SetDescription(value: UnicodeString);
+
+            procedure SetPicDescription(value: UnicodeString);
+            function GetPicDescription: UnicodeString;
             function GetMime: AnsiString;
             procedure SetMime(value: AnsiString);
 
@@ -151,10 +145,12 @@ type
             procedure SetColorDepth    (Value: Cardinal);
             procedure SetNumberOfColors(Value: Cardinal);
             procedure SetPictureType   (Value: TPictureType);
+        protected
+
         public
             property PictureType: TPictureType read GetPictureType write SetPictureType;
             property Mime: AnsiString read GetMime write SetMime;
-            property Description: UnicodeString read GetDescription write SetDescription;
+            property PicDescription: UnicodeString read GetPicDescription write SetPicDescription;
 
             property Width         : Cardinal read GetWidth          write SetWidth          ;
             property Height        : Cardinal read GetHeight         write SetHeight         ;
@@ -169,6 +165,9 @@ type
             procedure CopyPicData(Target: TStream);
             function ReadFromStream(aSourceHeader: TMetaDataBlockHeader; Source: TStream): Boolean; override;
             function WriteToStream(Destination: TStream): Boolean; override;
+
+            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
     end;
  
     TFlacFile = class(TBaseVorbisFile)
@@ -211,22 +210,14 @@ type
             function WriteToFile(aFilename: UnicodeString): TAudioError;  override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  override;
 
-            // For FLAC Files, Pictures are stored within a separate Structure, not within the VORBIS-Comments
-            // Therefore: Overwrite the Picture-related methods from TBaseVorbisFile
-            // Note that the Objects in GetAllPictureComments(aTarget: TObjectList) and the Parameter in
-            // DeletePicture() are of different types than in the base class TBaseVorbisFile.
-            function GetPictureStream(Destination: TStream;
-                                        var aPicType: TPictureType;
-                                        var aMime: AnsiString;
-                                        var aDescription: UnicodeString): Boolean; override;
-            procedure SetPicture(Source: TStream;
-                                    aPicType: TPictureType;
+            function SetPicture(Source: TStream;
                                     aMime: AnsiString;
-                                    aDescription: UnicodeString);  override;
-            procedure GetAllPictureComments(aTarget: TObjectList); override;
-            procedure AddPicture(Source: TStream; aType: TPictureType; aMime: AnsiString; aDescription: UnicodeString); override;
-            procedure DeletePicture(aFlacPictureBlock: TFlacPictureBlock); reintroduce;
+                                    aPicType: TPictureType;
+                                    aDescription: UnicodeString): Boolean;  override;
+            procedure AddPicture(Source: TStream; aMime: AnsiString; aType: TPictureType;  aDescription: UnicodeString); override;
 
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+            procedure DeleteTagItem(aTagItem: TTagItem); override;
     end;
 
 
@@ -285,6 +276,14 @@ begin
   Result := (((DataSize DIV ClusterSize) + 1) * Clustersize) - DataSize;
 end;
 
+function PicBlockSize(aStream: TStream; aMime: AnsiString; aDescription: UnicodeString): Integer;
+begin
+  result := 8*4
+      + length(aMime)
+      + (length(aDescription) * SizeOf(WideChar))
+      + aStream.Size
+end;
+
 
 { TFlacMetaBlock }
 
@@ -333,6 +332,25 @@ begin
         fHeader[1] := fHeader[1] and $7F // unset the first Bit
 end;
 
+constructor TFlacMetaBlock.create;
+begin
+  inherited create(ttFlacMetaBlock);
+end;
+
+function TFlacMetaBlock.GetKey: UnicodeString;
+begin
+  if BlockType in [0..6] then
+    result := cFlacMetaDataBlockTypes[BlockType]
+  else
+    result := cUnkownFlacMetaDataBlockType;
+end;
+
+function TFlacMetaBlock.GetTagContentType: teTagContentType;
+begin
+  // in general FlacMetaBlocks do not directly contain data we are interested in
+  result := tctUndef;
+end;
+
 procedure TFlacMetaBlock.fCopyHeader(aSourceHeader: TMetaDataBlockHeader);
 begin
     fHeader[1] := aSourceHeader[1];
@@ -362,8 +380,30 @@ begin
     // write Data
     d := Destination.Write(fData[0], length(fData));
     result := d = length(fData);
+end;
 
+function TFlacMetaBlock.GetText(TextMode: teTextMode = tmReasonable): UnicodeString;
+begin
+  // usually, this one doesn't make any sense. We have a base FlacMetaBlock here, which contains no data we can make use of.
+  if TextMode = tmForced then
+    result := ByteArrayToString(fData)
+  else
+    result := '';
+end;
 
+function TFlacMetaBlock.SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean;
+begin
+  raise Exception.Create('TFlacMetaBlock.SetText: Invalid method call');
+end;
+
+function TFlacMetaBlock.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+begin
+  raise Exception.Create('TFlacMetaBlock.GetPicture: Invalid method call');
+end;
+
+function TFlacMetaBlock.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  raise Exception.Create('TFlacMetaBlock.SetPicture: Invalid method call');
 end;
 
 { TFlacCommentsBlock }
@@ -371,6 +411,7 @@ end;
 
 constructor TFlacCommentsBlock.Create;
 begin
+    inherited create;
     BlockType := 4;
     Comments := TVorbisComments.Create;
     Comments.ContainerType := octFlac;
@@ -390,15 +431,8 @@ begin
 end;
 
 function TFlacCommentsBlock.IsEmpty: Boolean;
-var sl: TStrings;
 begin
-    sl := TStringList.Create;
-    try
-        Comments.GetAllFields(sl);
-        result := sl.Count = 0;
-    finally
-        sl.free;
-    end;
+  result := Comments.Count = 0;
 end;
 
 function TFlacCommentsBlock.ReadFromStream(aSourceHeader: TMetaDataBlockHeader;
@@ -439,6 +473,7 @@ end;
 
 constructor TFlacPictureBlock.Create;
 begin
+  inherited create;
   fMetaDataBlockPicture := TMetaDataBlockPicture.Create;
   BlockType := 6;
 end;
@@ -464,7 +499,7 @@ begin
   result := fMetaDataBlockPicture.ColorDepth;
 end;
 
-function TFlacPictureBlock.GetDescription: UnicodeString;
+function TFlacPictureBlock.GetPicDescription: UnicodeString;
 begin
   result := fMetaDataBlockPicture.Description;
 end;
@@ -499,7 +534,7 @@ begin
   fMetaDataBlockPicture.ColorDepth := Value;
 end;
 
-procedure TFlacPictureBlock.SetDescription(value: UnicodeString);
+procedure TFlacPictureBlock.SetPicDescription(value: UnicodeString);
 begin
   fMetaDataBlockPicture.Description := Value;
 end;
@@ -556,14 +591,39 @@ begin
     result := fMetaDataBlockPicture.WriteToStream(Destination);
 end;
 
+function TFlacPictureBlock.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+begin
+  Dest.CopyFrom(fMetaDataBlockPicture.PicData, 0);
+  Mime := Mime;
+  PicType := PictureType;
+  Description := Description;
+  result := True;
+end;
 
+function TFlacPictureBlock.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := PicBlockSize(Source, Mime, Description) < cMaxBlockSize;
+
+  if result then begin
+    Mime        := Mime;
+    Description := Description;
+    Width         := 0;
+    Height        := 0;
+    ColorDepth    := 0;
+    NumberOfColors:= 0;
+
+    fMetaDataBlockPicture.PicData.Clear;
+    fMetaDataBlockPicture.PicData.CopyFrom(Source, 0);
+    // Set size-Info in the Header
+    fSetDataSize(fMetaDataBlockPicture.Size);
+  end;
+end;
 
 
 { TFlacFile }
 
 constructor TFlacFile.Create;
 begin
-    //fFileType := at_Flac;
     fMetaBlocks := TObjectList.Create;
     fUsePadding := True;
     ClearData;
@@ -609,131 +669,80 @@ begin
             arbitraryPicFound := True;
         end;
     end;
-
 end;
 
-function TFlacFile.GetPictureStream(Destination: TStream;
-                                        var aPicType: TPictureType;
-                                        var aMime: AnsiString;
-                                        var aDescription: UnicodeString): Boolean;
-var picBlock: TFlacPictureBlock;
+procedure TFlacFile.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+var
+  i: Integer;
 begin
-    picBlock := fGetArbitraryPictureBlock;
+  VorbisComments.GetTagList(Dest, ContentTypes);
 
-    if assigned(picBlock) then
-    begin
-        Destination.CopyFrom(picBlock.fMetaDataBlockPicture.PicData, 0);
-        aPicType := picBlock.PictureType;
-        aMime := picBlock.Mime;
-        aDescription := picBlock.Description;
-        result := True;
-    end
-    else
-    begin
-        aPicType := ptOther;
-        aMime := '';
-        aDescription := '';
-        result := False;
+  // Note: We will NOT add the other TFlacMetaBlocks here, just PICTURE Blocks, if wanted
+  if ([tctAll, tctPicture] * ContentTypes <> [])  then begin // *: Intersection
+    for i := 0 to self.fMetaBlocks.Count - 1 do begin
+      if TFlacMetaBlock(fMetaBlocks[i]).BlockType = 6 then
+        Dest.Add(TFlacMetaBlock(fMetaBlocks[i]));
     end;
+  end;
 end;
 
-procedure TFlacFile.GetAllPictureComments(aTarget: TObjectList);
-var i: Integer;
+procedure TFlacFile.DeleteTagItem(aTagItem: TTagItem);
 begin
-    aTarget.Clear;
-    for i := 0 to self.fMetaBlocks.Count - 1 do
-    begin
-        if TFlacMetaBlock(fMetaBlocks[i]).BlockType = 6 then
-            aTarget.Add(fMetaBlocks[i]);
+  case aTagItem.TagType of
+    ttVorbis: VorbisComments.DeleteTagItem(aTagItem);
+    ttFlacMetaBlock: begin
+      if TFlacMetaBlock(aTagItem).BlockType = 6 then
+        fMetaBlocks.Remove(aTagItem);
     end;
+  end;
 end;
 
-procedure TFlacFile.DeletePicture(aFlacPictureBlock: TFlacPictureBlock);
-begin
-    fMetaBlocks.Remove(aFlacPictureBlock);
-end;
-
-procedure TFlacFile.AddPicture(Source: TStream; aType: TPictureType; aMime: AnsiString;
+procedure TFlacFile.AddPicture(Source: TStream; aMime: AnsiString; aType: TPictureType;
                   aDescription: UnicodeString);
-var picBlock: TFlacPictureBlock;
+var
+  picBlock: TFlacPictureBlock;
 begin
-    if (8*4 + length(aMime)
-        + length(aDescription)
-        + Source.Size) <=  256*256*256
-    then
-    begin
-        if assigned(Source) and (Source.Size > 0) then
-        begin
-            picBlock := TFlacPictureBlock.Create;
-            fMetaBlocks.Add(picBlock);
-
-            picBlock.PictureType := aType;
-
-            picBlock.Mime        := aMime;
-            picBlock.Description := aDescription;
-            picBlock.Width         := 0;
-            picBlock.Height        := 0;
-            picBlock.ColorDepth    := 0;
-            picBlock.NumberOfColors:= 0;
-
-            picBlock.fMetaDataBlockPicture.PicData.Clear;
-            picBlock.fMetaDataBlockPicture.PicData.CopyFrom(Source, 0);
-
-            // Set size-Info in the Header
-            picBlock.fSetDataSize(picBlock.fMetaDataBlockPicture.Size);
-        end; // else: nothing to do
-    end
-    else
-    begin
-        raise Exception.Create('Maximum picture size exceeded: Datasize > 16MiB.');
-    end;
+  if PicBlockSize(Source, aMime, aDescription) < cMaxBlockSize then begin
+    if assigned(Source) and (Source.Size > 0) then begin
+      picBlock := TFlacPictureBlock.Create;
+      fMetaBlocks.Add(picBlock);
+      picBlock.SetPicture(Source, aMime, aType, aDescription);
+    end; // else: nothing to do
+  end
+  else begin
+    raise Exception.Create('Maximum picture size exceeded: Datasize > 16MiB.');
+  end;
 end;
 
-procedure TFlacFile.SetPicture(Source: TStream; aPicType: TPictureType;
-    aMime: AnsiString; aDescription: UnicodeString);
-var picBlock: TFlacPictureBlock;
+function TFlacFile.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
+     aDescription: UnicodeString): Boolean;
+var
+  picBlock: TFlacPictureBlock;
 begin
-    if (8*4 + length(aMime)
-        + length(aDescription)
-        + Source.Size) <=  256*256*256
-    then
+  result := PicBlockSize(Source, aMime, aDescription) < cMaxBlockSize;
+  if result then begin
+    picBlock := fGetArbitraryPictureBlock;
+    if assigned(Source) and (Source.Size > 0) then
     begin
-        picBlock := fGetArbitraryPictureBlock;
-        if assigned(Source) and (Source.Size > 0) then
-        begin
-            if not assigned(picBlock) then
-            begin
-                picBlock := TFlacPictureBlock.Create;
-                picBlock.PictureType := aPicType;
-                fMetaBlocks.Add(picBlock);
-            end;
-
-            picBlock.Mime        := aMime;
-            picBlock.Description := aDescription;
-            picBlock.Width         := 0;
-            picBlock.Height        := 0;
-            picBlock.ColorDepth    := 0;
-            picBlock.NumberOfColors:= 0;
-
-            picBlock.fMetaDataBlockPicture.PicData.Clear;
-            picBlock.fMetaDataBlockPicture.PicData.CopyFrom(Source, 0);
-
-            // Set size-Info in the Header
-            picBlock.fSetDataSize(picBlock.fMetaDataBlockPicture.Size);
-        end else
-        begin
-            // Delete the Block from the file
-            if assigned(picBlock) then
-            begin
-                fMetaBlocks.Extract(picBlock);
-                FreeAndNil(picBlock);
-            end;
-        end;
-    end
-    else
+      if not assigned(picBlock) then begin
+        picBlock := TFlacPictureBlock.Create;
+        picBlock.PictureType := aPicType;
+        fMetaBlocks.Add(picBlock);
+      end;
+      result := picBlock.SetPicture(Source, aMime, aPicType, aDescription);
+    end else
     begin
-        raise Exception.Create('Maximum picture size exceeded: Datasize > 16MiB.');
+      // Delete the Block from the file
+      if assigned(picBlock) then begin
+        result := True;
+        fMetaBlocks.Extract(picBlock);
+        FreeAndNil(picBlock);
+      end;
     end;
+  end
+  else begin
+    raise Exception.Create('Maximum picture size exceeded: Datasize > 16MiB.');
+  end;
 end;
 
 procedure TFlacFile.ClearData;

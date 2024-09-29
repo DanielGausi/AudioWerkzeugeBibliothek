@@ -7,7 +7,8 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, ContNrs,
   Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG, MpegFrames, ID3v1Tags, ID3v2Tags, ID3v2Frames,
-  AudioFiles.Declarations, ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage, Vcl.Mask{$ENDIF};
+  AudioFiles.Declarations, AudioFiles.BaseTags,
+  ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage, Vcl.Mask{$ENDIF};
 
 type
   TForm1 = class(TForm)
@@ -113,7 +114,6 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BtnSelectFileClick(Sender: TObject);
-    procedure BtnShowInfosClick(Sender: TObject);
     procedure LVFramesSelectItem(Sender: TObject; Item: TListItem;
       Selected: Boolean);
     procedure CBFrameTypeSelectionChange(Sender: TObject);
@@ -129,17 +129,20 @@ type
     procedure BtnApplyChangeClick(Sender: TObject);
     procedure BtnAddFrameClick(Sender: TObject);
     procedure BtnSavePictureClick(Sender: TObject);
+    procedure LVFramesChange(Sender: TObject; Item: TListItem;
+      Change: TItemChange);
+    procedure BtnUndoClick(Sender: TObject);
   private
     { Private-Deklarationen }
-    fNewLevel3PicureChoosed: Boolean;
+    fNewPictureDataLoaded: Boolean;
     fNewPictureData: TMemoryStream;
     fCurrentFilename: String;
     procedure FillFrameView;
+    procedure RefreshButtons;
+    procedure ShowTagInfo;
   public
     { Public-Deklarationen }
   end;
-
-  function PicStreamToImage(aStream: TStream; Mime: AnsiString; aBmp: TBitmap): Boolean;
 
 var
   Form1: TForm1;
@@ -157,77 +160,15 @@ begin
   if b then result := 'yes' else result := 'no';
 end;
 
-function PicStreamToImage(aStream: TStream; Mime: AnsiString; aBmp: TBitmap): Boolean;
-var jp: TJPEGImage;
-    {$IFDEF USE_PNG}png: TPNGImage; {$ENDIF}
-begin
-    result := True;
-    if (mime = 'image/jpeg') or (mime = 'image/jpg') or (AnsiUpperCase(String(Mime)) = 'JPG') then
-    try
-        aStream.Seek(0, soFromBeginning);
-        jp := TJPEGImage.Create;
-        try
-          try
-            jp.LoadFromStream(aStream);
-            jp.DIBNeeded;
-            aBmp.Assign(jp);
-          except
-            result := False;
-            aBmp.Assign(NIL);
-          end;
-        finally
-          jp.Free;
-        end;
-    except
-        result := False;
-        aBmp.Assign(NIL);
-    end
-    {$IFDEF USE_PNG}
-    else
-        if (mime = 'image/png') or (Uppercase(String(Mime)) = 'PNG') then
-        try
-            aStream.Seek(0, soFromBeginning);
-            png := TPNGImage.Create;
-            try
-              try
-                png.LoadFromStream(aStream);
-                aBmp.Assign(png);
-              except
-                result := False;
-                aBmp.Assign(NIL);
-              end;
-            finally
-              png.Free;
-            end;
-        except
-            result := False;
-            aBmp.Assign(NIL);
-        end
-        {$ENDIF}
-        else
-        if (mime = 'image/bmp') or (Uppercase(String(Mime)) = 'BMP') then
-            try
-                aStream.Seek(0, soFromBeginning);
-                aBmp.LoadFromStream(aStream);
-            except
-                result := False;
-                aBmp.Assign(Nil);
-            end else
-                begin
-                    aBmp.Assign(NIL);
-                end;
-end;
-
 procedure TForm1.FormCreate(Sender: TObject);
 var i: TPictureType;
 begin
   Id3v2Tag := TId3v2Tag.Create;
 
-
   for i := Low(TPictureType) to High(TPictureType) do
     ed4_cbPictureType.Items.Add(cPictureTypes[i]);
 
-  fNewLevel3PicureChoosed := False;
+  fNewPictureDataLoaded := False;
   TSText.TabVisible := False;
   TSComments.TabVisible := False;
   TSURL.TabVisible := False;
@@ -236,16 +177,10 @@ begin
   TSPrivate.TabVisible := False;
   TSBinary.TabVisible := False;
 
-  //TS_4_1.TabVisible := False;
-  //TS_4_2.TabVisible := False;
-  //TS_4_3.TabVisible := False;
-  //TS_4_4.TabVisible := False;
-  //TS_4_5.TabVisible := False;
-  //TS_4_6.TabVisible := False;
-
   PCFrameContent.ActivePageIndex := 0;
   fNewPictureData := TMemoryStream.Create;
   fCurrentFilename := '';
+  RefreshButtons;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -261,56 +196,49 @@ begin
     begin
         edtCurrentFilename.Text := Opendialog1.FileName;
         fCurrentFilename := OpenDialog1.FileName;
-        BtnShowInfosClick(Nil);
+        ShowTagInfo;
     end;
 end;
 
-procedure TForm1.BtnShowInfosClick(Sender: TObject);
-var stream: TFilestream;
+procedure TForm1.BtnUndoClick(Sender: TObject);
 begin
-    if (fCurrentFilename <> '') and (FileExists(fCurrentFilename)) then
-    begin
+  ShowTagInfo;
+end;
 
-        LVFrames.Items.Clear;
-        stream := TFileStream.Create(fCurrentFilename, fmOpenRead or fmShareDenyWrite);
-        Id3v2Tag.ReadFromStream(stream);
-        stream.free;
-
-        Lblv2_Version         .Caption := '2.'+IntToStr(id3v2Tag.Version.Major) + '.' + IntToStr(id3v2Tag.Version.Minor);
-        Lblv2_Size            .Caption := IntToStr(id3v2Tag.Size);
-        Lblv2_UsedSize        .Caption := IntToStr(id3v2Tag.Size - id3v2Tag.PaddingSize);
-
-        Lblv2_ExtendedHeader  .Caption := BoolToYesNo( id3v2Tag.FlgExtended      );
-        Lblv2_Experimental    .Caption := BoolToYesNo( id3v2Tag.FlgExperimental  );
-        Lblv2_Footer          .Caption := BoolToYesNo( id3v2Tag.FlgFooterPresent );
-        Lblv2_Unsynced        .Caption := BoolToYesNo( id3v2Tag.FlgUnsynch       );
-        Lblv2_Compression     .Caption := BoolToYesNo( id3v2Tag.FlgCompression   );
-        Lblv2_UnknownFlags    .Caption := BoolToYesNo( id3v2Tag.FlgUnknown       );
-
-        CB_UsePadding.Checked := (id3v2Tag.PaddingSize > 0);
-
-        FillFrameView;
-    end else
-        MessageDlg('Please select a file first', mtInformation, [mbOK], 0)
-
+procedure TForm1.ShowTagInfo;
+begin
+  if (fCurrentFilename <> '') and (FileExists(fCurrentFilename)) then begin
+    Id3v2Tag.ReadFromFile(fCurrentFilename);
+    FillFrameView;
+    Lblv2_Version         .Caption := id3v2Tag.VersionString;
+    Lblv2_Size            .Caption := IntToStr(id3v2Tag.Size);
+    Lblv2_UsedSize        .Caption := IntToStr(id3v2Tag.Size - id3v2Tag.PaddingSize);
+    Lblv2_ExtendedHeader  .Caption := BoolToYesNo( id3v2Tag.FlgExtended      );
+    Lblv2_Experimental    .Caption := BoolToYesNo( id3v2Tag.FlgExperimental  );
+    Lblv2_Footer          .Caption := BoolToYesNo( id3v2Tag.FlgFooterPresent );
+    Lblv2_Unsynced        .Caption := BoolToYesNo( id3v2Tag.FlgUnsynch       );
+    Lblv2_Compression     .Caption := BoolToYesNo( id3v2Tag.FlgCompression   );
+    Lblv2_UnknownFlags    .Caption := BoolToYesNo( id3v2Tag.FlgUnknown       );
+    CB_UsePadding.Checked := (id3v2Tag.PaddingSize > 0);
+  end else
+    MessageDlg('Please select a file first', mtInformation, [mbOK], 0)
 end;
 
 procedure TForm1.FillFrameView;
 var NewItem: TListItem;
     iFrame: TID3v2Frame;
     i: Integer;
-    // Framelist: a temporary list for listing all frames with a specific property
-    FrameList: TObjectlist;
+    FrameList: TTagItemList;
 begin
   LVFrames.Items.Clear;
-  fNewLevel3PicureChoosed := False;
+  fNewPictureDataLoaded := False;
   fNewPictureData.Clear;
 
   CBUnsync.OnClick := NIL;
   CBUnsync.Checked := ID3v2Tag.FlgUnsynch;
   CBUnsync.OnClick := CBUnsyncClick;
 
-  FrameList := TObjectlist.Create(False);
+  FrameList := TTagItemList.Create;
   try
       case CBFrameTypeSelection.ItemIndex of
           0: ID3v2Tag.GetAllTextFrames(FrameList) ;     //  Text-Frames
@@ -328,7 +256,7 @@ begin
       begin
           iFrame := (FrameList[i] as TID3v2Frame);
           NewItem := LVFrames.Items.Add;
-          NewItem.Caption := iFrame.FrameIDString;
+          NewItem.Caption := String(iFrame.FrameIDString);
           NewItem.SubItems.Add(iFrame.FrameTypeDescription);
           NewItem.Data := iFrame;
       end;
@@ -337,9 +265,18 @@ begin
   end;
 end;
 
+procedure TForm1.RefreshButtons;
+begin
+  BtnApplyChange.Enabled := (fCurrentFilename <> '') and (CBFrameTypeSelection.ItemIndex in [0..5]);
+  BtnAddFrame.Enabled := (fCurrentFilename <> '');
+  BtnDeleteFrame.Enabled := (fCurrentFilename <> '') and (LVFrames.ItemIndex <> - 1);
+  BtnUndo.Enabled := (fCurrentFilename <> '');
+  BtnSaveToFile.Enabled := (fCurrentFilename <> '');
+end;
+
 procedure TForm1.CBFrameTypeSelectionChange(Sender: TObject);
 begin
-    Case CBFrameTypeSelection.ItemIndex of
+    case CBFrameTypeSelection.ItemIndex of
         0: PCFrameContent.ActivePageIndex := 0;     //  Text-Frames
         1: PCFrameContent.ActivePageIndex := 1;     //  Comments
         2: PCFrameContent.ActivePageIndex := 1;     //  Lyrics
@@ -350,16 +287,37 @@ begin
         7: PCFrameContent.ActivePageIndex := 6;     //  All frames (as binary data)
     end;
     FillFrameView;
+    RefreshButtons;
+end;
+
+procedure TForm1.LVFramesChange(Sender: TObject; Item: TListItem;
+  Change: TItemChange);
+begin
+  RefreshButtons;
 end;
 
 procedure TForm1.LVFramesSelectItem(Sender: TObject; Item: TListItem;
   Selected: Boolean);
 var iFrame: TID3v2Frame;
     value, Description: UnicodeString;
-    language, mime, tmpstr, privDescription: AnsiString;
+    language, mime, privDescription: AnsiString;
     PicType: TPictureType;
     PictureData, Data: TStream;
-    i: Integer;
+
+    function StreamToString(aStream: TStream): String;
+    var
+      tmpstr: AnsiString;
+      i: Integer;
+    begin
+      setlength(tmpstr, aStream.Size);
+      aStream.Position := 0;
+      aStream.Read(tmpstr[1], length(tmpstr));
+      for i := 1 to length(tmpstr) do
+        if (ord(tmpstr[i]) < 32) or (ord(tmpstr[i]) = 127) then
+          tmpstr[i] := '.';
+      result := String(tmpstr);
+    end;
+
 begin
    if (Item = Nil) or (not selected) then exit;
    try
@@ -386,15 +344,17 @@ begin
    LblEncryption     .caption := BoolToYesNo(iFrame.FlagEncryption         );
 
    case CBFrameTypeSelection.ItemIndex of
-       0: begin //  Normale Text-Frames
+       0: begin // Text-Frames
             Ed4_Text.Text := iFrame.GetText;
        end;
-       1,2: begin //  Kommentare //  Lyrics
+
+       1,2: begin // Comments, Lyrics
           value := iFrame.GetCommentsLyrics(Language, Description);
-          Ed4_CommentLanguage.Text    := Language;
+          Ed4_CommentLanguage.Text    := String(Language);
           Ed4_CommentDescription.Text := Description;
           Ed4_CommentValue.Text         := Value;
        end;
+
        3: begin//  URLs
           Ed4_URL.Text := iFrame.GetURL;
        end;
@@ -405,11 +365,12 @@ begin
           Ed4_UserDefURLValue.Text       := Value;
        end;
 
-       5: begin //  Bilder
+       5: begin //  Pictures
           PictureData := TMemoryStream.Create;
           try
-              iFrame.GetPicture(Mime, PicType, Description, PictureData);
-              PicStreamToImage(PictureData, Mime, Ed4_Pic.Picture.Bitmap);
+              iFrame.GetPicture(PictureData, Mime, PicType, Description);
+              PictureData.Position := 0;
+              Ed4_Pic.Picture.LoadFromStream(PictureData);
               Ed4_PicMime.Text := Mime;
               Ed4_PicDescription.Text := Description;
               ed4_cbPictureType.ItemIndex := Integer(PicType)
@@ -421,34 +382,21 @@ begin
        6: begin  // Private Frames
           Data := TMemoryStream.Create;
           try
-              iFrame.GetPrivateFrame(privDescription, data);
-              setlength(tmpstr, Data.Size);
-              Data.Position := 0;
-              Data.Read(tmpstr[1], length(tmpstr));
-              for i := 1 to length(tmpstr) do
-                  if ord(tmpstr[i]) < 32 then
-                      tmpstr[i] := '.';
-
-              edtPrivateDescription.Text := privDescription;
-              memoPrivateFrame.Text :=tmpstr;
+            iFrame.GetPrivateFrame(privDescription, data);
+            edtPrivateDescription.Text := privDescription;
+            memoPrivateFrame.Text := StreamToString(Data);
           finally
-              Data.Free;
+            Data.Free;
           end;
        end;
-       7: begin //  Alle (Daten)
+
+       7: begin // all frames as binary
           Data := TMemoryStream.Create;
           try
-              iFrame.GetData(Data);
-              setlength(tmpstr, Data.Size);
-              Data.Position := 0;
-              Data.Read(tmpstr[1], length(tmpstr));
-              // replace non-printable bytes with "."
-              for i := 1 to length(tmpstr) do
-                  if ord(tmpstr[i]) < 32 then
-                      tmpstr[i] := '.';
-              Ed4_DataMemo.Text := tmpstr;
+            iFrame.GetData(Data);
+            Ed4_DataMemo.Text := StreamToString(Data);
           finally
-              Data.Free;
+            Data.Free;
           end;
        end;
    end;
@@ -460,28 +408,27 @@ begin
   id3v2Tag.UsePadding := CB_UsePadding.Checked;
 end;
 
-
 procedure TForm1.CBUnsyncClick(Sender: TObject);
 begin
-    ID3v2Tag.FlgUnsynch := CBUnsync.Checked;
+  ID3v2Tag.FlgUnsynch := CBUnsync.Checked;
 end;
-
 
 procedure TForm1.BtnAddFrameClick(Sender: TObject);
 begin
-    if FormNewFrame.ShowModal = mrOK then
-        FillFrameView;
+  FormNewFrame.FrameType := CBFrameTypeSelection.ItemIndex;
+  FormNewFrame.ID3v2Tag := ID3v2Tag;
+  if FormNewFrame.ShowModal = mrOK then
+    FillFrameView;
 end;
-
 
 procedure TForm1.BtnVisitURLClick(Sender: TObject);
 begin
-    ShellExecute(Handle, 'open', PChar(Ed4_URL.Text), nil, nil, SW_SHOW);
+  ShellExecute(Handle, 'open', PChar(Ed4_URL.Text), nil, nil, SW_SHOW);
 end;
 
 procedure TForm1.Btn_VisitUserDefURLClick(Sender: TObject);
 begin
-    ShellExecute(Handle, 'open', PChar(Ed4_UserDefURLValue.Text), nil, nil, SW_SHOW);
+  ShellExecute(Handle, 'open', PChar(Ed4_UserDefURLValue.Text), nil, nil, SW_SHOW);
 end;
 
 
@@ -515,16 +462,15 @@ var Stream: TMemoryStream;
 begin
     if LVFrames.ItemIndex <> - 1 then
     begin
-
         Stream := TMemoryStream.Create;
         try
             mime := ''; // invalid
             // Get Picture-Data from current Frame/MetaBlock
             iFrame := TID3v2Frame(LVFrames.Items[LVFrames.ItemIndex].Data);
-            iFrame.GetPicture(Mime, PicType, Description, stream);
+            iFrame.GetPicture(stream, Mime, PicType, Description);
 
             // Get proper Filter for SaveDialog
-            if (mime = 'image/png') or (Uppercase(UnicodeString(Mime)) = 'PNG') then
+            if (mime = AWB_MimePNG) or (Uppercase(UnicodeString(Mime)) = 'PNG') then
             begin
                 SaveDialog1.DefaultExt := 'png';
                 SaveDialog1.Filter := '*.png|*.png;';
@@ -554,40 +500,23 @@ begin
     if (fCurrentFilename <> '') and (FileExists(fCurrentFilename)) then
     begin
         id3v2Tag.WriteToFile(fCurrentFilename);
-        BtnShowInfosClick(Nil);
+        ShowTagInfo;
     end;
 end;
 
-
 procedure TForm1.BtnLoadPicClick(Sender: TObject);
-var aStream: TFileStream;
 begin
-    if OpenPictureDialog1.Execute then
-    begin
-        aStream := TFileStream.Create(OpenPictureDialog1.FileName, fmOpenRead or fmShareDenyWrite);
-        try
-            try
-                if (AnsiLowerCase(ExtractFileExt(OpenPictureDialog1.FileName))='.png') then
-                begin
-                    PicStreamToImage(aStream, 'image/png', Ed4_Pic.Picture.Bitmap);
-                    Ed4_PicMime.Text := 'image/png';
-                end else
-                begin
-                    PicStreamToImage(aStream, 'image/jpeg', Ed4_Pic.Picture.Bitmap);
-                    Ed4_PicMime.Text := 'image/jpeg';
-                end;
-                fNewPictureData.Clear;
-                fNewPictureData.LoadFromFile(OpenPictureDialog1.FileName);
-                fNewLevel3PicureChoosed := True;
-            except
-                Ed4_Pic.Picture.Assign(NIL);
-                fNewLevel3PicureChoosed := False;
-                fNewPictureData.Clear;
-            end;
-        finally
-            aStream.Free;
-        end;
-    end;
+  if OpenPictureDialog1.Execute then begin
+    Ed4_Pic.Picture.LoadFromFile(OpenPictureDialog1.FileName);
+    if SameText(ExtractFileExt(OpenPictureDialog1.FileName), '.png') then
+      Ed4_PicMime.Text := AWB_MimePNG
+    else
+      Ed4_PicMime.Text := AWB_MimeJPEG;
+
+    fNewPictureData.Clear;
+    fNewPictureData.LoadFromFile(OpenPictureDialog1.FileName);
+    fNewPictureDataLoaded := True;
+  end;
 end;
 
 procedure TForm1.BtnApplyChangeClick(Sender: TObject);
@@ -672,16 +601,16 @@ begin
                 else
                     iFrame.GroupID := StrToIntDef(EdGroupID.Text, 1);
 
-                if fNewLevel3PicureChoosed then
+                if fNewPictureDataLoaded then
                 begin
                     // write the new picture into the frame
-                    iFrame.SetPicture(AnsiString(Ed4_PicMime.Text), TPictureType(ed4_cbPictureType.ItemIndex), Ed4_PicDescription.Text, fNewPictureData);
+                    iFrame.SetPicture(fNewPictureData, AnsiString(Ed4_PicMime.Text), TPictureType(ed4_cbPictureType.ItemIndex), Ed4_PicDescription.Text);
                 end else
                 begin
                     // just write the new "text settings" => load the existing picture data first
                     fNewPictureData.Clear;
-                    iFrame.GetPicture(dummyMime, dummyTyp, dummyDesc, fNewPictureData);
-                    iFrame.SetPicture(AnsiString(Ed4_PicMime.Text), TPictureType(ed4_cbPictureType.ItemIndex), Ed4_PicDescription.Text, fNewPictureData);
+                    iFrame.GetPicture(fNewPictureData, dummyMime, dummyTyp, dummyDesc);
+                    iFrame.SetPicture(fNewPictureData, AnsiString(Ed4_PicMime.Text), TPictureType(ed4_cbPictureType.ItemIndex), Ed4_PicDescription.Text);
                 end;
             end;
         end;
@@ -702,19 +631,22 @@ end;
 
 procedure TForm1.BtnDeleteFrameClick(Sender: TObject);
 begin
-    if LVFrames.ItemIndex <> - 1 then
-    begin
-        id3v2Tag.DeleteFrame(TID3v2Frame(LVFrames.Items[LVFrames.ItemIndex].Data));
-        LVFrames.DeleteSelected;
-    end;
+  if LVFrames.ItemIndex <> - 1 then begin
+    id3v2Tag.DeleteTagItem(TID3v2Frame(LVFrames.Items[LVFrames.ItemIndex].Data));
+    LVFrames.DeleteSelected;
+  end;
 end;
 
 
 
 procedure TForm1.BtnDeleteTagClick(Sender: TObject);
 begin
-    if (fCurrentFilename <> '') and (FileExists(fCurrentFilename)) then
-        id3v2Tag.RemoveFromFile(fCurrentFilename);
+  if (fCurrentFilename <> '') and (FileExists(fCurrentFilename)) then begin
+    if MessageDlg('This will delete the ID3Tag from the file and delete all metadata. Continue?', mtConfirmation, [mbYes, mbNo], 0) = mrYes then begin
+      id3v2Tag.RemoveFromFile(fCurrentFilename);
+      ShowTagInfo;
+    end;
+  end;
 end;
 
 

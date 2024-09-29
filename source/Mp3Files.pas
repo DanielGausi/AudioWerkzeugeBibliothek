@@ -53,7 +53,7 @@ unit Mp3Files;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFiles.Base, AudioFiles.Declarations,
+     AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
      ID3v1Tags, ID3v2Tags, MpegFrames, ID3v2Frames, Apev2Tags;
 
 type
@@ -125,6 +125,7 @@ type
             procedure fSetTrack           (aValue: UnicodeString); override;
             procedure fSetGenre           (aValue: UnicodeString); override;
             procedure fSetComment         (aValue: UnicodeString);
+            procedure fSetLyrics          (aValue: UnicodeString); override;
 
             function fGetTitle            : UnicodeString; override;
             function fGetArtist           : UnicodeString; override;
@@ -134,6 +135,7 @@ type
             function fGetTrack            : UnicodeString; override;
             function fGetGenre            : UnicodeString; override;
             function fGetComment          : UnicodeString;
+            function fGetLyrics           : UnicodeString;  override;
 
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
@@ -182,6 +184,19 @@ type
             function WriteToFile(aFilename: UnicodeString): TAudioError;     override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  override;
 
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+            procedure DeleteTagItem(aTagItem: TTagItem); override;
+
+            // - GetUnusedTextTags will return only *strict* text tag items
+            //   No Comments, no lyrics, no URLs, no User-Text
+            //   Also, only the ID3v2-Tag is considered, even if an APEv2-Tag exists.
+            // - AddTextTagItem will also only accept strict text tag items.
+            //   Use id3v2Tag.AddFrame() when you want to add other tag items
+            function GetUnusedTextTags: TTagItemInfoDynArray; override;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
+
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+
             ///  AnalyseFile: This is only for a low level analysis of the file
             ///               It is mainly used by myself to have a closer look on "odd" mp3 files
             ///               which some properties leading to wrong results in bitrate, duration and stuff.
@@ -221,7 +236,7 @@ begin
     fDefaultTags     := [mt_ID3v1, mt_ID3v2];
     fTagsToBeDeleted := [mt_Existing];
 
-    fTagScanMode :=    id3_read_complete; //id3_read_smart
+    fTagScanMode := id3_read_complete; //id3_read_smart
     fSecondaryTagsProcessed          := False;
     fSmartRead_IgnoreComment         := True;
     fSmartRead_AvoidInconsistentData := True;
@@ -385,6 +400,12 @@ begin
         result := fApeTag.Year;
 end;
 
+function TMP3File.fGetLyrics: UnicodeString;
+begin
+  result := fID3v2Tag.Lyrics;
+  if result = '' then
+    result := fApeTag.Lyrics;
+end;
 
 procedure TMP3File.fSetAlbum(aValue: UnicodeString);
 begin
@@ -454,6 +475,14 @@ begin
   fID3v1Tag.Year := ShortString(aValue);
   fID3v2Tag.Year := aValue;
   fApeTag.Year := aValue;
+end;
+
+procedure TMP3File.fSetLyrics(aValue: UnicodeString);
+begin
+  inherited;
+  EnforceSecondaryTagsAreProcessed;
+  fID3v2Tag.Lyrics := aValue;
+  fApeTag.Lyrics := aValue;
 end;
 
 function TMP3File.fGetID3v1Size: Integer;
@@ -614,6 +643,37 @@ begin
             result := fId3v2Tag.WriteToFile(aFileName);
     end;
 end;
+
+procedure TMP3File.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+begin
+  fId3v2Tag.GetTagList(Dest, ContentTypes);
+  fApeTag.GetTagList(Dest, ContentTypes);
+end;
+
+function TMP3File.GetUnusedTextTags: TTagItemInfoDynArray;
+begin
+  result := ID3v2Tag.GetUnusedTextTags;
+end;
+
+function TMP3File.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  result := ID3v2Tag.AddTextTagItem(aKey, aValue);
+end;
+
+procedure TMP3File.DeleteTagItem(aTagItem: TTagItem);
+begin
+  case aTagItem.TagType of
+    ttID3v2: fId3v2Tag.DeleteTagItem(aTagItem);
+    ttApev2: fApeTag.DeleteTagItem(aTagItem);
+  end;
+
+end;
+
+function TMP3File.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := fID3v2Tag.SetPicture(Source, Mime, PicType, Description);
+end;
+
 
 
 end.

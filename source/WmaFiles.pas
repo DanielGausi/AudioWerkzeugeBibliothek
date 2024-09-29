@@ -58,7 +58,7 @@ unit WmaFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 const
   // Channel modes
@@ -94,6 +94,7 @@ type
             procedure fSetTrack           (aValue: UnicodeString); override;
             procedure fSetGenre           (aValue: UnicodeString); override;
             procedure fSetAlbumArtist (value: UnicodeString); override;
+            procedure fSetLyrics          (aValue: UnicodeString); override;
 
             function fGetTitle            : UnicodeString; override;
             function fGetArtist           : UnicodeString; override;
@@ -104,6 +105,7 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
             function fGetAlbumArtist : UnicodeString; override;
+            function fGetLyrics           : UnicodeString;  override;
 
         public
             { Public declarations }
@@ -114,6 +116,12 @@ type
             property ChannelModeID: Byte read FChannelModeID;   { Channel mode code }
             property ChannelMode: string read FGetChannelMode;  { Channel mode name }
             property Comment: UnicodeString read FComment;               { Comment }
+            // dummy methods
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+            procedure DeleteTagItem(aTagItem: TTagItem); override;
+            function GetUnusedTextTags: TTagItemInfoDynArray; override;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
         end;
 
 implementation
@@ -368,6 +376,11 @@ begin
   // nothing. This Unit is read-Only
 end;
 
+procedure TWMAfile.fSetLyrics(aValue: UnicodeString);
+begin
+  // nothing. This Unit is read-Only
+end;
+
 { --------------------------------------------------------------------------- }
 
 function TWMAfile.fGetAlbum: UnicodeString;
@@ -415,6 +428,36 @@ function TWMAfile.fGetYear: UnicodeString;
 begin
     result := fYear;
 end;
+
+function TWMAfile.fGetLyrics: UnicodeString;
+begin
+  result := ''; // not supported
+end;
+
+procedure TWMAfile.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+begin
+  // not supported
+end;
+procedure TWMAfile.DeleteTagItem(aTagItem: TTagItem);
+begin
+  // not supported
+end;
+function TWMAfile.GetUnusedTextTags: TTagItemInfoDynArray;
+begin
+    // not supported
+  setlength(result, 0);
+end;
+function TWMAfile.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  // not supported
+  result := Nil;
+end;
+function TWMAfile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+    // not supported
+  result := False;
+end;
+
 
 { ********************** Public functions & procedures ********************** }
 

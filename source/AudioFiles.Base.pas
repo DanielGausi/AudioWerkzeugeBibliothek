@@ -9,7 +9,12 @@
 
     Unit AudioFileBasics
 
-    Abstract base class for all other AudioFiles
+    TBaseAudioFile
+      Abstract base class for all other AudioFiles
+
+    TTagItem
+      Base class for all TagItems like TID3v2Frame, TVorbisComment, ...
+
 
     ---------------------------------------------------------------------------
 
@@ -51,7 +56,9 @@ interface
 
 {$I config.inc}
 
-uses Classes, SysUtils, AudioFiles.Declarations;
+uses Classes, SysUtils, AudioFiles.Declarations, AudioFiles.BaseTags
+  {$IFDEF USE_GENERICS}, System.Generics.Collections {$ELSE}, System.Contnrs {$ENDIF}
+  ;
 
 type
 
@@ -80,6 +87,8 @@ type
             function fGetYear      : UnicodeString;  virtual; abstract;
             function fGetTrack     : UnicodeString;  virtual; abstract;
             function fGetGenre     : UnicodeString;  virtual; abstract;
+            function fGetLyrics    : UnicodeString;  virtual; abstract;
+
             procedure fSetTitle    (aValue: UnicodeString);  virtual; abstract;
             procedure fSetArtist   (aValue: UnicodeString);  virtual; abstract;
             procedure fSetAlbumArtist   (aValue: UnicodeString);  virtual; abstract;
@@ -87,6 +96,7 @@ type
             procedure fSetYear     (aValue: UnicodeString);  virtual; abstract;
             procedure fSetTrack    (aValue: UnicodeString);  virtual; abstract;
             procedure fSetGenre    (aValue: UnicodeString);  virtual; abstract;
+            procedure fSetLyrics   (aValue: UnicodeString);  virtual; abstract;
 
             function fGetFileType            : TAudioFileType; virtual; abstract;
             function fGetFileTypeDescription : String;         virtual; abstract;
@@ -112,6 +122,7 @@ type
             property Year    : UnicodeString read fGetYear   write fSetYear  ;
             property Track   : UnicodeString read fGetTrack  write fSetTrack ;
             property Genre   : UnicodeString read fGetGenre  write fSetGenre ;
+            property Lyrics  : UnicodeString read fGetLyrics write fSetLyrics;
 
             constructor Create; virtual; abstract;
 
@@ -119,6 +130,29 @@ type
             function WriteToFile(aFilename: UnicodeString): TAudioError;     virtual;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  virtual;
             function UpdateFile: TAudioError;
+
+            // - GetTagList will return a list of all contained tag items in the file that
+            //   matches the given ContentTypes.
+            // - DeleteTagItem will remove a tag item from the file.
+            //   Note: It is simple to remove a tag item. *Restoring* it may be more
+            //         complicated or even close to impossible in some cases, as the tag item
+            //         could use a proprietary binary format which is unknown to you.
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); virtual; abstract;
+            procedure DeleteTagItem(aTagItem: TTagItem); virtual; abstract;
+
+            // These methods are designed to add new text tag items easily.
+            // - GetUnusedTextTags can be used to create a list of “permitted” standard text tag items that are
+            //   not yet existing in the file.
+            // - AddTextTagItem creates a new text tag item selected from this list.
+            // You may use other (tag specific) methods to allow the end user to add more tag items than
+            // returned by GetUnusedTextTags
+            function GetUnusedTextTags: TTagItemInfoDynArray; virtual; abstract;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; virtual; abstract;
+
+            // Abstract methods to get/set picture data from the meta tag of the file.
+            // Note that not all parameters are used in all meta tag formats.
+            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; virtual;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; virtual; abstract;
     end;
 
     TBaseAudioFileClass = class of TBaseAudioFile;
@@ -181,6 +215,26 @@ end;
 function TBaseAudioFile.UpdateFile: TAudioError;
 begin
     result := WriteToFile(fFileName);
+end;
+
+function TBaseAudioFile.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+var
+  TagItems: TTagItemList;
+begin
+  TagItems := TTagItemList.Create;
+  try
+    GetTagList(TagItems, [tctPicture]);
+    if TagItems.Count > 0 then begin
+      result := TagItems[0].GetPicture(Dest, Mime, PicType, Description);
+    end else begin
+      result := False;
+      Mime := '';
+      PicType := ptOther;
+      Description := '';
+    end;
+  finally
+    TagItems.Free;
+  end;
 end;
 
 end.

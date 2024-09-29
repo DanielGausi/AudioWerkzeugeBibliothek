@@ -32,7 +32,8 @@ uses
   WmaFiles in '..\source\WmaFiles.pas',
   OpusFiles in '..\source\OpusFiles.pas',
   BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
-  OggContainer in '..\source\OggContainer.pas';
+  OggContainer in '..\source\OggContainer.pas',
+  AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas';
 
 {$R *.res}
 

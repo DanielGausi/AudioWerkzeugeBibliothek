@@ -159,6 +159,7 @@
         <DCCReference Include="..\source\OpusFiles.pas"/>
         <DCCReference Include="..\source\BaseVorbisFiles.pas"/>
         <DCCReference Include="..\source\OggContainer.pas"/>
+        <DCCReference Include="..\source\AudioFiles.BaseTags.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtDlgs, StdCtrls, ExtCtrls, ComCtrls, JPEG, AudioFiles.Declarations,
-  ID3v2Tags, ID3v2Frames, LanguageCodeList, Vcl.Mask;
+  AudioFiles.BaseTags, ID3v2Tags, ID3v2Frames, LanguageCodeList, Vcl.Mask;
 
 type
   TFormNewFrame = class(TForm)
@@ -58,6 +58,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure Ed_TextFrameChange(Sender: TObject);
     procedure EdtCommentDescriptionChange(Sender: TObject);
+    procedure EdtLyricDescriptionChange(Sender: TObject);
     procedure Ed_UserDefURLDescriptionChange(Sender: TObject);
     procedure ED_URLFrameChange(Sender: TObject);
     procedure EdtPictureDescriptionChange(Sender: TObject);
@@ -68,7 +69,7 @@ type
     procedure FormDestroy(Sender: TObject);
   private
     { Private-Deklarationen }
-    fNewPicureChoosed: Boolean;
+    fNewPictureDataLoaded: Boolean;
     fPrivateFileChoosed: Boolean;
 
     fNewPictureData: TMemoryStream;
@@ -76,9 +77,15 @@ type
 
     allowedTextFrameList: TList;
     allowedURLFrameList: TList;
+    fFrameType: Integer;
+    fID3v2Tag: TID3v2Tag;
+    procedure SetFrameType(const Value: Integer);
+    procedure SetID3v2Tag(const Value: TID3v2Tag);
 
   public
     { Public-Deklarationen }
+    property FrameType: Integer read fFrameType write SetFrameType;
+    property ID3v2Tag: TID3v2Tag read fID3v2Tag write SetID3v2Tag;
   end;
 
 var
@@ -90,8 +97,6 @@ const
 implementation
 
 {$R *.dfm}
-
-uses Unit1;
 
 procedure TFormNewFrame.FormShow(Sender: TObject);
 var
@@ -137,21 +142,11 @@ begin
     Ed_UserDefURLDescription.Text := '';
     EdUserDefURL.Text          := '';
 
-    fNewPicureChoosed := False;
+    fNewPictureDataLoaded := False;
     ImgNewPic.Picture.Bitmap.Assign(Nil);
     EdtPictureDescription.Text := '';
 
     fPrivateFileChoosed := False;
-
-    case Form1.CBFrameTypeSelection.ItemIndex of
-        0: pcFrameTypeSelection.ActivePageIndex := 0;
-        1: pcFrameTypeSelection.ActivePageIndex := 1;
-        2: pcFrameTypeSelection.ActivePageIndex := 2;
-        3: pcFrameTypeSelection.ActivePageIndex := 3;
-        4: pcFrameTypeSelection.ActivePageIndex := 4;
-        5: pcFrameTypeSelection.ActivePageIndex := 5;
-        6: pcFrameTypeSelection.ActivePageIndex := 6;
-    end;
 
     tsURLs.Enabled := allowedURLFrameList.Count > 0;
     lblURLWarningURLs.Visible := allowedURLFrameList.Count = 0;
@@ -176,26 +171,40 @@ begin
     Btn_Ok.Enabled := False;
 end;
 
-procedure TFormNewFrame.FormCreate(Sender: TObject);
-var i: TPictureType;
+procedure TFormNewFrame.SetFrameType(const Value: Integer);
 begin
-    cbLanguageLyrics.Items.AddStrings(LanguageNames);
-    cbLanguageLyrics.ItemIndex := LanguageCodes.IndexOf('ger');
+  if (Value >= 0) and (Value <= 6) then begin
+    fFrameType := Value;
+    pcFrameTypeSelection.ActivePageIndex := fFrameType;
+  end else begin
+    fFrameType := 0;
+    pcFrameTypeSelection.ActivePageIndex := 0;
+  end;
+end;
 
-    cbLanguageComment.Items.AddStrings(LanguageNames);
-    cbLanguageComment.ItemIndex := LanguageCodes.IndexOf('ger');
+procedure TFormNewFrame.SetID3v2Tag(const Value: TID3v2Tag);
+begin
+  fID3v2Tag := Value;
+end;
 
-    for i := Low(TPictureType) to High(TPictureType) do
-      cbPicturetype.Items.Add(cPictureTypes[i]);
-    cbPictureType.ItemIndex := 0;
+procedure TFormNewFrame.FormCreate(Sender: TObject);
+var
+  i: TPictureType;
+begin
+  cbLanguageLyrics.Items.AddStrings(LanguageNames);
+  cbLanguageLyrics.ItemIndex := LanguageCodes.IndexOf('eng');
+  cbLanguageComment.Items.AddStrings(LanguageNames);
+  cbLanguageComment.ItemIndex := LanguageCodes.IndexOf('eng');
 
-    edtPrivateDescription.Text := PRIV_FRAME_DEMO;
+  for i := Low(TPictureType) to High(TPictureType) do
+    cbPicturetype.Items.Add(cPictureTypes[i]);
+  cbPictureType.ItemIndex := 0;
 
-    fNewPictureData := TMemoryStream.Create;
-    fNewMimeType := '';
-
-    allowedTextFrameList := TList.Create;
-    allowedURLFrameList := TList.Create;
+  edtPrivateDescription.Text := PRIV_FRAME_DEMO;
+  fNewPictureData := TMemoryStream.Create;
+  fNewMimeType := '';
+  allowedTextFrameList := TList.Create;
+  allowedURLFrameList := TList.Create;
 end;
 
 procedure TFormNewFrame.FormDestroy(Sender: TObject);
@@ -207,70 +216,54 @@ end;
 
 procedure TFormNewFrame.Ed_TextFrameChange(Sender: TObject);
 begin
-    Btn_Ok.Enabled := (Ed_TextFrame.Text <> '');
+    Btn_Ok.Enabled := Ed_TextFrame.Text <> '';
 end;
 
 procedure TFormNewFrame.EdtCommentDescriptionChange(Sender: TObject);
 begin
-  case Form1.CBFrameTypeSelection.ItemIndex of
-      1: Btn_Ok.Enabled := (MemoComments.Text <> '')
-                           and ID3v2Tag.ValidNewCommentFrame(AnsiString(cbLanguageComment.Text), EdtCommentDescription.Text);
-      2: Btn_Ok.Enabled := (MemoLyrics.Text <> '')
-                           and ID3v2Tag.ValidNewLyricFrame(AnsiString(cbLanguageLyrics.Text), EdtLyricDescription.Text)
-      else
-          Btn_Ok.Enabled := False;
-  end;
+  Btn_Ok.Enabled := (MemoComments.Text <> '')
+      and ID3v2Tag.ValidNewCommentFrame(AnsiString(cbLanguageComment.Text), EdtCommentDescription.Text);
+end;
+
+procedure TFormNewFrame.EdtLyricDescriptionChange(Sender: TObject);
+begin
+  Btn_Ok.Enabled := (MemoLyrics.Text <> '')
+      and ID3v2Tag.ValidNewLyricFrame(AnsiString(cbLanguageLyrics.Text), EdtLyricDescription.Text)
 end;
 
 procedure TFormNewFrame.Ed_UserDefURLDescriptionChange(Sender: TObject);
 begin
-    Btn_Ok.Enabled :=  (EdUserDefURL.Text <> '')
-                          and ID3v2Tag.ValidNewUserDefUrlFrame(Ed_UserDefURLDescription.Text);
+  Btn_Ok.Enabled := (EdUserDefURL.Text <> '')
+      and ID3v2Tag.ValidNewUserDefUrlFrame(Ed_UserDefURLDescription.Text);
 end;
 
 procedure TFormNewFrame.ED_URLFrameChange(Sender: TObject);
 begin
-    Btn_Ok.Enabled :=  (ED_URLFrame.Text <> '')
+  Btn_Ok.Enabled := ED_URLFrame.Text <> ''
 end;
 
 procedure TFormNewFrame.EdtPictureDescriptionChange(Sender: TObject);
 begin
-    Btn_Ok.Enabled := ID3v2Tag.ValidNewPictureFrame(EdtPictureDescription.Text)
-                    and fNewPicureChoosed;
+  Btn_Ok.Enabled := ID3v2Tag.ValidNewPictureFrame(EdtPictureDescription.Text)
+      and fNewPictureDataLoaded;
 end;
 
 procedure TFormNewFrame.BtnSelectPictureClick(Sender: TObject);
-var astream: TFileStream;
 begin
-    if OpenPictureDialog1.Execute then
-    begin
-        aStream := TFileStream.Create(OpenPictureDialog1.FileName, fmOpenRead or fmShareDenyWrite);
-        try
-            try
-                if (AnsiLowerCase(ExtractFileExt(OpenPictureDialog1.FileName))='.png') then
-                begin
-                    PicStreamToImage(aStream, 'image/png', ImgNewPic.Picture.Bitmap);
-                    fNewMimeType := 'image/png';
-                end else
-                begin
-                    PicStreamToImage(aStream, 'image/jpeg', ImgNewPic.Picture.Bitmap);
-                    fNewMimeType := 'image/jpeg';
-                end;
-                fNewPictureData.Clear;
-                fNewPictureData.LoadFromFile(OpenPictureDialog1.FileName);
-                fNewPicureChoosed := True;
-            except
-                fNewMimeType := '';
-                fNewPicureChoosed := False;
-                fNewPictureData.Clear;
-            end;
-        finally
-            aStream.Free;
-        end;
-    end;
 
-    Btn_Ok.Enabled := ID3v2Tag.ValidNewPictureFrame(EdtPictureDescription.Text)
-                    and fNewPicureChoosed;
+  if OpenPictureDialog1.Execute then begin
+    ImgNewPic.Picture.LoadFromFile(OpenPictureDialog1.FileName);
+    if SameText(ExtractFileExt(OpenPictureDialog1.FileName), '.png') then
+      fNewMimeType := AWB_MimePNG
+    else
+      fNewMimeType := AWB_MimeJPEG;
+
+    fNewPictureData.Clear;
+    fNewPictureData.LoadFromFile(OpenPictureDialog1.FileName);
+    fNewPictureDataLoaded := True;
+  end;
+  Btn_Ok.Enabled := ID3v2Tag.ValidNewPictureFrame(EdtPictureDescription.Text)
+                    and fNewPictureDataLoaded;
 end;
 
 procedure TFormNewFrame.BtnSelectPrivateFileClick(Sender: TObject);
@@ -309,13 +302,13 @@ begin
         end;
 
         5: begin  //  Cover art
-            if fNewPicureChoosed then
+            if fNewPictureDataLoaded then
             begin
                 NewFrame := Id3v2Tag.AddFrame(IDv2_PICTURE);
                 PicStream := TMemorystream.Create;
                 try
                     PicStream.LoadFromFile(OpenPictureDialog1.FileName);
-                    NewFrame.SetPicture( 'image/jpeg', TPictureType(cbPictureType.ItemIndex), EdtPictureDescription.Text, PicStream);
+                    NewFrame.SetPicture(PicStream, AWB_MimeJPEG, TPictureType(cbPictureType.ItemIndex), EdtPictureDescription.Text);
                 finally
                     PicStream.Free;
                 end;
@@ -336,11 +329,7 @@ begin
             end else
                 MessageDlg('Please select a file first', mtInformation, [mbOK], 0)
         end;
-        7: begin
-            // Nope.
-        end;
     end;
-  
 end;
 
 end.

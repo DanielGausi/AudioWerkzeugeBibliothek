@@ -1,24 +1,146 @@
-AudioWerkzeugeBibliothek - ChangeLog
+=======================================================================
+  AudioWerkzeugeBibliothek - ChangeLog 
+	Version 3.0
+	10/2024
+=======================================================================
 
-New in Version 2.1 (07/2024)
+The library AudioWerkzeugeBibliothek originated from several format-specific 
+libraries for mp3, flag, ogg and others. Because of that, there were a lot burden
+of the past contained in the code. Some duplicates, no consistency in parameter
+order, type or naming and some other inconveniences.
+
+With version 3.0, I tried to improve the overall consistency and usability of the 
+provided methods. However, it is not possible to do this downward compatible. 
+Also, I decided to implement a more consistent way to access all Tag Items in all
+AudioFile classes.
+
+Therefore, a lot of the previous methods like GetAllFrames or GetAllFields have 
+been replaced by a new method, which is the same for all classes.
+
+
+New in Version 3.0 (10/2024)
+============================
 - Support for *.opus-Files
 - Support for CoverArt in VorbisComments (*.ogg and *.opus)
   Support only for the "official" version, using METADATA_BLOCK_PICTURE as Key. The
   unofficial, deprecated variant "COVERART" is NOT directly supported. However, you 
-  can check for this Key, and try to get the picture data from it.
+  can check for this key, and try to get the picture data from it.
+
+Updated class TBaseAudioFile
+----------------------------
+- new: procedure GetTagList(Dest: TTagItemList; 
+			ContentTypes: TTagContentTypes = cDefaultTagContentTypes);			
+- new: procedure DeleteTagItem(aTagItem: TTagItem);
+- new: function GetPicture( ... ): Boolean; 
+- new: function SetPicture( ... ): Boolean;   
+- new: property Lyrics: String;
+
+new class TTagItem (unit AudioFiles.BaseTags.pas)
+-------------------------------------------------
+A new base class TTagItem for all separate TagItems (like "Artist" or "Title").
+Derived from that are classes like TID3v2Frame, TCommentVector or TFlacMetaBlock
+
+Basic properties:
+- TagType: teTagType; // e.g. ttID3v2, ttVorbis, ttFlacMetaBlock, ttApev2, ttM4AAtom
+- Key: String;
+- Description: String;
+- TagContentType: TTagContentType; // e.g. tctText, tctPicture, tctBinary, ...	  
   
-Changes in version 2.1 (07/2024)
-- New enumeration type TPictureType (Unit `AudioFiles.Declarations`).
-  This type replaces the Byte or Cardinal parameter "PicType" (or similar) for 
-  picture-related methods in Flac and ID3v2.
-  Both metadata constructs use a fixed set of 21 different picture types (like "other", "icon", "front cover", "back cover", "artist", ...) for additional
-  information about this picture. Instead of a simple Integer value, AWB now uses
-  a more "readable" enumeration type.
-  For interaction with e.g. ComboBox.ItemIndex a simple typecast should work.
-- Array Picture_Types with names for the defined picture types changed to
-  cPictureTypes: Array[TPictureType] of string = (...). 
-  Loops using the old Picture_Types-array should be changed to use index tpye TPictureType instead of Integer.
-- Cleanup in type TAudioError. Renamed/removed/added some error types.
-- Classes TFlacFile, TOggVorbisFile and (new) TOpusFile are derived from a common
-  ancestor TBaseVorbisFile that provides access to the VorbisComments.
-  Note that CoverArt in Flac files is NOT stored within the VorbisComments.
+
+Changes in Version 3.0 
+======================
+- removed: const Array Picture_Types: Array[0..20] of string = ( ... )
+		(units Id3v2Frames.pas, FlacFiles)
+- removed: Type TApePictureTypes
+- removed: const TPictureTypeStrings: Array[TApePictureTypes] of AnsiString = ( ... )
+		(unit ApeTagItem.pas)
+
+These three Arrays were basically the same, and are replaced with one new Array,
+declared in Unit AudioFiles.Declarations.pas.
+
+- new: Type TPictureType = ( ... );
+- new: Const cPictureTypes: Array[TPictureType] of string = ( ... );
+		(unit AudioFiles.Declarations.pas)
+This type replaces the Byte or Cardinal parameter "PicType" (or similar) for 
+picture-related methods in Flac and ID3v2, and also Ape.
+		
+- modified: type TAudioError; (Renamed/removed/added some error types)
+
+Unified parameters for picture related methods 
+----------------------------------------------
+It is now always "Stream, Mime, PictureType, Description"
+Note: 
+	Not all Tag-Formats actually contain values for Mime/PictureType/Description. 
+	Use dummy values in these cases.
+
+Mp3Files
+--------
+TID3v2Tag
+- removed: procedure DeleteFrame(aFrame: TID3v2Frame); 
+			(use DeleteTagItem instead)
+- removed: already deprecated functions GetAll*Frames: TObjectList;
+- modified: GetAll*Frames(aList: TObjectlist); to procedure GetAll*Frames(aList: TTagItemList);
+
+TID3v2Frame
+- removed: property	FrameType: TID3v2FrameTypes
+			(use property TagContentType instead)
+- removed: type TID3v2FrameTypes 
+			(use TTagContentType instead)
+		   
+OggVorbisFiles, FlacFiles
+-------------------------
+Note: 
+	Classes TFlacFile, TOggVorbisFile and (new) TOpusFile are derived from a common
+	ancestor TBaseVorbisFile that provides access to the VorbisComments.
+	Also note that CoverArt in Flac files is *NOT* stored within the VorbisComments,
+	but in a separate structure.
+	
+- removed: procedure GetAllFields(Target: TStrings); 
+			(use GetTagList instead)
+- removed: GetPropertyByIndex 
+- removed: SetPropertyByIndex
+			(use the TagItems determined by GetTagList instead)
+			
+FlacFiles
+-------------------------
+- renamed: GetPictureStream (to: GetPicture)
+- removed: procedure GetAllPictureBlocks(aTarget: TObjectList); 
+			(use GetTagList instead with parameter [tctPicture])	
+- removed: procedure DeletePicture(aFlacPictureBlock: TFlacPictureBlock); 
+			(use DeleteTagItem instead)		  
+
+ApeFiles (Monkey, MusePack, OptimFrog, TrueAudio, WavPack)
+----------------------------------------------------------
+TApeTag
+- removed: procedure GetAllFrames(dest: TStrings);
+- removed: procedure GetAllTextFrames(dest: TStrings);
+- removed: procedure GetAllPictureFrames(dest: TStrings);
+			(use GetTagList instead)
+TApeTagItem
+- removed: Property Value 
+			(use methods Get/SetText instead for text information)
+
+M4AFiles
+--------
+TM4AFile
+- removed: procedure GetAllTextAtomDescriptions(dest: TStrings);	
+- removed: procedure GetAllTextAtoms(dest: TObjectList);
+- removed: procedure GetAllAtoms(dest: TObjectList);
+			(use GetTagList instead)
+- removed: procedure RemoveAtom(aAtom: TMetaAtom); 		
+			(use DeleteTagItem instead)
+- removed: function GetTextDataByDescription(aDescription: UnicodeString): UnicodeString;
+			(use acces through the TTagItems instead)
+			
+TMetaAtom
+- removed: function GetListDescription: UnicodeString;
+			(use property Description from BaseClass TTagItem instead)
+
+TUdtaAtom
+- removed: procedure GetAllTextAtomDescriptions(dest: TStrings);
+- removed: procedure GetAllTextAtoms(dest: TObjectList);
+- removed: procedure GetAllAtoms(dest: TObjectList);
+			(use GetTagList instead)
+- removed: procedure RemoveAtom(aAtom: TMetaAtom);		
+			(use DeleteTagItem instead)
+

@@ -55,7 +55,7 @@ unit BaseVorbisFiles;
 interface
 
 uses Windows, SysUtils, Classes, System.ContNrs,
-     AudioFiles.Base, AudioFiles.Declarations,
+     AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
      VorbisComments, OggContainer;
 
 type
@@ -65,7 +65,6 @@ type
 
       protected
         function GetVorbisComments: TVorbisComments; virtual; abstract;
-
         procedure fSetTitle (aValue: UnicodeString); override;
         procedure fSetArtist(aValue: UnicodeString); override;
         procedure fSetAlbum (aValue: UnicodeString); override;
@@ -73,7 +72,7 @@ type
         procedure fSetTrack (aValue: UnicodeString); override;
         procedure fSetGenre (aValue: UnicodeString); override;
         procedure fSetAlbumArtist (value: UnicodeString); override;
-
+        procedure fSetLyrics (value: UnicodeString); override;
         procedure fSetVersion     (value: UnicodeString);
         procedure fSetPerformer   (value: UnicodeString);
         procedure fSetCopyright   (value: UnicodeString);
@@ -91,7 +90,7 @@ type
         function fGetTrack  : UnicodeString; override;
         function fGetGenre  : UnicodeString; override;
         function fGetAlbumArtist : UnicodeString; override;
-
+        function fGetLyrics      : UnicodeString; override;
         function fGetVersion     : UnicodeString;
         function fGetPerformer   : UnicodeString;
         function fGetCopyright   : UnicodeString;
@@ -104,7 +103,6 @@ type
 
         function fGetFileType            : TAudioFileType; override;
         function fGetFileTypeDescription : String;         override;
-
         function GetMaxSample(aStream: TStream): Integer; virtual;
 
       public
@@ -124,39 +122,25 @@ type
         // Direct Access to the Comments.
         property VorbisComments: TVorbisComments read GetVorbisComments;
 
-        // Get All FieldNames in the CommentVectorList
-        procedure GetAllFields(Target: TStrings); virtual;
         // Access to these Fields by Name or Index (note: Fieldnames dont have to be unique)
         function GetPropertyByFieldname(aField: String): UnicodeString; virtual;
         function SetPropertyByFieldname(aField: String; aValue: UnicodeString): Boolean; virtual;
-        function GetPropertyByIndex(aIndex: Integer): UnicodeString; virtual;
-        function SetPropertyByIndex(aIndex: Integer; aValue: UnicodeString): Boolean; virtual;
 
         // Methods for handling CoverArt
         // **Note that Flac should NOT use VorbisComments for that**
         // Get/Set "the" METADATA_BLOCK_PICTURE from the Comments.
         // If there are more than one METADATA_BLOCK_PICTURE-Comment, the first one in the list is used.
-        function GetPictureStream(Destination: TStream;
-                                    var aPicType: TPictureType;
-                                    var aMime: AnsiString;
-                                    var aDescription: UnicodeString): Boolean; overload; virtual;
-        // use Source=NIL to remove it from the Comments
-        procedure SetPicture(Source: TStream;
-                                    aPicType: TPictureType;
-                                    aMime: AnsiString;
-                                    aDescription: UnicodeString);  virtual;
-        // Get all METADATA_BLOCK_PICTURE
-        procedure GetAllPictureComments(Target: TObjectList); virtual;
-        // Get the picture data from a specific METADATA_BLOCK_PICTURE
-        function GetPictureStream(aCommentVector: TCommentVector;
-                                    Destination: TStream;
-                                    var aPicType: TPictureType;
-                                    var aMime: AnsiString;
-                                    var aDescription: UnicodeString): Boolean; overload; virtual;
+        function SetPicture(Source: TStream; aMime: AnsiString;
+              aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
+
         // Add a new METADATA_BLOCK_PICTURE
-        procedure AddPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString; aDescription: UnicodeString); virtual;
-        // Delete the specified METADATA_BLOCK_PICTURE
-        procedure DeletePicture(aCommentVector: TCommentVector); virtual;
+        procedure AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString); virtual;
+
+        procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+        procedure DeleteTagItem(aTagItem: TTagItem); override;
+
+        function GetUnusedTextTags: TTagItemInfoDynArray; override;
+        function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
     end;
 
 implementation
@@ -280,6 +264,10 @@ procedure TBaseVorbisFile.fSetVersion(value: UnicodeString);
 begin
   VorbisComments.Version := value;
 end;
+procedure TBaseVorbisFile.fSetLyrics (value: UnicodeString);
+begin
+  VorbisComments.Lyrics := value;
+end;
 
 
 function TBaseVorbisFile.fGetAlbum: UnicodeString;
@@ -347,10 +335,29 @@ function TBaseVorbisFile.fGetVersion: UnicodeString;
 begin
   result := VorbisComments.Version;
 end;
-
-procedure TBaseVorbisFile.GetAllFields(Target: TStrings);
+function TBaseVorbisFile.fGetLyrics: UnicodeString;
 begin
-  VorbisComments.GetAllFields(Target);
+  result := VorbisComments.Lyrics;
+end;
+
+procedure TBaseVorbisFile.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+begin
+  VorbisComments.GetTagList(Dest, ContentTypes);
+end;
+
+procedure TBaseVorbisFile.DeleteTagItem(aTagItem: TTagItem);
+begin
+  VorbisComments.DeleteTagItem(aTagItem);
+end;
+
+function TBaseVorbisFile.GetUnusedTextTags: TTagItemInfoDynArray;
+begin
+  result := VorbisComments.GetUnusedTextTags;
+end;
+
+function TBaseVorbisFile.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  result := VorbisComments.AddTextTagItem(aKey, aValue);
 end;
 
 function TBaseVorbisFile.GetPropertyByFieldname(aField: String): UnicodeString;
@@ -363,51 +370,18 @@ begin
   result := VorbisComments.SetPropertyByFieldname(aField, aValue);
 end;
 
-function TBaseVorbisFile.GetPropertyByIndex(aIndex: Integer): UnicodeString;
+function TBaseVorbisFile.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
+  aDescription: UnicodeString): Boolean;
 begin
-  result := VorbisComments.GetPropertyByIndex(aIndex);
-end;
-
-function TBaseVorbisFile.SetPropertyByIndex(aIndex: Integer; aValue: UnicodeString): Boolean;
-begin
-  result := VorbisComments.SetPropertyByIndex(aIndex, aValue);
-end;
-
-function TBaseVorbisFile.GetPictureStream(Destination: TStream;
-  var aPicType: TPictureType; var aMime: AnsiString;
-  var aDescription: UnicodeString): Boolean;
-begin
-  result := VorbisComments.GetPictureStream(Destination, aPicType, aMime, aDescription);
-end;
-
-function TBaseVorbisFile.GetPictureStream(aCommentVector: TCommentVector; Destination: TStream;
-  var aPicType: TPictureType; var aMime: AnsiString; var aDescription: UnicodeString): Boolean;
-begin
-  result := VorbisComments.GetPictureStream(aCommentVector, Destination, aPicType, aMime, aDescription);
-end;
-
-procedure TBaseVorbisFile.SetPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString;
-  aDescription: UnicodeString);
-begin
-  VorbisComments.SetPicture(Source, aMime, aDescription, aPicType);
-end;
-
-procedure TBaseVorbisFile.GetAllPictureComments(Target: TObjectList);
-begin
-  VorbisComments.GetAllPictureComments(Target);
+  result := VorbisComments.SetPicture(Source, aMime, aPicType, aDescription);
 end;
 
 // Add a new Picture
-procedure TBaseVorbisFile.AddPicture(Source: TStream; aPicType: TPictureType; aMime: AnsiString;
+procedure TBaseVorbisFile.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
       aDescription: UnicodeString);
 begin
-  VorbisComments.AddPicture(Source, aPicType, aMime, aDescription);
-end;
-
-// Delete a specified Picture
-procedure TBaseVorbisFile.DeletePicture(aCommentVector: TCommentVector);
-begin
-  VorbisComments.DeletePicture(aCommentVector);
+  VorbisComments.AddPicture(Source, aMime, aPicType, aDescription);
 end;
 
 end.
+

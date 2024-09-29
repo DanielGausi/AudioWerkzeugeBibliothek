@@ -2,7 +2,7 @@
     -----------------------------------
     Audio Werkzeuge Bibliothek
     -----------------------------------
-    (c) 2012-2020, Daniel Gaussmann
+    (c) 2012-2024, Daniel Gaussmann
               Website : www.gausi.de
               EMail   : mail@gausi.de
     -----------------------------------
@@ -52,12 +52,15 @@ unit M4aAtoms;
 interface
 
 uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFiles.Declarations {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
+     AudioFiles.Declarations, AudioFiles.BaseTags {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
 
 
 type
     TBuffer = Array of byte;
-    TAtomName = Array[1..4] of AnsiChar;
+     TAtomName = Array[1..4] of AnsiChar;
+    //TAtomName = String[4];
+
+
     TM4APicTypes = (M4A_JPG=13, M4A_PNG, M4A_Invalid);
 
     TMetaAtomDescription = record
@@ -98,12 +101,18 @@ const
 
 type
 
-    TBaseAtom = class
+    TBaseAtom = class(TTagItem)
         private
             fName: TAtomName;
             fData: TMemoryStream;
 
             function fGetSize: DWord;
+
+        protected
+            function AsByteArray: TBuffer;
+
+            function GetKey: UnicodeString; override;
+            function GetTagContentType: teTagContentType; override;
         public
             property Name: TAtomName read fName;
             property Size: DWord read fGetSize;
@@ -115,6 +124,12 @@ type
 
             function ReadFromStream(aStream: TStream; aSize: DWord): Integer;
             function SaveToStream(aStream: TStream): Int64;
+
+            function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
+            function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
+
+            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
     end;
 
     TFreeAtom = class(TBaseAtom)
@@ -162,7 +177,16 @@ type
         private
             procedure prepareDiskTrackAtom(l: TTrackDisc; aValue: UnicodeString);
             procedure WriteHeader(aSize: DWord);
+
+            // Cover art
+            function GetPictureStream(Dest: TStream; var typ: TM4APicTypes): Boolean;
+            function SetPictureStream(Source: TStream; typ: TM4APicTypes): Boolean;
+        protected
+            function GetTagContentType: teTagContentType; override;
+            function GetDescription: UnicodeString; override;
         public
+            constructor Create(aName: TAtomName); override;
+
             function GetTextData: UnicodeString;
             function GetTrackNumber: UnicodeString;
             function GetGenre: UnicodeString;
@@ -173,17 +197,20 @@ type
             procedure SetStandardGenre(idx: Integer);
             procedure SetDiscNumber(aValue: UnicodeString);
 
-            // Cover art
-            function GetPictureStream(Dest: TStream; var typ: TM4APicTypes): Boolean;
-            procedure SetPicture(Source: TStream; typ: TM4APicTypes);
-
             // parse "----" atoms
             function GetSpecialData(out aMean, aName: AnsiString): UnicodeString;
             procedure SetSpecialData(aMean, aName: AnsiString; aValue: UnicodeString);
 
             // for displaying all Text-Atoms
             function ContainsTextData: Boolean;
-            function GetListDescription: UnicodeString;
+
+            // generic methods from base TTagItem
+            function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
+            function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
+
+            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+
     end;
 
     // UDTA contains the Metadata (artist, title, album, ...)
@@ -193,8 +220,6 @@ type
 
             function fSearchAtom(aName: TAtomName): TMetaAtom;
             function fSearchSpecialAtom(mean, name: AnsiString; out Value: UnicodeString): TMetaAtom;
-
-
             procedure fAddDefaultMetaData; // fill fData with default data, in case there ist no udta in the file
 
         public
@@ -203,19 +228,16 @@ type
             destructor Destroy; override;
 
             function ParseData: TAudioError;
-
             function GetTextData(aName: TAtomName): UnicodeString;
             function GetTrackNumber: UnicodeString;
             function GetGenre: UnicodeString;
             function GetDiscNumber: UnicodeString;
-
             procedure SetTextData(aName: TAtomName; aValue: UnicodeString);
             procedure SetTrackNumber(aValue: UnicodeString);
             procedure SetGenre(aValue: UnicodeString);
             procedure SetDiscNumber(aValue: UnicodeString);
-
             function GetPictureStream(Dest: TStream; var typ: TM4APicTypes): Boolean;
-            procedure SetPicture(Source: TStream; typ: TM4APicTypes);
+            function SetPictureStream(Source: TStream; typ: TM4APicTypes): Boolean;
 
             // Spaecial data:
             // Atom with the following structure
@@ -227,19 +249,17 @@ type
             function GetSpecialData(aMean, aName: AnsiString): UnicodeString;
             procedure SetSpecialData(aMean, aName: AnsiString; aValue: UnicodeString);
 
-            procedure GetAllTextAtomDescriptions(dest: TStrings);
-            procedure GetAllTextAtoms(dest: TObjectList);
-
-            procedure GetAllAtoms(dest: TObjectList);
-            procedure RemoveAtom(aAtom: TMetaAtom);
-
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+            procedure DeleteTagItem(aTagItem: TTagItem);
+            function GetUnusedTextTags: TTagItemInfoDynArray;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
             function PrepareDataForSaving: TAudioError;
     end;
 
 
     // Contains some sub-Atoms, which will be parsed seperately
     //   - The TRAK, with duration, samplerate
-    //   - The UDTA.META, witrh the actual metadata like title, artist, ...
+    //   - The UDTA.META, with the actual metadata like title, artist, ...
     TMoovAtom = class(TBaseAtom)
         private
             fDuration   : Integer;
@@ -249,12 +269,10 @@ type
 
             fStcoOffset: DWord; // Position of the stco-Atom
                                 // relative to the beginning of the MOOV-Tag (i.e. 8 bytes before fData starts in the file)
-
         public
             AtomList: TObjectList;
             TrakAtom: TTrakAtom;
             UdtaAtom: TUdtaAtom;
-
             property Duration   : Integer read fDuration  ;
             property Samplerate : Integer read fSamplerate;
             property Channels   : Integer read fChannels  ;
@@ -267,7 +285,6 @@ type
             procedure Clear; Override;
             function ParseData: TAudioError;
             function WriteToStreamWithNewUDTA(dest: TStream; newUDTA: TUdtaAtom): TAudioError;
-
     end;
 
 
@@ -275,6 +292,7 @@ type
     function ChangeEndian16(X: WORD): WORD;
     function GetNextAtomInfo(aStream: TStream; out Name: TAtomName; out Size: DWord): TAudioError;
 
+    function MimeStringToM4APicType(aMime: AnsiString): TM4APicTypes;
 
 implementation
 
@@ -293,6 +311,18 @@ begin
     else
         result := FileErr_None;
 end;
+
+function MimeStringToM4APicType(aMime: AnsiString): TM4APicTypes;
+begin
+  if SameText(UnicodeString(aMime), AWB_MimeJpeg) or SameText(UnicodeString(aMime), AWB_MimeJpegFaulty) then
+    result := M4A_JPG
+  else
+    if SameText(UnicodeString(aMime), AWB_MimePNG) then
+      result := M4A_PNG
+    else
+      result := M4A_Invalid;
+end;
+
 
 
 function ChangeEndian32(X: DWORD): DWORD; register;
@@ -329,6 +359,17 @@ begin
     result := fData.Size + 8;
 end;
 
+function TBaseAtom.GetKey: UnicodeString;
+begin
+  result := UnicodeString(fName);
+end;
+
+function TBaseAtom.GetTagContentType: teTagContentType;
+begin
+  result := tctUndef;
+end;
+
+
 // Copy the data from the File into the local fData-Stream
 function TBaseAtom.ReadFromStream(aStream: TStream; aSize: DWord): Integer;
 begin
@@ -344,6 +385,33 @@ begin
     result := aStream.Write(c, 4);
     result := result + aStream.Write(Name[1], 4);
     result := result + aStream.CopyFrom(fData, 0);
+end;
+
+function TBaseAtom.AsByteArray: TBuffer;
+begin
+  fData.Position := 0;
+  SetLength(Result, fData.Size);
+  fData.Read(Result[0], length(Result));
+end;
+
+function TBaseAtom.GetText(TextMode: teTextMode = tmReasonable): UnicodeString;
+begin
+  raise Exception.Create('TBaseAtom.GetText: Invalid method call');
+end;
+
+function TBaseAtom.SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean;
+begin
+  raise Exception.Create('TBaseAtom.SetText: Invalid method call');
+end;
+
+function TBaseAtom.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+begin
+  raise Exception.Create('TBaseAtom.GetPicture: Invalid method call');
+end;
+
+function TBaseAtom.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  raise Exception.Create('TBaseAtom.SetPicture: Invalid method call');
 end;
 
 
@@ -1068,23 +1136,26 @@ begin
 end;
 
 
-procedure TUdtaAtom.SetPicture(Source: TStream; typ: TM4APicTypes);
+function TUdtaAtom.SetPictureStream(Source: TStream; typ: TM4APicTypes): Boolean;
 var aAtom: TMetaAtom;
 begin
+    result := false;
     aAtom := fSearchAtom('covr');
     if assigned(aAtom) then
     begin
         if assigned(Source) and (typ <> M4A_Invalid) then
-            aAtom.SetPicture(Source, typ)
-        else
-            fMetaAtoms.Remove(aAtom)
+            result := aAtom.SetPictureStream(Source, typ)
+        else begin
+            fMetaAtoms.Remove(aAtom);
+            result := True;
+        end;
     end else
     begin
         if assigned(Source) and (typ <> M4A_Invalid) then
         begin
             aAtom := TMetaAtom.Create('covr');
             fMetaAtoms.Add(aAtom);
-            aAtom.SetPicture(Source, typ);
+            result := aAtom.SetPictureStream(Source, typ);
         end;
     end;
 end;
@@ -1111,39 +1182,54 @@ begin
     end;
 end;
 
-
-procedure TUdtaAtom.GetAllTextAtomDescriptions(dest: TStrings);
-var i: Integer;
+procedure TUdtaAtom.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
+var
+  i: Integer;
 begin
-    dest.Clear;
-    for i := 0 to self.fMetaAtoms.Count - 1 do
-        if TMetaAtom(fMetaAtoms[i]).ContainsTextData then
-            dest.Add(TMetaAtom(fMetaAtoms[i]).GetListDescription);
+  for i := 0 to self.fMetaAtoms.Count - 1 do
+    if TMetaAtom(fMetaAtoms[i]).MatchContentType(ContentTypes) then
+      Dest.Add(TMetaAtom(fMetaAtoms[i]));
 end;
 
-procedure TUdtaAtom.GetAllTextAtoms(dest: TObjectList);
-var i: Integer;
+procedure TUdtaAtom.DeleteTagItem(aTagItem: TTagItem);
 begin
-    dest.Clear;
-    for i := 0 to self.fMetaAtoms.Count - 1 do
-        if TMetaAtom(fMetaAtoms[i]).ContainsTextData then
-            dest.Add(TMetaAtom(fMetaAtoms[i]));
+  fMetaAtoms.Remove(aTagItem);
 end;
 
-procedure TUdtaAtom.GetAllAtoms(dest: TObjectList);
-var i: Integer;
+function TUdtaAtom.GetUnusedTextTags: TTagItemInfoDynArray;
+var
+  iKey, iRes: Integer;
+  resultArray: TTagItemInfoDynArray;
 begin
-    dest.Clear;
-    for i := 0 to self.fMetaAtoms.Count - 1 do
-        dest.Add(TMetaAtom(fMetaAtoms[i]));
+  SetLength(resultArray, Length(KnownMetaAtoms));  // max. possible length
+  iRes := 0;
+
+  for iKey := 0 to Length(KnownMetaAtoms) - 1 do begin
+    if not assigned(fSearchAtom(KnownMetaAtoms[iKey].AtomName)) then begin
+      resultArray[iRes].Key := String(KnownMetaAtoms[iKey].AtomName);
+      resultArray[iRes].Description := KnownMetaAtoms[iKey].Description;
+      resultArray[iRes].TagType := ttM4AAtom;
+      resultArray[iRes].TagContentType := tctText;
+      inc(iRes);
+    end;
+  end;
+  SetLength(resultArray, iRes); // correct length
+  result := resultArray;
 end;
 
-procedure TUdtaAtom.RemoveAtom(aAtom: TMetaAtom);
+function TUdtaAtom.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+var
+  aAtomName: TAtomName;
+  i: Integer;
 begin
-    fMetaAtoms.Remove(aAtom);
+  result := Nil;
+  if Length(aKey) <> 4 then
+    exit;
+  for i := 1 to 4 do aAtomName[i] := AnsiChar(aKey[i]);
+
+  SetTextData(aAtomName, aValue);
+  result := fSearchAtom(aAtomName);
 end;
-
-
 
 function TUdtaAtom.ParseData: TAudioError;
 var bytesProcessed, IlstProcessed, MetaProcessed: DWord;
@@ -1250,7 +1336,7 @@ begin
 
     if not metaFound then
         // there was no META-Tag: create one
-        // (we NEED an meta-aom within the data-stream)
+        // (we NEED an meta-atom within the data-stream)
         fAddDefaultMetaData;
 end;
 
@@ -1406,13 +1492,174 @@ end;
 
 { TMetaAtom }
 
+constructor TMetaAtom.Create(aName: TAtomName);
+begin
+  inherited create(aName);
+  fTagType := TTM4AAtom;
+end;
+
+function TMetaAtom.GetTagContentType: teTagContentType;
+var
+  newName: TAtomName;
+  newSize, MetaType: DWord;
+  goOn: Boolean;
+begin
+  fData.Position := 0;
+  GoOn := True;
+  MetaType := 0;
+  result := tctUndef;
+
+  // Special keys, special contentType
+
+  if key = 'gnre' then
+        result := tctGenre
+  else if (key = 'trkn') or (key = 'disk') then
+        result := tctTrackOrDiskNumber
+  else if Key = '----' then begin
+        // Special atom: Get atoms mean - name - data
+        // Note: GetNextAtomInfo will read 8 Bytes: 4 bytes "Size" + 4 Bytes "name"
+        GetNextAtomInfo(fData, newName, newSize);
+        if newName = 'mean' then // ok, skip this one
+          fData.Seek(newSize - 8, soCurrent)
+        else
+          GoOn := False;
+
+        if GoOn then begin
+          GetNextAtomInfo(fData, newName, newSize);
+          if newName = 'name' then // ok, skip this one as well
+            fData.Seek(newSize - 8, soCurrent)
+          else
+            GoOn := False;
+        end;
+
+        if GoOn then begin
+          GetNextAtomInfo(fData, newName, newSize);
+          if newName = 'data' then begin // this one is interesting. Get it's MetaType Flag
+            fData.Read(MetaType, 4);
+            MetaType := ChangeEndian32(MetaType);
+          end
+          else
+            GoOn := False;
+        end;
+        if GoOn then begin
+          case MetaType of
+            1: result := tctSpecialText;
+          else
+            result := tctSpecial;
+          end;
+        end;
+  end else begin
+        // regular meta atom. Next one should be a "data" atom, with a flag for contenttype at the beginning
+        GetNextAtomInfo(fData, newName, newSize);
+        if newName = 'data' then begin
+          fData.Read(MetaType, 4);
+          MetaType := ChangeEndian32(MetaType);
+          case MetaType of
+            1: result := tctText;
+            13, 14: result := tctPicture; // 13: jpeg, 14: png
+          else
+            result := tctBinary;
+          end;
+        end;
+  end;
+end;
+
+
+function TMetaAtom.GetText(TextMode: teTextMode = tmReasonable): UnicodeString;
+var
+  tc: teTagContentType;
+  aMean, aName: AnsiString;
+begin
+  result := '';
+  tc := TagContentType;
+  case tc of
+    tctText: result := GetTextData;
+
+    tctPicture,
+    tctBinary,
+    tctSpecial:  begin
+      if TextMode = tmForced then
+        result :=  ByteArrayToString(AsByteArray);
+    end;
+
+    tctTrackOrDiskNumber: begin
+      if TextMode in [tmReasonable, tmForced] then
+        result := GetTrackNumber;
+    end;
+
+    tctGenre: begin
+      if TextMode in [tmReasonable, tmForced] then
+        result := GetGenre;
+    end;
+
+    tctSpecialText: begin
+      if TextMode in [tmReasonable, tmForced] then begin
+        result := GetSpecialData(aMean, aName);
+      end;
+    end;
+  else
+    result := '';
+  end;
+end;
+
+function TMetaAtom.SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean;
+var
+  tc: teTagContentType;
+  aMean, aName: AnsiString;
+begin
+  result := False;
+  tc := TagContentType;
+  case tc of
+    tctText: begin
+      SetTextData(aValue);
+      result := true;
+    end;
+    tctTrackOrDiskNumber: begin
+      if TextMode in [tmReasonable, tmForced] then begin
+        if (key = 'trkn') then SetTrackNumber(aValue);
+        if (key = 'disk') then SetDiscNumber(aValue);
+        result := True;
+      end;
+    end;
+    tctSpecialText: begin
+      if TextMode in [tmReasonable, tmForced] then begin
+        GetSpecialData(aMean, aName);
+        SetSpecialData(aMean, aName, aValue);
+        result := True;
+      end;
+    end;
+    // note: tctGenre is a binary atom (= just an index value, not an actual string)
+  end;
+end;
+
+function TMetaAtom.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+var
+  m4aType: TM4APicTypes;
+begin
+  Mime := '';
+  Description := '';
+  PicType := ptOther;
+  result := GetPictureStream(Dest, m4aType);
+  if result then begin
+    case m4aType of
+      M4A_JPG: Mime := AWB_MimeJpeg;
+      M4A_PNG: Mime := AWB_MimePNG;
+      M4A_Invalid: ;
+    end;
+  end;
+end;
+
+function TMetaAtom.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := SetPictureStream(Source, MimeStringToM4APicType(Mime));
+end;
+
 function TMetaAtom.GetTextData: UnicodeString;
 var newName: TAtomName;
     newSize, MetaType: DWord;
     dataString: UTF8String;
 begin
     fData.Position := 0;
-
     GetNextAtomInfo(fData, newName, newSize);
     if newName = 'data' then
     begin
@@ -1616,7 +1863,7 @@ begin
         result := False;
 end;
 
-procedure TMetaAtom.SetPicture(Source: TStream; typ: TM4APicTypes);
+function TMetaAtom.SetPictureStream(Source: TStream; typ: TM4APicTypes): Boolean;
 var t: DWord;
 begin
     fData.Clear;
@@ -1633,6 +1880,7 @@ begin
     t := 0;
     fData.Write(t, 4);
     fData.CopyFrom(Source, 0);
+    result := True;
 end;
 
 function TMetaAtom.GetSpecialData(out aMean, aName: AnsiString): UnicodeString;
@@ -1675,7 +1923,7 @@ begin
         begin
             fData.Seek(4, soCurrent);
             setlength(dataString, newSize-16);
-            fData.Read(dataString[1], newSize - 8);
+            fData.Read(dataString[1], newSize - 16);
             result := ConvertUTF8ToString(dataString);
         end else
             result := '';
@@ -1726,15 +1974,15 @@ begin
            or (GetSpecialData(dummy1, dummy2) <> '');
 end;
 
-function TMetaAtom.GetListDescription: UnicodeString;
+function TMetaAtom.GetDescription: UnicodeString;
 var i: Integer;
     aMean, aName: AnsiString;
 begin
-    result := 'Unknown Atom ('+ self.Name+ ')'; // Dont change this!! (Used in TM4AFile.GetTextDataByDescription)
+    result := 'Unknown ('+ self.Name+ ')';
     if self.Name = '----' then
     begin
         GetSpecialData(aMean, aName);
-        result := UnicodeString(aName + '::' + aMean);  // Dont change this!! (Used in TM4AFile.GetTextDataByDescription)
+        result := UnicodeString(aName + '::' + aMean);
     end else
         if self.Name = 'trkn' then
             result := 'Track number'

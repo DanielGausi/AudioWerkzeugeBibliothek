@@ -102,6 +102,10 @@ object NewPic: TNewPic
     TabOrder = 4
   end
   object OpenPictureDialog1: TOpenPictureDialog
+    Filter = 
+      'Alle (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png|JPEG-Grafikdatei (*' +
+      '.jpg)|*.jpg|JPEG-Grafikdatei (*.jpeg)|*.jpeg|Portable Network Gr' +
+      'aphics (*.png)|*.png'
     Left = 264
     Top = 120
   end

@@ -84,7 +84,6 @@ type
     end;
 
 
-
     {
     MainClass for tagging .ogg-Files
     }
