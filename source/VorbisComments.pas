@@ -57,6 +57,7 @@ uses
   {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF} ;
 
 const
+
     VORBIS_ID = 'vorbis';
     Opus_ID = 'OpusTags';
 
@@ -80,11 +81,37 @@ const
     METADATA_BLOCK_PICTURE = 'METADATA_BLOCK_PICTURE';
     COVERART = 'COVERART'; // deprecated, not directly supported by this Library
 
-    cTextVorbisKeys: Array[0..16] of String = (
-        VORBIS_ALBUM, VORBIS_ARTIST, VORBIS_CONTACT, VORBIS_COPYRIGHT, VORBIS_DATE, VORBIS_YEAR,
-        VORBIS_DESCRIPTION, VORBIS_GENRE, VORBIS_ISRC, VORBIS_LICENSE, VORBIS_LOCATION,
-        VORBIS_ORGANIZATION, VORBIS_PERFORMER, VORBIS_TITLE, VORBIS_TRACKNUMBER, VORBIS_VERSION,
-        VORBIS_ALBUMARTIST);
+    // keys from https://age.hobba.nl/audio/mirroredpages/ogg-tagging.html
+    VORBIS_PUBLISHER = 'PUBLISHER';
+    VORBIS_DISCNUMBER = 'DISCNUMBER';
+    VORBIS_EANUPN = 'EAN/UPN';
+    VORBIS_LABEL = 'LABEL';
+    VORBIS_LABELNO = 'LABELNO';
+    VORBIS_OPUS = 'OPUS';
+    VORBIS_SOURCEMEDIA = 'SOURCEMEDIA';
+    VORBIS_ENCODEDBY = 'ENCODED-BY';
+    VORBIS_COMPOSER = 'COMPOSER'; //
+    VORBIS_ARRANGER = 'ARRANGER';
+    VORBIS_LYRICIST = 'LYRICIST';
+    VORBIS_AUTHOR = 'AUTHOR';
+    VORBIS_CONDUCTOR = 'CONDUCTOR';
+    VORBIS_ENSEMBLE = 'ENSEMBLE';
+    VORBIS_PART = 'PART';
+    VORBIS_PARTNUMBER = 'PARTNUMBER';
+    VORBIS_COMMENT = 'COMMENT';
+
+    // additional keys that I use in my Player Nemp, that seems to be used by other players as well
+    VORBIS_HARMONIC_KEY = 'INITIALKEY';
+    VORBIS_BPM = 'BPM';
+
+    cTextVorbisKeys: Array[0..35] of String = (
+        VORBIS_ALBUM, VORBIS_ALBUMARTIST, VORBIS_ARRANGER, VORBIS_ARTIST, VORBIS_AUTHOR, VORBIS_BPM,
+        VORBIS_COMMENT, VORBIS_COMPOSER, VORBIS_CONDUCTOR, VORBIS_CONTACT, VORBIS_COPYRIGHT,
+        VORBIS_DATE, VORBIS_DESCRIPTION, VORBIS_DISCNUMBER, VORBIS_EANUPN, VORBIS_ENCODEDBY,
+        VORBIS_ENSEMBLE, VORBIS_GENRE, VORBIS_HARMONIC_KEY, VORBIS_ISRC, VORBIS_LABEL, VORBIS_LABELNO,
+        VORBIS_LICENSE, VORBIS_LOCATION, VORBIS_LYRICIST, VORBIS_OPUS, VORBIS_ORGANIZATION, VORBIS_PART,
+        VORBIS_PARTNUMBER, VORBIS_PERFORMER, VORBIS_PUBLISHER, VORBIS_SOURCEMEDIA, VORBIS_TITLE,
+        VORBIS_TRACKNUMBER, VORBIS_VERSION, VORBIS_YEAR);
 
 type
 
@@ -138,6 +165,7 @@ type
         protected
           function GetKey: UnicodeString; override;
           function GetTagContentType: teTagContentType; override;
+          function GetDataSize: Integer; override;
 
         public
             property FieldName: String read fGetFieldName write fSetFieldName;  // = TTagItem.Key
@@ -217,7 +245,6 @@ type
             fValidComment: Boolean;
 
             function GetCount: Integer;
-
             function fGetCommentVectorByFieldname(aField: String): TCommentVector;
             function fGetPropertyByFieldname(aField: String): UnicodeString;
             // The following fields are listed in the official Ogg-Vorbis-Documentation
@@ -470,6 +497,11 @@ begin
     Value := UnicodeString(PicDataToBase64(Source, Mime, PicType, Description));
 end;
 
+function TCommentVector.GetDataSize: Integer;
+begin
+  result := Length(Value);
+end;
+
 function TCommentVector.ReadFromStream(Source: TStream): Boolean;
 var c, e: integer;
     rawString: Utf8String;
@@ -568,7 +600,6 @@ begin
         end;
     end;
 end;
-
 
 function TVorbisComments.fGetAlbum: UnicodeString;
 begin
@@ -1030,6 +1061,7 @@ var
 begin
   SetLength(resultArray, Length(cTextVorbisKeys));  // max. possible length
   iRes := 0;
+
   for iKey := Low(cTextVorbisKeys) to High(cTextVorbisKeys) do begin
     if not assigned(fGetCommentVectorByFieldname(cTextVorbisKeys[iKey])) then begin
       resultArray[iRes].Key := cTextVorbisKeys[iKey];
@@ -1039,6 +1071,7 @@ begin
       inc(iRes);
     end;
   end;
+
   SetLength(resultArray, iRes); // correct length
   result := resultArray;
 end;

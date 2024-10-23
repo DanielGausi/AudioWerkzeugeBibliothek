@@ -64,12 +64,49 @@ const
       'Cover Art (colored fish)', 'Cover Art (illustration)',
       'Cover Art (band logo)', 'Cover Art (publisher logo)' );
 
-    cTextApeKeys: Array[0..29] of string = (
-      'Albumartist', 'Artist', 'Title', 'Album', 'Genre', 'Track', 'Year', 'Abstract',
-      'Bibliography', 'Catalog', 'Comment', 'Composer', 'Conductor', 'Copyright', 'Debut album',
-      'EAN/UBC', 'File', 'Index', 'Introplay', 'ISBN', 'ISRC', 'Language', 'LC',
-      'Media', 'Publicationright', 'Publisher', 'Record Date', 'Record Location',
-      'Related', 'Subtitle');
+      APE_AlbumArtist     = 'Albumartist';
+      APE_Artist          = 'Artist';
+      APE_Title           = 'Title';
+      APE_Album           = 'Album';
+      APE_Genre           = 'Genre';
+      APE_Track           = 'Track';
+      APE_Year            = 'Year';
+      APE_Abstract        = 'Abstract';
+      APE_Bibliography    = 'Bibliography';
+      APE_Catalog         = 'Catalog';
+      APE_Comment         = 'Comment';
+      APE_Composer        = 'Composer';
+      APE_Conductor       = 'Conductor';
+      APE_Copyright       = 'Copyright';
+      APE_DebutAlbum      = 'Debut album';
+      APE_EANUBC          = 'EAN/UBC';
+      APE_File            = 'File';
+      APE_Index           = 'Index';
+      APE_Introplay       = 'Introplay';
+      APE_ISBN            = 'ISBN';
+      APE_ISRC            = 'ISRC';
+      APE_Language        = 'Language';
+      APE_LC              = 'LC';
+      APE_Media           = 'Media';
+      APE_PublicationRight = 'Publicationright';
+      APE_Publisher       = 'Publisher';
+      APE_RecordDate      = 'Record Date';
+      APE_RecordLocation  = 'Record Location';
+      APE_Related         = 'Related';
+      APE_Subtitle        = 'Subtitle';
+      APE_BPM             = 'BPM';
+      // additional keys that I use in my Player Nemp, that seems to be used by other players as well
+      APE_HARMONIC_KEY    = 'InitialKey';
+      APE_Discnumber      = 'DISCNUMBER';
+
+    cTextApeKeys: Array[0..32] of string = (
+      APE_Abstract, APE_Album, APE_AlbumArtist, APE_Artist, APE_Bibliography,
+      APE_BPM, APE_Catalog, APE_Comment, APE_Composer, APE_Conductor, APE_Copyright,
+      APE_DebutAlbum, APE_Discnumber, APE_EANUBC, APE_File, APE_Genre, APE_Index,
+      APE_HARMONIC_KEY, APE_Introplay, APE_ISBN, APE_ISRC, APE_Language, APE_LC,
+      APE_Media, APE_PublicationRight, APE_Publisher, APE_RecordDate,
+      APE_RecordLocation, APE_Related, APE_Subtitle, APE_Title, APE_Track,
+      APE_Year);
 
 type
     TBuffer = Array of Byte;
@@ -95,6 +132,7 @@ type
         protected
             function GetKey: UnicodeString; override;
             function GetTagContentType: teTagContentType; override;
+            function GetDataSize: Integer; override;
         public
             property ValueSize: Integer read fValueSize;
             property CompleteSize: Integer read fGetCompleteSize;
@@ -328,6 +366,14 @@ begin
     fValueSize := length(fData);
     SetTagContentType(tctBinary);
     ReadOnlyFlag := False;
+end;
+
+function TApeTagItem.GetDataSize: Integer;
+begin
+  if TagContentType in [tctBinary, tctPicture] then
+    result := Length(fData)
+  else
+    result := Length(fValue);
 end;
 
 function TApeTagItem.ReadFromStream(aStream: TStream): Boolean;

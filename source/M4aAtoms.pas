@@ -113,6 +113,7 @@ type
 
             function GetKey: UnicodeString; override;
             function GetTagContentType: teTagContentType; override;
+            function GetDataSize: Integer; override;
         public
             property Name: TAtomName read fName;
             property Size: DWord read fGetSize;
@@ -170,6 +171,7 @@ type
     end;
 
     TTrackDisc = (meta_Track, meta_Disc);
+    TBitWidth= (bw8, bw16, bw32);
 
     // TMetaATOM is one of the meta-atoms in udta.meta.ilst
     // (something like the "Frames" within the ID3v2-Tag)
@@ -187,12 +189,24 @@ type
         public
             constructor Create(aName: TAtomName); override;
 
+            // About Get/SetIntData: ** USE WITH CAUTION **
+            // I need it to process the 'tmpo' Atom (BPM, beats per minute), which seems to work fine.
+            // But there are some inconsistencies about this.
+            // The 'MetaType' is often set to 21, which should be a 1/2/3/4 Byte BigEndian SIGNED Integer.
+            // However, popular taggers like mp3Tag take that sometimes as UNSIGNED, which should be MetaType 22.
+            // In this library, I use also 21 for "unsigned" integers.
+            // - Read: MetaType 21 and 22 as Unsigned; 8, 16, 32 Bit Values
+            // - Write: MetaType 21 as Unsigned; 8, 16, 32 Bit Values by an optional Parameter (default: 16 Bit)
+            // - 24-Bit-Integers are not supported.
+
             function GetTextData: UnicodeString;
+            function GetIntData: Integer;
             function GetTrackNumber: UnicodeString;
             function GetGenre: UnicodeString;
             function GetDiscNumber: UnicodeString;
 
             procedure SetTextData(aValue: UnicodeString);
+            procedure SetIntData(aValue: Integer; aBitWidth: TBitWidth = bw16);
             procedure SetTrackNumber(aValue: UnicodeString);
             procedure SetStandardGenre(idx: Integer);
             procedure SetDiscNumber(aValue: UnicodeString);
@@ -238,6 +252,8 @@ type
             procedure SetDiscNumber(aValue: UnicodeString);
             function GetPictureStream(Dest: TStream; var typ: TM4APicTypes): Boolean;
             function SetPictureStream(Source: TStream; typ: TM4APicTypes): Boolean;
+            function GetIntData(aName: TAtomName): Integer;
+            procedure SetIntData(aName: TAtomName; aValue: Integer; aBitWidth: TBitWidth = bw16);
 
             // Spaecial data:
             // Atom with the following structure
@@ -367,6 +383,11 @@ end;
 function TBaseAtom.GetTagContentType: teTagContentType;
 begin
   result := tctUndef;
+end;
+
+function TBaseAtom.GetDataSize: Integer;
+begin
+  result := fData.Size;
 end;
 
 
@@ -984,6 +1005,18 @@ begin
         result := '';
 end;
 
+function TUdtaAtom.GetIntData(aName: TAtomName): Integer;
+var
+  aAtom: TMetaAtom;
+begin
+  aAtom := fSearchAtom(aName);
+  if assigned(aAtom) then
+    result := aAtom.GetIntData
+  else
+    result := 0;
+end;
+
+
 function TUdtaAtom.GetTrackNumber: UnicodeString;
 var aAtom: TMetaAtom;
 begin
@@ -1046,6 +1079,26 @@ begin
             aAtom.SetTextData(aValue);
         end;
     end;
+end;
+
+procedure TUdtaAtom.SetIntData(aName: TAtomName; aValue: Integer; aBitWidth: TBitWidth = bw16);
+var
+  aAtom: TMetaAtom;
+begin
+  aAtom := fSearchAtom(aName);
+  if assigned(aAtom) then begin
+    if aValue = 0 then
+      fMetaAtoms.Remove(aAtom)
+    else
+      aAtom.SetIntData(aValue, aBitWidth);
+  end
+  else begin
+    if aValue <> 0 then begin
+      aAtom := TMetaAtom.Create(aName);
+      fMetaAtoms.Add(aAtom);
+      aAtom.SetIntData(aValue, aBitWidth);
+    end;
+  end;
 end;
 
 procedure TUdtaAtom.SetTrackNumber(aValue: UnicodeString);
@@ -1213,6 +1266,7 @@ begin
       inc(iRes);
     end;
   end;
+
   SetLength(resultArray, iRes); // correct length
   result := resultArray;
 end;
@@ -1678,6 +1732,54 @@ begin
         result := '';
 end;
 
+function TMetaAtom.GetIntData: Integer;
+var
+  newName: TAtomName;
+  newSize, MetaType: DWord;
+  a8Bit: Byte;
+  a16Bit: Word;
+  a32Bit: DWord;
+begin
+  fData.Position := 0;
+  GetNextAtomInfo(fData, newName, newSize);
+  if newName = 'data' then
+  begin
+    fData.Read(MetaType, 4);
+    MetaType := ChangeEndian32(MetaType);
+
+    // 21: BE Signed Integer
+    // 22: BE Unsigned Integer
+    // however, often 21 is used for unsigned Integers as well.
+    if (MetaType = 21) or (MetaType = 22) then
+    begin
+      // newSize =
+      //    4 (Size) + 4 ('data') + 4 (Type) + 4 (locale Indicator) + x (actual value)
+      //  = 17 (8 Bit value)
+      //    18 (16 Bit Value)
+      //    20 (32 Bit Value) // I will ignore the possibility of 24 Bit Values
+      fData.Seek(4, soCurrent);
+      case newSize of
+        17: begin
+          fData.Read(a8Bit, 1);
+          result := a8Bit;
+        end;
+        18: begin
+          fData.Read(a16Bit, 2);
+          result := ChangeEndian16(a16Bit);
+        end;
+        20: begin
+          fData.Read(a32Bit, 4);
+          result := ChangeEndian32(a32Bit);
+        end
+      else
+        result := 0;
+      end;
+    end else
+      result := 0;
+  end else
+    result := 0;
+end;
+
 
 procedure TMetaAtom.WriteHeader(aSize: DWord);
 var name: TAtomName;
@@ -1704,6 +1806,66 @@ begin
     fData.Write(MetaType, 4);
     fData.Write(reserved, 4);
     fData.Write(dataString[1], length(dataString));
+end;
+
+procedure TMetaAtom.SetIntData(aValue: Integer; aBitWidth: TBitWidth = bw16);
+var
+  newSize, MetaType, reserved: DWord;
+  a8Bit: Byte;
+  a16Bit: Word;
+  a32Bit: DWord;
+
+  function BitWidthToSize(aBW: TBitWidth): Integer;
+  begin
+    case aBW of
+      bw8: result := 1;
+      bw16: result := 2;
+      bw32: result := 4;
+    else
+      result := 2;
+    end;
+  end;
+
+begin
+  newSize := 16 + BitWidthToSize(aBitWidth);
+  fData.Clear;
+  WriteHeader(newSize);
+
+  MetaType := ChangeEndian32(21);
+  reserved := 0;
+  fData.Write(MetaType, 4);
+  fData.Write(reserved, 4);
+  case aBitwidth of
+    bw8: begin
+      a8Bit := Byte(aValue);
+      fData.Write(a8Bit, 1);
+    end;
+    bw16: begin
+      a16Bit := ChangeEndian16(Word(aValue));
+      fData.Write(a16Bit, 2);
+    end;
+    bw32: begin
+      a32Bit := ChangeEndian32(DWord(aValue));
+      fData.Write(a32Bit, 4);
+    end;
+  else
+    begin
+      a16Bit := ChangeEndian16(Word(aValue));
+      fData.Write(a16Bit, 2);
+    end;
+  end;
+
+
+(*
+[size] // 4 Btes
+              ['data'] // 4 Bytes
+              [00 00 00 15] // 4 Bytes, Wert = 21 (dezimnal)
+              [00 00 00 00] // locale Indicator
+              [Eigentlicher wert]  // type=$15=21: big-endian signed int in 1,2,3 or 4 bytes
+                                    // mp3tag: signed Word, negative Werte werden aber "falsch" wieder eingelesen
+*)
+
+// todo xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 end;
 
 function TMetaAtom.GetGenre: UnicodeString;

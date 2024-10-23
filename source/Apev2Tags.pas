@@ -390,124 +390,124 @@ end;
 
 procedure TApeTag.fSetAbstract(aValue: UnicodeString);
 begin
-    SetValueByKey('Abstract', aValue);
+    SetValueByKey(APE_Abstract, aValue);
 end;
 procedure TApeTag.fSetAlbum(aValue: UnicodeString);
 begin
-    SetValueByKey('Album', aValue);
+    SetValueByKey(APE_Album, aValue);
 end;
 procedure TApeTag.fSetAlbumArtist(aValue: UnicodeString);
 begin
-  SetValueByKey('albumartist', aValue);
+  SetValueByKey(APE_albumartist, aValue);
 end;
 
 procedure TApeTag.fSetArtist(aValue: UnicodeString);
 begin
-    SetValueByKey('Artist', aValue);
+    SetValueByKey(APE_Artist, aValue);
 end;
 procedure TApeTag.fSetBibliography(aValue: UnicodeString);
 begin
-    SetValueByKey('Bibliography', aValue);
+    SetValueByKey(APE_Bibliography, aValue);
 end;
 procedure TApeTag.fSetCatalog(aValue: UnicodeString);
 begin
-    SetValueByKey('Catalog', aValue);
+    SetValueByKey(APE_Catalog, aValue);
 end;
 procedure TApeTag.fSetComment(aValue: UnicodeString);
 begin
-    SetValueByKey('Comment', aValue);
+    SetValueByKey(APE_Comment, aValue);
 end;
 procedure TApeTag.fSetComposer(aValue: UnicodeString);
 begin
-    SetValueByKey('Composer', aValue);
+    SetValueByKey(APE_Composer, aValue);
 end;
 procedure TApeTag.fSetConductor(aValue: UnicodeString);
 begin
-    SetValueByKey('Conductor', aValue);
+    SetValueByKey(APE_Conductor, aValue);
 end;
 procedure TApeTag.fSetCopyright(aValue: UnicodeString);
 begin
-    SetValueByKey('Copyright', aValue);
+    SetValueByKey(APE_Copyright, aValue);
 end;
 procedure TApeTag.fSetDebutAlbum(aValue: UnicodeString);
 begin
-    SetValueByKey('Debut album', aValue);
+    SetValueByKey(APE_DebutAlbum, aValue);
 end;
 procedure TApeTag.fSetEAN(aValue: UnicodeString);
 begin
-    SetValueByKey('EAN/UBC', aValue);
+    SetValueByKey(APE_EANUBC, aValue);
 end;
 procedure TApeTag.fSetFile(aValue: UnicodeString);
 begin
-    SetValueByKey('File', aValue);
+    SetValueByKey(APE_File, aValue);
 end;
 procedure TApeTag.fSetGenre(aValue: UnicodeString);
 begin
-    SetValueByKey('Genre', aValue);
+    SetValueByKey(APE_Genre, aValue);
 end;
 procedure TApeTag.fSetIndex(aValue: UnicodeString);
 begin
-    SetValueByKey('Index', aValue);
+    SetValueByKey(APE_Index, aValue);
 end;
 procedure TApeTag.fSetIntroplay(aValue: UnicodeString);
 begin
-    SetValueByKey('Introplay', aValue);
+    SetValueByKey(APE_Introplay, aValue);
 end;
 procedure TApeTag.fSetISBN(aValue: UnicodeString);
 begin
-   SetValueByKey('ISBN', aValue);
+   SetValueByKey(APE_ISBN, aValue);
 end;
 procedure TApeTag.fSetISRC(aValue: UnicodeString);
 begin
-    SetValueByKey('ISRC', aValue);
+    SetValueByKey(APE_ISRC, aValue);
 end;
 procedure TApeTag.fSetLanguage(aValue: UnicodeString);
 begin
-    SetValueByKey('Language', aValue);
+    SetValueByKey(APE_Language, aValue);
 end;
 procedure TApeTag.fSetLC(aValue: UnicodeString);
 begin
-    SetValueByKey('LC', aValue);
+    SetValueByKey(APE_LC, aValue);
 end;
 procedure TApeTag.fSetMedia(aValue: UnicodeString);
 begin
-    SetValueByKey('Media', aValue);
+    SetValueByKey(APE_Media, aValue);
 end;
 procedure TApeTag.fSetPublicationright(aValue: UnicodeString);
 begin
-    SetValueByKey('Publicationright', aValue);
+    SetValueByKey(APE_PublicationRight, aValue);
 end;
 procedure TApeTag.fSetPublisher(aValue: UnicodeString);
 begin
-    SetValueByKey('Publisher', aValue);
+    SetValueByKey(APE_Publisher, aValue);
 end;
 procedure TApeTag.fSetRecordDate(aValue: UnicodeString);
 begin
-    SetValueByKey('Record Date', aValue);
+    SetValueByKey(APE_RecordDate, aValue);
 end;
 procedure TApeTag.fSetRecordLocation(aValue: UnicodeString);
 begin
-    SetValueByKey('Record Location', aValue);
+    SetValueByKey(APE_RecordLocation, aValue);
 end;
 procedure TApeTag.fSetRelated(aValue: UnicodeString);
 begin
-    SetValueByKey('Related', aValue);
+    SetValueByKey(APE_Related, aValue);
 end;
 procedure TApeTag.fSetSubTitle(aValue: UnicodeString);
 begin
-    SetValueByKey('Subtitle', aValue);
+    SetValueByKey(APE_Subtitle, aValue);
 end;
 procedure TApeTag.fSetTitle(aValue: UnicodeString);
 begin
-    SetValueByKey('Title', aValue);
+    SetValueByKey(APE_Title, aValue);
 end;
 procedure TApeTag.fSetTrack(aValue: UnicodeString);
 begin
-    SetValueByKey('Track', aValue);
+    SetValueByKey(APE_Track, aValue);
 end;
 procedure TApeTag.fSetYear(aValue: UnicodeString);
 begin
-    SetValueByKey('Year', aValue);
+    SetValueByKey(APE_Year, aValue);
 end;
 
 procedure TApeTag.fSetLyrics(aValue: UnicodeString);
@@ -571,123 +571,123 @@ end;
 
 function TApeTag.fGetAbstract: UnicodeString;
 begin
-    result := GetValueByKey('Abstract');
+    result := GetValueByKey(APE_Abstract);
 end;
 function TApeTag.fGetAlbum: UnicodeString;
 begin
-    result := GetValueByKey('Album');
+    result := GetValueByKey(APE_Album);
 end;
 function TApeTag.fGetAlbumArtist: UnicodeString;
 begin
-  result := GetValueByKey('albumartist');
+  result := GetValueByKey(APE_AlbumArtist);
 end;
 function TApeTag.fGetArtist: UnicodeString;
 begin
-    result := GetValueByKey('Artist');
+    result := GetValueByKey(APE_Artist);
 end;
 function TApeTag.fGetBibliography: UnicodeString;
 begin
-    result := GetValueByKey('Bibliography');
+    result := GetValueByKey(APE_Bibliography);
 end;
 function TApeTag.fGetCatalog: UnicodeString;
 begin
-    result := GetValueByKey('Catalog');
+    result := GetValueByKey(APE_Catalog);
 end;
 function TApeTag.fGetComment: UnicodeString;
 begin
-    result := GetValueByKey('Comment');
+    result := GetValueByKey(APE_Comment);
 end;
 function TApeTag.fGetComposer: UnicodeString;
 begin
-    result := GetValueByKey('Composer');
+    result := GetValueByKey(APE_Composer);
 end;
 function TApeTag.fGetConductor: UnicodeString;
 begin
-    result := GetValueByKey('Conductor');
+    result := GetValueByKey(APE_Conductor);
 end;
 function TApeTag.fGetCopyright: UnicodeString;
 begin
-    result := GetValueByKey('Copyright');
+    result := GetValueByKey(APE_Copyright);
 end;
 function TApeTag.fGetDebutAlbum: UnicodeString;
 begin
-    result := GetValueByKey('Debut album');
+    result := GetValueByKey(APE_DebutAlbum);
 end;
 function TApeTag.fGetEAN: UnicodeString;
 begin
-    result := GetValueByKey('EAN/UPC');
+    result := GetValueByKey(APE_EANUBC);
 end;
 function TApeTag.fGetFile: UnicodeString;
 begin
-    result := GetValueByKey('File');
+    result := GetValueByKey(APE_File);
 end;
 function TApeTag.fGetGenre: UnicodeString;
 begin
-    result := GetValueByKey('Genre');
+    result := GetValueByKey(APE_Genre);
 end;
 function TApeTag.fGetIndex: UnicodeString;
 begin
-    result := GetValueByKey('Index');
+    result := GetValueByKey(APE_Index);
 end;
 function TApeTag.fGetIntroplay: UnicodeString;
 begin
-    result := GetValueByKey('Introplay');
+    result := GetValueByKey(APE_Introplay);
 end;
 function TApeTag.fGetISBN: UnicodeString;
 begin
-    result := GetValueByKey('ISBN');
+    result := GetValueByKey(APE_ISBN);
 end;
 function TApeTag.fGetISRC: UnicodeString;
 begin
-    result := GetValueByKey('ISRC');
+    result := GetValueByKey(APE_ISRC);
 end;
 function TApeTag.fGetLanguage: UnicodeString;
 begin
-    result := GetValueByKey('Language');
+    result := GetValueByKey(APE_Language);
 end;
 function TApeTag.fGetLC: UnicodeString;
 begin
-    result := GetValueByKey('LC');
+    result := GetValueByKey(APE_LC);
 end;
 function TApeTag.fGetMedia: UnicodeString;
 begin
-    result := GetValueByKey('Media');
+    result := GetValueByKey(APE_Media);
 end;
 function TApeTag.fGetPublicationright: UnicodeString;
 begin
-    result := GetValueByKey('Publicationright');
+    result := GetValueByKey(APE_Publicationright);
 end;
 function TApeTag.fGetPublisher: UnicodeString;
 begin
-    result := GetValueByKey('Publisher');
+    result := GetValueByKey(APE_Publisher);
 end;
 function TApeTag.fGetRecordDate: UnicodeString;
 begin
-    result := GetValueByKey('Record Date');
+    result := GetValueByKey(APE_RecordDate);
 end;
 function TApeTag.fGetRecordLocation: UnicodeString;
 begin
-    result := GetValueByKey('Record Location');
+    result := GetValueByKey(APE_RecordLocation);
 end;
 function TApeTag.fGetRelated: UnicodeString;
 begin
-    result := GetValueByKey('Related');
+    result := GetValueByKey(APE_Related);
 end;
 function TApeTag.fGetSubTitle: UnicodeString;
 begin
-    result := GetValueByKey('Subtitle');
+    result := GetValueByKey(APE_Subtitle);
 end;
 function TApeTag.fGetTitle: UnicodeString;
 begin
-    result := GetValueByKey('Title');
+    result := GetValueByKey(APE_Title);
 end;
 function TApeTag.fGetTrack: UnicodeString;
 begin
-    result := GetValueByKey('Track');
+    result := GetValueByKey(APE_Track);
 end;
 function TApeTag.fGetYear: UnicodeString;
 begin
-    result := GetValueByKey('Year');
+    result := GetValueByKey(APE_Year);
 end;
 
 function TApeTag.fGetLyrics: UnicodeString;
@@ -770,15 +770,17 @@ var
 begin
   SetLength(resultArray, Length(cTextApeKeys));  // max. possible length
   iRes := 0;
+
   for iKey := Low(cTextApeKeys) to High(cTextApeKeys) do begin
     if not assigned(fGetTagItemByKey(cTextApeKeys[iKey])) then begin
       resultArray[iRes].Key := cTextApeKeys[iKey];
       resultArray[iRes].Description := '';
-      resultArray[iRes].TagType := ttVorbis;
+      resultArray[iRes].TagType := ttApev2;
       resultArray[iRes].TagContentType := tctText;
       inc(iRes);
     end;
   end;
+
   SetLength(resultArray, iRes); // correct length
   result := resultArray;
 end;

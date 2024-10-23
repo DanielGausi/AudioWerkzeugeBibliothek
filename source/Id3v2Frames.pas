@@ -173,8 +173,6 @@ type
 
           procedure UnSetFlagSomeFlagsAfterDataSet;
 
-          function GetDataSize: Integer;
-
           procedure SyncStream(Source, Target: TStream; aSize: Integer);
           procedure UpdateHeader(aSize: Integer = -1); // Update the size-field in frame-header
 
@@ -193,6 +191,7 @@ type
           function GetKey: UnicodeString; override;    // = FrameID
           function GetTagContentType: teTagContentType; override;
           function GetDescription: UnicodeString; override;
+          function GetDataSize: Integer; override;
 
       public
           // property FrameType: TID3v2FrameTypes read GetFrameType;
@@ -217,7 +216,7 @@ type
           // The size of Data after a Re-Synchronisation
           // On Parsable-Frames:  GroupID and DataLength are NOT included,
           //                      otherwise included
-          property DataSize : Integer read  GetDataSize;
+          // property DataSize : Integer read  GetDataSize; // already declared in TTagItem
 
           property AlwaysWriteUnicode: Boolean read fAlwaysWriteUnicode write fAlwaysWriteUnicode;
 
@@ -359,7 +358,7 @@ const  ID3v2KnownFrames : Array[TFrameIDs] of TID3v2FrameDescriptionData =
            ( IDs: ('---', '----', 'TSOP') ; Description : 'Performer sort order'),
            ( IDs: ('---', '----', 'TSOT') ; Description : 'Title sort order'),
            ( IDs: ('---', '----', 'TSST') ; Description : 'Set subtitle'),
-           ( IDs: ('TXX', 'TXXX', 'TXXX') ; Description : 'User defined text information frame'),
+           ( IDs: ('TXX', 'TXXX', 'TXXX') ; Description : 'User defined text'),
            //----//----//----
            // URL-Frames
            ( IDs: ('WAF', 'WOAF', 'WOAF') ; Description : 'Official audio file webpage'),
@@ -375,7 +374,7 @@ const  ID3v2KnownFrames : Array[TFrameIDs] of TID3v2FrameDescriptionData =
            ( IDs: ('ULT', 'USLT', 'USLT') ; Description : 'Unsychronized lyric/text transcription'),
            ( IDs: ('COM', 'COMM', 'COMM') ; Description : 'Comments'),
            ( IDs: ('POP', 'POPM', 'POPM') ; Description : 'Popularimeter'),
-           ( IDs: ('WXX', 'WXXX', 'WXXX') ; Description : 'User defined URL link frame'),
+           ( IDs: ('WXX', 'WXXX', 'WXXX') ; Description : 'User defined URL'),
            ( IDs: ('BUF', 'RBUF', 'RBUF') ; Description : 'Recommended buffer size'),
            //----
            ( IDs: ('CNT', 'PCNT', 'PCNT') ; Description : 'Play counter'),
@@ -738,12 +737,7 @@ end;
 
 function TID3v2Frame.GetDescription: UnicodeString;
 begin
-  if TagContentType = tctUserText then begin
-    GetUserText(Result);
-    if result = '' then
-      result := GetFrameTypeDescription;
-  end else
-    result := GetFrameTypeDescription;
+  result := GetFrameTypeDescription;
 end;
 
 

@@ -65,11 +65,11 @@ uses
 type
 
     TOpusIdentification = packed record
-        ID: array [1..8] of AnsiChar;           // always "OpusHead"
-        Version: Byte;                          // Version, always 1
-        ChannelCount: Byte;                     // Number of Output Channels
+        ID: array [1..8] of AnsiChar; // always "OpusHead"
+        Version: Byte;                // Version, always 1
+        ChannelCount: Byte;           // Number of Output Channels
         PreSkip: Word;
-        InputSampleRate: Cardinal;              // Original Samplerate
+        InputSampleRate: Cardinal;    // Original Samplerate
         OutputGain: SmallInt;
         MappingFamily: Byte;
     end;
@@ -78,6 +78,14 @@ type
       private
         fOpusIdentification: TOpusIdentification;
         procedure StreamDataToRecord;
+      public
+    end;
+
+    TOpusAudioPacket = class(TOggPacket)
+      private
+        fConfiguration: Byte;
+        function GetBitrateX3: Integer;
+        procedure ParseConfiguration;
       public
 
     end;
@@ -99,6 +107,7 @@ type
     TOpusFile = class(TBaseVorbisFile)
         private
             fMaxSamples: Integer;
+            fVBR: Boolean;
 
             fUsePadding: Boolean;
             fDefaultPadding: Integer;
@@ -113,6 +122,9 @@ type
             function ReadIdentificationHeader(aContainer: TOggContainer; Target: TOpusIdentificationPacket): TAudioError;
             function ReadCommentHeader(aContainer: TOggContainer; Target: TOpusCommentPacket): TAudioError;
 
+            // DetectVBR: Read a few AudioPackets to decide CBR/VBR
+            function DetectVBR(aContainer: TOggContainer): Boolean;
+
         protected
             function GetVorbisComments: TVorbisComments; override;
             function fGetDuration   : Integer;  override;
@@ -122,6 +134,7 @@ type
 
         public
             property Samples: Integer read fMaxSamples;
+            property VBR: Boolean read fVBR;
             property UsePadding: Boolean read fUsePadding write fUsePadding;
             property DefaultPadding: Integer read fDefaultPadding write SetDefaultPadding;
             property MaxPadding: Integer read fMaxPadding write SetMaxPadding;
@@ -175,6 +188,7 @@ begin
     fSampleRate     := 0;
     fValid          := False;
     fChannels       := 0;
+    fVBR := True;
     fIdentificationHeader.Clear;
     fCommentHeader.Clear;
 end;
@@ -255,6 +269,48 @@ begin
   end;
 end;
 
+function TOpusFile.DetectVBR(aContainer: TOggContainer): Boolean;
+var
+  FirstAudioPacket, OtherAudioPacket: TOpusAudioPacket;
+  err: TAudioError;
+
+  function SameBitrate(first, other: TOpusAudioPacket): Boolean;
+  begin
+    if (first.fConfiguration = other.fConfiguration) then begin
+      result := first.Data.Size = other.Data.size;
+    end else begin
+      result := (first.GetBitrateX3 = other.GetBitrateX3) and (other.GetBitrateX3 <> High(Integer));
+    end;
+  end;
+
+begin
+  FirstAudioPacket := TOpusAudioPacket.Create;
+  OtherAudioPacket := TOpusAudioPacket.Create;
+  try
+    result := False; // well, probably not. Opus is designed to use VBR. ;-)
+
+    err := aContainer.ReadPacket(FirstAudioPacket);
+    if err = FileErr_None then
+      FirstAudioPacket.ParseConfiguration;
+
+    while (err = FileErr_None) do begin
+      OtherAudioPacket.Clear;
+      err := aContainer.ReadPacket(OtherAudioPacket);
+      if err = FileErr_None then begin
+        OtherAudioPacket.ParseConfiguration;
+        if not SameBitrate(FirstAudioPacket, OtherAudioPacket) then begin
+          result := True;
+          break;
+        end;
+      end;
+    end;
+
+  finally
+    OtherAudioPacket.Free;
+    FirstAudioPacket.Free;
+  end;
+end;
+
 function TOpusFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
     OggContainer: TOggContainer;
@@ -277,6 +333,7 @@ begin
                     // set some private variables from these headers
                     if result = FileErr_None then
                     begin
+                        fVBR := DetectVBR(OggContainer); // analyse stream for cbr/vbr
                         fSampleRate := fIdentificationHeader.fOpusIdentification.InputSamplerate;
                         fChannels   := fIdentificationHeader.fOpusIdentification.ChannelCount;
 
@@ -424,6 +481,101 @@ begin
   Data.Read(fOpusIdentification, SizeOf(fOpusIdentification));
 end;
 
+{ TOpusAudioPacket }
+
+function TOpusAudioPacket.GetBitrateX3: Integer;
+var
+  f: Integer;
+  fFrameCount: Byte;
+begin
+  {
+    From the OPUS Documentation,
+    https://datatracker.ietf.org/doc/html/rfc6716#section-3.1
+
+     0 1 2 3 4 5 6 7
+    +-+-+-+-+-+-+-+-+
+    | config  |s| c |
+    +-+-+-+-+-+-+-+-+
+
+    +----------------+-------------------+
+    | Configuration  | Frame Sizes       |  Factor to get to 3sec
+    | Number(s)      |                   |
+    +----------------+-------------------+
+    | 0...3          | 10, 20, 40, 60 ms |   300, 150, 75, 50
+    | 4...7          | 10, 20, 40, 60 ms |   300, 150, 75, 50
+    | 8...11         | 10, 20, 40, 60 ms |   300, 150, 75, 50
+    | 12...13        | 10, 20 ms         |   300, 150
+    | 14...15        | 10, 20 ms         |   300, 150,
+    | 16...19        | 2.5, 5, 10, 20 ms |  1200, 600, 300, 150
+    | 20...23        | 2.5, 5, 10, 20 ms |  1200, 600, 300, 150
+    | 24...27        | 2.5, 5, 10, 20 ms |  1200, 600, 300, 150
+    | 28...31        | 2.5, 5, 10, 20 ms |  1200, 600, 300, 150
+    +----------------+-------------------+
+
+    Value of s (doesn't matter here)
+      0: mono
+      1: sterao
+
+    Value of c
+      0: 1 frame in the packet
+      1: 2 frames in the packet, each with equal compressed size
+      2: 2 frames in the packet, with different compressed sizes
+      3: an arbitrary number of frames in the packet
+  }
+  case (fConfiguration shr 3) of
+    // 2.5ms
+    16,20,24,28: f := 1200;
+    // 5ms
+    17,21,25,29: f := 600;
+    // 10ms
+    0,4,8,
+    12,14,
+    18,22,26,30: f := 300; // 10ms * 300 = 3000
+    // 20ms
+    1,5,9,
+    13,15,
+    19,23,27,31: f := 150;
+    // 40ms
+    2,6,10: f := 75;
+    // 60ms
+    3,7,11: f := 50
+  else
+    f := 0; // invalid
+  end;
+
+  // Note: we are not actually calculating the Bitrate in every case.
+  // If the result from here is "High(Integer)", we consider the file as "VBR"
+
+  case (fConfiguration and 3) of // last 2 bits
+    0: result := Data.Size * 8 * f; // 1 Frame in the Packet
+    1: result := Data.Size * 4 * f; // 2 Frames in the Packet, same Compressed Sizes
+    2: result := High(Integer);     // 2 Frames, different Compresse Sizes (we assume, that they're really different)
+    3: begin
+        // multiple Frames
+        // | config  |s|1|1|v|p|     M     |  Padding length (Optional)
+        Data.Position := 1;
+        Data.Read(fFrameCount, SizeOf(fFrameCount));
+        if ((fFrameCount shr 7) and 1) = 1 then // the first bit indicates VBR
+          result := High(Integer)
+        else begin
+          fFrameCount := fFrameCount and $3F; // actual FrameCount in the last 6 Bits
+          if fFrameCount <> 0 then
+            result := (Data.Size * 8 * f) Div fFrameCount
+          else
+            result := High(Integer);
+        end;
+    end;
+  else
+    result := High(Integer);
+  end;
+end;
+
+procedure TOpusAudioPacket.ParseConfiguration;
+begin
+  Data.Position := 0;
+  Data.Read(fConfiguration, SizeOf(fConfiguration));
+end;
+
 { TVorbisCommentPacket }
 
 procedure TOpusCommentPacket.Clear;
@@ -450,5 +602,6 @@ begin
   Data.Position := 0;
   fComments.ReadFromStream(Data, Data.Size);
 end;
+
 
 end.

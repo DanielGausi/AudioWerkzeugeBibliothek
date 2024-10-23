@@ -176,12 +176,12 @@ type
 
 
       function GetAbsolutePosition: Int64;
-      function GetSerial: Integer;
+      function GetSerial: Cardinal;
       function GetPageNumber: Integer;
       function GetChecksum: Cardinal;
       function GetSegmentCount: Byte;
 
-      procedure SetSerial(Value: Integer);
+      procedure SetSerial(Value: Cardinal);
       procedure SetPageNumber(Value: Integer);
       procedure SetSegmentCount(Value: Byte);
 
@@ -197,7 +197,7 @@ type
       property IsLastPage: Boolean read GetIsLastPage write SetIsLastPage;
 
       property AbsolutePosition: Int64 read  GetAbsolutePosition;
-      property Serial: Integer         read  GetSerial write SetSerial;
+      property Serial: Cardinal        read  GetSerial write SetSerial;
       property PageNumber: Integer     read  GetPageNumber write SetPageNumber;
       property Checksum: Cardinal      read  GetChecksum;
       property SegmentCount: Byte      read  GetSegmentCount write SetSegmentCount;
@@ -211,7 +211,7 @@ type
       destructor Destroy; override;
       procedure Clear;
       procedure ClearHeader; overload;
-      procedure ClearHeader(aSerial, aPageNumber: Integer); overload;
+      procedure ClearHeader(aSerial: Cardinal; aPageNumber: Integer); overload;
       procedure Assign(Value: TOggPage);
 
       function CalculateChecksum: Cardinal;
@@ -230,22 +230,23 @@ type
     private
       fPhysicalStream: TStream;
       fCurrentPage: TOggPage;
-      fMainSerial: Integer;
+      fMainSerial: Cardinal;
 
       procedure DoReplacePacket(Source: TOggPacket; Target: TOggPage);
 
     public
       property CurrentPage: TOggPage read fCurrentPage;
-      property MainSerial: Integer read fMainSerial write fMainSerial;
+      property MainSerial: Cardinal read fMainSerial write fMainSerial;
 
       constructor Create(aStream: TStream); overload;
       constructor Create(aFilename: String); overload;
       destructor Destroy; override;
 
       procedure Reset;
-      function KeepSerial: Integer;
+      function KeepSerial: Cardinal;
 
       function ReadPacket(Target: TOggPacket; PageBuffer: TOggPage = Nil): TAudioError;
+      function ReadPackets(Target: TObjectList): TAudioError;
       function ReadPage(Target: TOggPage): TAudioError;
       function ReadPages(Target: TObjectList): TAudioError;
       function GetMaxGranulePosition(StartPos: Int64 = -1): Int64;
@@ -288,8 +289,6 @@ begin
   fFinished := False;
 end;
 
-
-
 destructor TOggPage.Destroy;
 begin
   fData.Free;
@@ -315,7 +314,7 @@ begin
   ClearHeader(0, 0);
 end;
 
-procedure TOggPage.ClearHeader(aSerial, aPageNumber: Integer);
+procedure TOggPage.ClearHeader(aSerial: Cardinal; aPageNumber: Integer);
 begin
   fHeader.ID := 'OggS';
   fHeader.StreamVersion := 0;
@@ -371,7 +370,7 @@ end;
 
 function TOggPage.AllDataProcessed: Boolean;
 begin
-  result := (fCurrentLacingIndex >= length(fLacingValues) - 1);
+  result := (fCurrentLacingIndex >= length(fLacingValues) );
 end;
 
 
@@ -455,12 +454,12 @@ begin
   result := fHeader.Segments;
 end;
 
-function TOggPage.GetSerial: Integer;
+function TOggPage.GetSerial: Cardinal;
 begin
   result := fHeader.Serial;
 end;
 
-procedure TOggPage.SetSerial(Value: Integer);
+procedure TOggPage.SetSerial(Value: Cardinal);
 begin
   fHeader.Serial := Value;
 end;
@@ -590,7 +589,7 @@ begin
   fCurrentPage.HasContinuedPacket := False;
 end;
 
-function TOggContainer.KeepSerial: Integer;
+function TOggContainer.KeepSerial: Cardinal;
 begin
   fMainSerial := fCurrentPage.Serial;
   result := fMainSerial;
@@ -647,7 +646,6 @@ begin
   SetStreamEnd(fPhysicalStream);
 end;
 
-
 function TOggContainer.ReadPacket(Target: TOggPacket; PageBuffer: TOggPage = Nil): TAudioError;
 begin
   result := FileErr_None;
@@ -685,7 +683,48 @@ begin
 
     Target.fEndPage := PageBuffer.PageNumber;
     Target.fFinishesPage := PageBuffer.AllDataProcessed;
+  end else
+  begin
+      result := result;
   end;
+end;
+
+function TOggContainer.ReadPackets(Target: TObjectList): TAudioError;
+var
+  LastError: TAudioError;
+  newPacket: TOggPacket;
+
+  function CreateNewPacket: TOggPacket;
+  begin
+    result := TOggPacket.Create;
+    try
+      LastError := ReadPacket(result);
+      // Packets are usually rather small. FData is a MemoryStream, which has a default Capacity of 8k
+      // This is a huge overload, and can lead to OutOfMemory Exceptions on larger files with many packets
+      // Therefore: The Data is complete here, set the size (and the capacity!) to its current size.
+      result.fData.SetSize(result.fData.Size);
+    except
+      FreeAndNil(result);
+    end;
+  end;
+
+begin
+  Target.Clear;
+  LastError := FileErr_None;
+
+  newPacket := CreateNewPacket;
+  if LastError = FileErr_None then
+    Target.Add(newPacket);
+
+  while assigned(newPacket)
+        and not (newPacket.FinishesPage and CurrentPage.IsLastPage)
+        and (LastError = FileErr_None)
+  do begin
+    newPacket := CreateNewPacket;
+    if LastError = FileErr_None then
+      Target.Add(newPacket);
+  end;
+  result := LastError;
 end;
 
 function TOggContainer.ReadPage(Target: TOggPage): TAudioError;

@@ -52,7 +52,7 @@ unit DummyFiles;
 
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations;
+uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 
 type
@@ -68,6 +68,7 @@ type
             procedure fSetTrack           (aValue: UnicodeString); override;
             procedure fSetGenre           (aValue: UnicodeString); override;
             procedure fSetAlbumArtist (value: UnicodeString); override;
+            procedure fSetLyrics          (aValue: UnicodeString); override;
 
             function fGetTitle            : UnicodeString; override;
             function fGetArtist           : UnicodeString; override;
@@ -78,6 +79,7 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
             function fGetAlbumArtist : UnicodeString; override;
+            function fGetLyrics           : UnicodeString;  override;
 
         public
             { Public declarations }
@@ -85,9 +87,20 @@ type
             function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
+            // dummy methods
+            procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
+            procedure DeleteTagItem(aTagItem: TTagItem); override;
+            function GetUnusedTextTags: TTagItemInfoDynArray; override;
+            function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
+            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
         end;
 
 implementation
+
+function TDummyFile.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
+begin
+  result := Nil;
+end;
 
 constructor TDummyFile.Create;
 begin
@@ -141,6 +154,12 @@ begin
   // nothing. This Unit is read-Only
 end;
 
+procedure TDummyFile.fSetLyrics(aValue: UnicodeString);
+begin
+  inherited;
+  // nothing. This Unit is read-Only
+end;
+
 procedure TDummyFile.fSetTitle(aValue: UnicodeString);
 begin
   inherited;
@@ -159,7 +178,25 @@ begin
   // nothing. This Unit is read-Only
 end;
 
+procedure TDummyFile.GetTagList(Dest: TTagItemList;
+  ContentTypes: TTagContentTypes);
+begin
+  inherited;
+  // nothing. This Unit is read-Only
+end;
+
+function TDummyFile.GetUnusedTextTags: TTagItemInfoDynArray;
+begin
+  SetLength(result, 0);
+end;
+
 { --------------------------------------------------------------------------- }
+
+procedure TDummyFile.DeleteTagItem(aTagItem: TTagItem);
+begin
+  inherited;
+  // nothing. This Unit is read-Only
+end;
 
 function TDummyFile.fGetAlbum: UnicodeString;
 begin
@@ -179,6 +216,11 @@ end;
 function TDummyFile.fGetGenre: UnicodeString;
 begin
     result := '';
+end;
+
+function TDummyFile.fGetLyrics: UnicodeString;
+begin
+  result := '';
 end;
 
 function TDummyFile.fGetTitle: UnicodeString;
@@ -228,6 +270,12 @@ function TDummyFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited RemoveFromFile(aFilename);
     result := FileErr_NotSupportedFileType;
+end;
+
+function TDummyFile.SetPicture(Source: TStream; Mime: AnsiString;
+  PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := false;
 end;
 
 function TDummyFile.WriteToFile(aFilename: UnicodeString): TAudioError;

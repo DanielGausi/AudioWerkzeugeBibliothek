@@ -2266,8 +2266,15 @@ var
 begin
   SetLength(resultArray, Length(ID3v2KnownFrames));  // max. possible length
   iRes := 0;
+
+  // regular text frames
   for iID := IDv2_ARTIST to IDv2_SETSUBTITLE do
     AddUnusedValidTag(iID, tctText);
+  // regular URLs
+  for iID := IDv2_AUDIOFILEURL to IDv2_PAYMENTURL do
+    AddUnusedValidTag(iID, tctURL);
+  // Comment
+  AddUnusedValidTag(IDv2_COMMENT, tctComment);
 
   SetLength(resultArray, iRes); // correct length
   result := resultArray;
@@ -2278,6 +2285,12 @@ var
   iID, aFrameID: TFrameIDs;
   id3v2Key: AnsiString;
   idx: Integer;
+
+const
+  reasonableTextFrames: Array[0..9] of TFrameIDs = (
+    IDv2_AUDIOFILEURL, IDv2_ARTISTURL, IDv2_AUDIOSOURCEURL, IDv2_COMMERCIALURL, IDv2_COPYRIGHTURL,
+    IDv2_PUBLISHERSURL, IDv2_RADIOSTATIONURL, IDv2_PAYMENTURL,
+    IDv2_LYRICS, IDv2_COMMENT);
 begin
   result := Nil;
 
@@ -2291,6 +2304,16 @@ begin
       break;
     end;
   end;
+
+  if aFrameID = IDv2_UNKNOWN then begin
+    for idx := Low(reasonableTextFrames) to High(reasonableTextFrames) do begin
+      if GetFrameIDString(reasonableTextFrames[idx]) = id3v2Key then begin
+        aFrameID := reasonableTextFrames[idx];
+        break;
+      end;
+    end;
+  end;
+
   if aFrameID <> IDv2_UNKNOWN then begin
     // we have a valid key => set the Value
     idx := GetFrameIndex(aFrameID);

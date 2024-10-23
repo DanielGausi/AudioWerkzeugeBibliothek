@@ -143,10 +143,10 @@ type
             // These methods are designed to add new text tag items easily.
             // - GetUnusedTextTags can be used to create a list of “permitted” standard text tag items that are
             //   not yet existing in the file.
+            function GetUnusedTextTags: TTagItemInfoDynArray; virtual; abstract;
             // - AddTextTagItem creates a new text tag item selected from this list.
             // You may use other (tag specific) methods to allow the end user to add more tag items than
             // returned by GetUnusedTextTags
-            function GetUnusedTextTags: TTagItemInfoDynArray; virtual; abstract;
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; virtual; abstract;
 
             // Abstract methods to get/set picture data from the meta tag of the file.

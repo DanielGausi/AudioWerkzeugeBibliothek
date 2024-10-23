@@ -1,4 +1,4 @@
-# AudioWerkzeugeBibliothek (v3.0)
+# AudioWerkzeugeBibliothek (v3.1)
 
 A Delphi library for audio files. 
 
@@ -21,6 +21,32 @@ Limitations:
 
 * new: Support for Opus-Files
 * new: Support for Cover Art in Vorbis Comments
+* Extensive refactoring (see below).
+
+### New in version 3.1
+
++ Property `TTagItem.DataSize`.
+
++ Added URL frames and Comment to `TID3v2Tag.GetUnusedTextTags`.
+
++ Method `TOggContainer.ReadPackets(Target: TObjectList)` to get all packets from the OggStream. 
+
++ Property `TOpusFile.VBR` *(which should be `True` in almost every case)**
+
++ Methods to read/write Integer atoms in m4a Files. 
+  *Note: Use with caution. I need this in my main project "Nemp" for the "tmpo" atom (aka BPM, Beats Per Minute), but this is not widely tested for other atoms. The documentation there is not very helpful, and there are some inconsistencies regarding Signed/Unsigned Integers and the size of the values (8, 16, 24, 32 Bit).*
+
+### Bug fixes in 3.1
+
+* TagType in `TApeTag.GetUnusedTextTags` was `ttVorbis`, correct is `ttApev2`.
+
+* Getter and Setter for `TApeTag.EAN` used different keys.
+
+* Fixed the clutter with Cardinal/Integer type for SerialNumber in OggPages.
+
+* Flac files: deleted deprecated function fIsValid
+
+* Fixed a parsing error regarding OggPages and OggPackets (which had actually no effect on Ogg/Opus files, but on the new method ReadPackets).
 
 ## Important note for upgrading from version 2.0
 

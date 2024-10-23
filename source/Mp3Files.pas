@@ -187,10 +187,13 @@ type
             procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
             procedure DeleteTagItem(aTagItem: TTagItem); override;
 
-            // - GetUnusedTextTags will return only *strict* text tag items
-            //   No Comments, no lyrics, no URLs, no User-Text
-            //   Also, only the ID3v2-Tag is considered, even if an APEv2-Tag exists.
-            // - AddTextTagItem will also only accept strict text tag items.
+            // - GetUnusedTextTags will return only unused Tags from the ID3v2Tag
+            //   The APEv2Tag is ignored here
+            // - AddTextTagItem will accept
+            //   - strict text tag items (no user text TXXX)
+            //   - URL frames (no user URL WXXX)
+            //   - Comments
+            //   - Lyrics
             //   Use id3v2Tag.AddFrame() when you want to add other tag items
             function GetUnusedTextTags: TTagItemInfoDynArray; override;
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;

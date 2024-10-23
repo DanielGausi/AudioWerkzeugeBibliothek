@@ -81,9 +81,10 @@ type
       teTagType
       Used by TTagItem (see below) to identify the type of a TagItem without using class-information
     }
-    teTagType = (ttUndef, ttID3v2, ttVorbis, ttFlacMetaBlock, ttApev2, ttM4AAtom);
+    teTagType = (ttID3v2, ttVorbis, ttFlacMetaBlock, ttApev2, ttM4AAtom, ttUndef);
+    TTagTypes = set of teTagType;
 const
-    cTagTypes: Array[teTagType] of String = ('Undef', 'ID3v2', 'Vorbis', 'FlacMetaBlock', 'Apev2', 'M4AAtom');
+    cTagTypes: Array[teTagType] of String = ('ID3v2', 'Vorbis', 'FlacMetaBlock', 'Apev2', 'M4AAtom', 'Undef');
 
 type
     {
@@ -158,12 +159,14 @@ type
         function GetKey: UnicodeString; virtual; abstract;
         function GetTagContentType: teTagContentType; virtual; abstract;
         function GetDescription: UnicodeString; virtual;
+        function GetDataSize: Integer; virtual; abstract;
 
       public
         property TagType: teTagType read fTagType;  // ID3v2, VorbisComment, ...
         property Key: UnicodeString read GetKey;    // TALB, ARTIST, ...
         property Description: UnicodeString read GetDescription;
         property TagContentType: teTagContentType read GetTagContentType;
+        property DataSize: Integer read GetDataSize;
 
         function MatchContentType(ContentTypes: TTagContentTypes): Boolean; virtual;
         function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; virtual; abstract;
@@ -200,7 +203,6 @@ type
 
     TTagItemInfoDynArray = Array of TTagItemInfo;
 
-
     function ByteArrayToString(const A: array of Byte): string;
 
 
@@ -211,9 +213,8 @@ var
   i: Integer;
 begin
   SetLength(Result, Length(A));
-  for i := Low(A) to High(A) do
-  begin
-    if (A[i] < 32) or (A[i] = 127) then
+  for i := Low(A) to High(A) do begin
+    if (A[i] < 32) or ((A[i] >= 127) and (A[i] <= 159)) then
       Result[i + 1] := '.'
     else
       Result[i + 1] := Chr(A[i]);

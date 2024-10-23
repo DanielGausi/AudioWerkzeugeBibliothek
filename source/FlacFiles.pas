@@ -92,6 +92,7 @@ type
         protected
             function GetKey: UnicodeString; override;
             function GetTagContentType: teTagContentType; override;
+            function GetDataSize: Integer; override;
 
         public
             property BlockType: Byte read fGetBlockType write fSetBlockType;
@@ -173,20 +174,15 @@ type
     TFlacFile = class(TBaseVorbisFile)
         private
             fHeader: TFlacHeader;
-
             fBitsPerSample: Byte;
             fSamples      : Int64;
-
             fUsePadding   : Boolean;
             fAudioOffset  : Integer; // the position in the file where the Audiodata begins
             fFlacOffset   : Integer; // the beginning of the flac file (> 0 if id3tag is present)
-
             fMetaBlocks: TObjectList;
             fFlacCommentsBlock: TFlacCommentsBlock;
 
             procedure ClearData;
-            function fIsValid: Boolean;
-
             function fGetArbitraryPictureBlock: TFlacPictureBlock;
             function PrepareDataToWrite(tmpFlacFile: TFlacFile; BufferStream: TStream; aFilename: String): TAudioError;
             function BackupAudioData(source: TStream; BackUpFilename: UnicodeString): TAudioError;
@@ -198,6 +194,7 @@ type
             function fGetFileType: TAudioFileType; override;
             function fGetFileTypeDescription : String; override;
             function fGetDuration: Integer; override;
+            function fGetValid: Boolean; override;
 
         public
             property UsePadding: Boolean read fUsePadding write fUsePadding;
@@ -357,6 +354,11 @@ begin
     fHeader[2] := aSourceHeader[2];
     fHeader[3] := aSourceHeader[3];
     fHeader[4] := aSourceHeader[4];
+end;
+
+function TFlacMetaBlock.GetDataSize: Integer;
+begin
+  result := Length(fData);
 end;
 
 function TFlacMetaBlock.ReadFromStream(aSourceHeader: TMetaDataBlockHeader; Source: TStream): Boolean;
@@ -767,7 +769,7 @@ begin
   result := fFlacCommentsBlock.Comments;
 end;
 
-function TFlacFile.fIsValid: Boolean;
+function TFlacFile.fGetValid: Boolean;
 begin
     result := (fHeader.StreamMarker = FLAC_MARKER)
             and (fChannels > 0)
@@ -778,7 +780,7 @@ end;
 
 function TFlacFile.fGetDuration: Integer;
 begin
-    if (fIsValid) and (fSampleRate > 0) then
+    if (Valid) and (fSampleRate > 0) then
         result := Round(fSamples / fSampleRate)
     else
        result := 0;
@@ -876,7 +878,7 @@ begin
             try
                 result := ReadFromStream(fs);
             finally
-                if fIsValid then
+                if Valid then
                 begin
                     fBitrate := Round((( fFileSize - fAudioOffset )) * 8 / fGetDuration);
                 end
