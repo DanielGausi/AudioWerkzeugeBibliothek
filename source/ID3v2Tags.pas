@@ -352,14 +352,6 @@ type
   end;
 //--------------------------------------------------------------------
 
-
-{.$Message Hint 'You should change the default rating description for your projects'}
-var
-  DefaultRatingDescription: AnsiString = 'Mp3ileUtils, www.gausi.de';
-  // Changig this should be done e.g. in MainFormCreate or in the initialization-part
-  // It should be like "<Name of the program>, <URL to your webpage>"
-
-
 // Some useful functions.
 // Use them e.g. in OnChange of a TEdit
 function IsValidV2TrackString(value:string):boolean;

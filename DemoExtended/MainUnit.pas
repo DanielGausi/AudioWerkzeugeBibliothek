@@ -428,8 +428,11 @@ var
 begin
   stream := TMemoryStream.Create;
   try
-    if TTagItem(cbPictures.Items.Objects[cbPictures.ItemIndex]).GetPicture(stream, Mime, PicType, Description) then
-      StreamToBitmap(stream, Image1.Picture.Bitmap)
+    if TTagItem(cbPictures.Items.Objects[cbPictures.ItemIndex]).GetPicture(stream, Mime, PicType, Description) then begin
+      //StreamToBitmap(stream, Image1.Picture.Bitmap)
+      Stream.Position := 0;
+      Image1.Picture.LoadFromStream(Stream);
+    end
     else
       Image1.Picture.Assign(Nil);
   finally

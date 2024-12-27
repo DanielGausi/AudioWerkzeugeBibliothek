@@ -417,6 +417,14 @@ const  ID3v2KnownFrames : Array[TFrameIDs] of TID3v2FrameDescriptionData =
 
 function UnSyncStream(Source, Target: TStream): Boolean;
 
+
+{.$Message Hint 'You should change the default rating description for your projects'}
+var
+  DefaultRatingDescription: AnsiString = 'Mp3ileUtils';
+  // Changig this should be done e.g. in MainFormCreate or in the initialization-part
+  // It should be like "<Name of the program>, <URL to your webpage>"
+
+
 implementation
 
 function ByteToTextEncoding(Value: Byte): TTextEncoding;
@@ -429,6 +437,14 @@ begin
   else
     result := TE_Ansi;
   end;
+end;
+
+function NonEmptRatingDescription(aCandidate: AnsiString): AnsiString;
+begin
+  if aCandidate <> '' then
+    result := aCandidate
+  else
+    result := DefaultRatingDescription;
 end;
 
 // Delete Syncs from the Stream.
@@ -1483,33 +1499,25 @@ begin
     // 1 Byte Encoding
     // <..> 00 (00) Description (enc)
     // <..> Value (ansii)
-    if fParsable and (TagContentType = tctUserURL) then
-    begin
-        if length(fData) < 2 then
-        begin
-            Description := '';
-            result := '';
-            exit;
-        end;
 
+    Description := '';
+    result := '';
+    if fParsable and (TagContentType = tctUserURL) and (length(fData) >= 2) then
+    begin
         // get TextEncoding (for description)
         enc := ByteToTextEncoding(fData[0]);
         //get description
         i := 1;
         Description := GetNullTerminatedString(enc, i);
-
         setlength(result, length(fData) - i);
-        move(fData[i], result[1], length(result));
+        if length(result) > 0 then
+            move(fData[i], result[1], length(result));
         {$IFDEF UNICODE}
             // use explicit typecasts
             result := AnsiString(trim(String(result)));
         {$ELSE}
             result := trim(result);
         {$ENDIF}
-    end else
-    begin
-        Description := '';
-        result := '';
     end;
 end;
 
@@ -1674,7 +1682,6 @@ begin
         exit;
 
     UseUnicode :=  IsUnicodeNeeded(Description);
-
     case fVersion of
         FV_2: begin
             // adjust mime-type for subversion 2.2
@@ -1700,6 +1707,8 @@ begin
         end
         else
         begin
+            if Mime = '' then
+              Mime := AWB_MimeJpeg;
             // subversion 2.3 or 2.4
             if UseUnicode then
             begin
@@ -1733,28 +1742,27 @@ end;
 
 
 function TID3v2Frame.GetRating(out UserEMail: AnsiString): Byte;
-var i: Integer;
+var
+  i: Integer;
 begin
-    if fParsable and (TagContentType = tctPopularimeter) then
-    begin
-        i := 0;
-        result := 0; // undef.
+  UserEMail := '';
+  result := 0; // undef.
 
-        //get length of user-mail
-        While (i < length(fData)) and (fData[i] <> 0) do
-            inc(i);
-        // get user-mail
-        Setlength(UserEMail, i);
-        Move(fData[0], UserEMail[1], i);
-        inc(i);   // termination byte
-        // get rating
-        if i < length(fData) then
-            result := fData[i];
-    end else
-    begin
-        result := 0;
-        UserEMail := '';
+  if fParsable and (TagContentType = tctPopularimeter) then begin
+    i := 0;
+    //get length of user-mail
+    While (i < length(fData)) and (fData[i] <> 0) do
+      inc(i);
+    // get user-mail
+    if i > 0 then begin
+      Setlength(UserEMail, i);
+      Move(fData[0], UserEMail[1], i);
     end;
+    inc(i); // termination byte
+    // get rating
+    if i < length(fData) then
+      result := fData[i];
+  end;
 end;
 
 function TID3v2Frame.SetRating(UserEMail: AnsiString; Value: Byte): Boolean;
@@ -1768,13 +1776,14 @@ begin
 
     // Check for an PlayCounter after the rating, backup it, write it
     BackUpCounter := GetPersonalPlayCounter(tmpmail);
+    if UserEMail = '' then
+      UserEMail := NonEmptRatingDescription(tmpmail);
 
     // Set length of Data. If a Counter is present, we need 4 additional bytes.
     if BackUpCounter = 0 then
         Setlength(fData, length(UserEMail) + 2)
     else
         Setlength(fData, length(UserEMail) + 2 + 4);
-
     move(UserEMail[1], fData[0], length(UserEMail));
     fData[length(UserEMail)] := 0;
     fData[length(UserEMail) + 1] := Value;
@@ -1799,6 +1808,8 @@ end;
 function TID3v2Frame.GetPersonalPlayCounter(out UserEMail: AnsiString): Cardinal;
 var i: Integer;
 begin
+    result := 0;
+    UserEMail := '';
     if fParsable and (TagContentType = tctPopularimeter) then
     begin
         i := 0;
@@ -1806,8 +1817,10 @@ begin
         while (i < length(fData)) and (fData[i] <> 0) do
             inc(i);
         // get user-mail
-        Setlength(UserEMail, i);
-        Move(fData[0], UserEMail[1], i);
+        if i > 0 then begin
+          Setlength(UserEMail, i);
+          Move(fData[0], UserEMail[1], i);
+        end;
         inc(i);   // termination byte
         inc(i);   // Rating byte
         if i < length(fData) then
@@ -1836,15 +1849,7 @@ begin
                     result := 0; // ... and NOT to high(Cardinal);
                 end;
             end;
-        end else
-        begin
-            // No Counter-Information in the Rating-Frame
-            result := 0;
         end;
-    end else
-    begin
-        result := 0;
-        UserEMail := '';
     end;
 end;
 
@@ -1859,12 +1864,14 @@ begin
 
     // Read the rating, backup it
     BackUpRating := GetRating(tmpmail);
+    if UserEMail = '' then
+      UserEMail := NonEmptRatingDescription(tmpmail);
+
     // if Value = 0, the write no Counting-information into the frame
     if Value = 0 then
         Setlength(fData, length(UserEMail) + 2)
     else
         Setlength(fData, length(UserEMail) + 2 + 4);
-
     move(UserEMail[1], fData[0], length(UserEMail));
     fData[length(UserEMail)] := 0;
     fData[length(UserEMail) + 1] := BackUpRating;
@@ -1890,6 +1897,7 @@ function TID3v2Frame.GetPrivateFrame(out OwnerID: AnsiString;
   Data: TStream): Boolean;
 var i: Integer;
 begin
+    result := false;
     if fParsable and (TagContentType = tctPrivate) then
     begin
         i := 0;
@@ -1905,8 +1913,7 @@ begin
             Data.Write(fData[i], length(fData) - i)
         else
             result := False;
-    end else
-        result := False;
+    end;
 end;
 
 function TID3v2Frame.SetPrivateFrame(aOwnerID: AnsiString; Data: TStream): Boolean;
@@ -1914,7 +1921,8 @@ begin
     result := (TagContentType = tctPrivate);
     if not result  then
         exit;
-
+    if aOwnerID = '' then
+      aOwnerID := 'Mp3ileUtils';
     SetLength(fData, Length(aOwnerID) + 1 + Data.Size);
     Move(aOwnerID[1], fData[0], length(aOwnerID)); // write OwnerID to fData
     fData[length(aOwnerID)] := 0;                  // Termination Byte
