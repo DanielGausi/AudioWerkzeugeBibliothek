@@ -48,6 +48,10 @@ Limitations:
 
 * Fixed a parsing error regarding OggPages and OggPackets (which had actually no effect on Ogg/Opus files, but on the new method ReadPackets).
 
+### Bug fixes and changes in 3.1.1
+
+* Fixed some possible Range Exceptions in "Rating" and "Private" ID3v2-Frames
+
 ## Important note for upgrading from version 2.0
 
 The library AudioWerkzeugeBibliothek originated from several format-specific libraries for mp3, flag, ogg and others. Because of that, there were a lot burden of the past contained in the code. Some duplicates, no consistency in parameter order, type or naming, and some other inconveniences.
