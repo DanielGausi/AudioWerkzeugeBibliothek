@@ -158,13 +158,14 @@ type
 
         function GetKey: UnicodeString; virtual; abstract;
         function GetTagContentType: teTagContentType; virtual; abstract;
-        function GetDescription: UnicodeString; virtual;
+        function GetReadableKey: UnicodeString; virtual;
         function GetDataSize: Integer; virtual; abstract;
 
       public
         property TagType: teTagType read fTagType;  // ID3v2, VorbisComment, ...
         property Key: UnicodeString read GetKey;    // TALB, ARTIST, ...
-        property Description: UnicodeString read GetDescription;
+        //property Description: UnicodeString read GetDescription;
+        property ReadableKey: UnicodeString read GetReadableKey;
         property TagContentType: teTagContentType read GetTagContentType;
         property DataSize: Integer read GetDataSize;
 
@@ -172,8 +173,8 @@ type
         function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; virtual; abstract;
         function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; virtual; abstract;
 
-        function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; virtual; abstract;
-        function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; virtual; abstract;
+        function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; virtual; abstract;
+        function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; virtual; abstract;
     end;
 
     {$IFDEF USE_GENERICS}
@@ -204,6 +205,11 @@ type
     TTagItemInfoDynArray = Array of TTagItemInfo;
 
     function ByteArrayToString(const A: array of Byte): string;
+    function SwapCardinal(value: Cardinal): Cardinal; inline;
+    function ReadBigEndianCardinal(source: TStream): Cardinal;
+    procedure WriteBigEndianCardinal(Destination: TStream; value: Cardinal);
+
+    function ValidateLength(aStream: TStream; aValue: Integer): Boolean;
 
 
 implementation
@@ -221,6 +227,38 @@ begin
   end;
 end;
 
+function SwapCardinal(value: Cardinal): Cardinal; inline;
+begin
+  Result := (value shl 24)
+    or ((value shl 8) and $00FF0000)
+    or ((value shr 8) and $0000FF00)
+    or (value shr 24);
+end;
+
+// In FlacFiles, all Integers (except in the Comments) are stored BigEndian
+// We need to convert them to LittleEndian
+function ReadBigEndianCardinal(source: TStream): Cardinal;
+begin
+    Source.Read(result, SizeOf(result));
+    result := SwapCardinal(result);
+end;
+
+procedure WriteBigEndianCardinal(Destination: TStream; value: Cardinal);
+begin
+    value := SwapCardinal(value);
+    Destination.Write(value, sizeOf(value));
+end;
+
+function ValidateLength(aStream: TStream; aValue: Integer): Boolean;
+begin
+  result := aValue > 0;
+  if (aValue > aStream.Size) then
+    raise EAWBException.Create(awbeDataSizeTooLarge)
+  else
+    if (aValue < 0) then
+      raise EAWBException.Create(awbeDataSizeNegative);
+end;
+
 
 { TTagItem }
 
@@ -230,7 +268,7 @@ begin
   fTagType := aTagType;
 end;
 
-function TTagItem.GetDescription: UnicodeString;
+function TTagItem.GetReadableKey: UnicodeString;
 begin
   result := Key;
 end;
@@ -241,5 +279,6 @@ begin
   result := (TagContentType in ContentTypes) or
    ((tctAll in ContentTypes) and not (TagContentType in [tctInvalid, tctUndef]))
 end;
+
 
 end.

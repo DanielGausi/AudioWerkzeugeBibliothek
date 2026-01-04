@@ -37,7 +37,8 @@ uses
   OpusFiles in '..\source\OpusFiles.pas',
   AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
   BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
-  FNewTagItem in 'FNewTagItem.pas' {FormNewTagItem};
+  FNewTagItem in 'FNewTagItem.pas' {FormNewTagItem},
+  DummyFiles in '..\source\DummyFiles.pas';
 
 {$R *.res}
 

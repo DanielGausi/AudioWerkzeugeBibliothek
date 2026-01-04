@@ -33,7 +33,8 @@ uses
   OpusFiles in '..\source\OpusFiles.pas',
   BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
   OggContainer in '..\source\OggContainer.pas',
-  AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas';
+  AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
+  DummyFiles in '..\source\DummyFiles.pas';
 
 {$R *.res}
 

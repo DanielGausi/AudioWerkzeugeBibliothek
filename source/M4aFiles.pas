@@ -120,7 +120,7 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
 
-
+            function ReadFromStream(aStream: TStream): TAudioError; override;
         public
             FTYP: TBaseAtom;
             MOOV: TMoovAtom;
@@ -143,8 +143,8 @@ type
 
             constructor Create; override;
             destructor Destroy; override;
-            procedure Clear;
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;    override;
+            procedure Clear; override;
+
             function WriteToFile(aFilename: UnicodeString): TAudioError;     override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  override;
 
@@ -193,10 +193,10 @@ end;
 
 procedure TM4AFile.Clear;
 begin
-    FTYP.Clear;
-    MOOV.Clear;
-    PADDING.Clear;
-    fValid      := False;
+  inherited Clear;
+  FTYP.Clear;
+  MOOV.Clear;
+  PADDING.Clear;
 end;
 
 function TM4AFile.fGetSamplerate: Integer;
@@ -348,88 +348,71 @@ begin
   result := MOOV.UdtaAtom.AddTextTagItem(aKey, aValue);
 end;
 
-function TM4AFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
-    AtomSize: DWord;
-    AtomName: TAtomName;
+function TM4AFile.ReadFromStream(aStream: TStream): TAudioError;
+var
+  AtomSize: DWord;
+  AtomName: TAtomName;
 begin
-    inherited ReadFromFile(aFilename);
-    Clear;
-    // result := FileErr_None;
+  fFileSize := aStream.Size;
 
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
-            try
-                fFileSize := fs.Size;
+  // Read FTYP-Atom
+  // result <> FileErr_none <=> we have a 64Bit-Atom (not supported)
+  result := GetNextAtomInfo(aStream, AtomName, AtomSize);
 
-                // Read FTYP-Atom
-                // result <> FileErr_none <=> we have a 64Bit-Atom (not supported)
-                result := GetNextAtomInfo(fs, AtomName, AtomSize);
+  if result = FileErr_None then
+  begin
+      if (AtomName = 'ftyp') then
+      begin
+          FTYP.ReadFromStream(aStream, AtomSize);
+      end else
+          result := M4aErr_Invalid_TopLevelAtom;
+  end;
 
-                if result = FileErr_None then
-                begin
-                    if (AtomName = 'ftyp') then
-                    begin
-                        FTYP.ReadFromStream(fs, AtomSize);
-                    end else
-                        result := M4aErr_Invalid_TopLevelAtom;
-                end;
+  // Read MOOV-Atom
+  if result = FileErr_None then
+  begin
+      result := GetNextAtomInfo(aStream, AtomName, AtomSize);
+      if result = FileErr_None then
+      begin
+          if AtomName = 'moov' then
+          begin
+              MOOV.ReadFromStream(aStream, AtomSize);
+              result := MOOV.ParseData;
+          end else
+              result := M4aErr_Invalid_TopLevelAtom;
+      end;
+  end;
 
-                // Read MOOV-Atom
-                if result = FileErr_None then
-                begin
-                    result := GetNextAtomInfo(fs, AtomName, AtomSize);
-                    if result = FileErr_None then
-                    begin
-                        if AtomName = 'moov' then
-                        begin
-                            MOOV.ReadFromStream(fs, AtomSize);
-                            result := MOOV.ParseData;
-                        end else
-                            result := M4aErr_Invalid_TopLevelAtom;
-                    end;
-                end;
+  if result = FileErr_None then
+  begin
+      // Check for FREE-Atom
+      result := GetNextAtomInfo(aStream, AtomName, AtomSize);
+      if result = FileErr_None then
+      begin
+          if AtomName = 'free' then
+          begin
+              PADDING.ReadFromStream(aStream, AtomSize);
+              // Next Atom must be MDAT
+              GetNextAtomInfo(aStream, AtomName, AtomSize);
+              // (mdat can be larger)
+              if AtomName = 'mdat' then
+                  fBytesBeforeMDTA := aStream.Position - 8
+              else
+                  result := M4aErr_Invalid_TopLevelAtom;
 
-                if result = FileErr_None then
-                begin
-                    // Check for FREE-Atom
-                    result := GetNextAtomInfo(fs, AtomName, AtomSize);
-                    if result = FileErr_None then
-                    begin
-                        if AtomName = 'free' then
-                        begin
-                            PADDING.ReadFromStream(fs, AtomSize);
-                            // Next Atom must be MDAT
-                            GetNextAtomInfo(fs, AtomName, AtomSize);
-                            // (mdat can be larger)
-                            if AtomName = 'mdat' then
-                                fBytesBeforeMDTA := fs.Position - 8
-                            else
-                                result := M4aErr_Invalid_TopLevelAtom;
-
-                        end else
-                        begin
-                            // No FREE-Atom, next MUST be MDAT (?)
-                            if AtomName = 'mdat' then
-                                fBytesBeforeMDTA := fs.Position - 8
-                            else
-                                result := M4aErr_Invalid_TopLevelAtom;
-                        end;
-                    end;
-                end;
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end else
-        result := FileErr_NoFile;
-
-    fValid := result = FileErr_None;
+          end else
+          begin
+              // No FREE-Atom, next MUST be MDAT (?)
+              if AtomName = 'mdat' then
+                  fBytesBeforeMDTA := aStream.Position - 8
+              else
+                  result := M4aErr_Invalid_TopLevelAtom;
+          end;
+      end;
+  end;
+  fValid := result = FileErr_None;
 end;
+
 
 function TM4AFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
@@ -486,7 +469,10 @@ begin
             fs.Free;
         end;
     except
-        result := FileErr_FileCreate
+        on e: Exception do begin
+          result := FileErr_FileCreate;
+          fLastExceptionMessage := e.Message;
+        end;
     end;
 end;
 
@@ -502,7 +488,10 @@ begin
             fs.Free;
         end;
     except
-        result := FileErr_BackupFailed;
+        on e: Exception do begin
+          result := FileErr_BackupFailed;
+          fLastExceptionMessage := e.Message;
+        end;
     end;
 end;
 
@@ -528,7 +517,14 @@ var ExistingTag: TM4AFile;
                           fs.Free;
                       end;
                   except
-                      result := FileErr_FileOpenRW;
+                      on e: EFileStreamError do begin
+                        result := FileErr_FileOpenRW;
+                        fLastExceptionMessage := e.Message;
+                      end;
+                      on e: Exception do begin
+                        result := FileErr_Unknown;
+                        fLastExceptionMessage := e.Message;
+                      end;
                   end;
               end else
                   result := FileErr_NoFile;
@@ -608,7 +604,14 @@ begin
                                 fs.Free;
                             end;
                         except
-                            result := FileErr_FileOpenRW;
+                            on e: EFileStreamError do begin
+                              result := FileErr_FileOpenRW;
+                              fLastExceptionMessage := e.Message;
+                            end;
+                            on e: Exception do begin
+                              result := FileErr_Unknown;
+                              fLastExceptionMessage := e.Message;
+                            end;
                         end;
                     end;
                 end;

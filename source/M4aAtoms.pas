@@ -129,8 +129,8 @@ type
             function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
             function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
 
-            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
-            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
     end;
 
     TFreeAtom = class(TBaseAtom)
@@ -185,7 +185,7 @@ type
             function SetPictureStream(Source: TStream; typ: TM4APicTypes): Boolean;
         protected
             function GetTagContentType: teTagContentType; override;
-            function GetDescription: UnicodeString; override;
+            function GetReadableKey: UnicodeString; override;
         public
             constructor Create(aName: TAtomName); override;
 
@@ -222,8 +222,8 @@ type
             function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
             function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
 
-            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
-            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
 
     end;
 
@@ -425,12 +425,12 @@ begin
   raise Exception.Create('TBaseAtom.SetText: Invalid method call');
 end;
 
-function TBaseAtom.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+function TBaseAtom.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 begin
   raise Exception.Create('TBaseAtom.GetPicture: Invalid method call');
 end;
 
-function TBaseAtom.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+function TBaseAtom.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
 begin
   raise Exception.Create('TBaseAtom.SetPicture: Invalid method call');
 end;
@@ -1686,26 +1686,26 @@ begin
   end;
 end;
 
-function TMetaAtom.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+function TMetaAtom.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var
   m4aType: TM4APicTypes;
 begin
-  Mime := '';
-  Description := '';
-  PicType := ptOther;
+  aMime := '';
+  aDescription := '';
+  aPicType := ptOther;
   result := GetPictureStream(Dest, m4aType);
   if result then begin
     case m4aType of
-      M4A_JPG: Mime := AWB_MimeJpeg;
-      M4A_PNG: Mime := AWB_MimePNG;
+      M4A_JPG: aMime := AWB_MimeJpeg;
+      M4A_PNG: aMime := AWB_MimePNG;
       M4A_Invalid: ;
     end;
   end;
 end;
 
-function TMetaAtom.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+function TMetaAtom.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
 begin
-  result := SetPictureStream(Source, MimeStringToM4APicType(Mime));
+  result := SetPictureStream(Source, MimeStringToM4APicType(aMime));
 end;
 
 function TMetaAtom.GetTextData: UnicodeString;
@@ -1724,7 +1724,8 @@ begin
         begin
             fData.Seek(4, soCurrent);  // reserved Bytes
             SetLength(dataString, fData.Size - fData.Position);
-            fData.Read(dataString[1], length(dataString));
+            if length(dataString) > 0 then
+              fData.Read(dataString[1], length(dataString));
             result := ConvertUTF8ToString(dataString);
         end else
             result := '';
@@ -1805,7 +1806,8 @@ begin
     reserved := 0;
     fData.Write(MetaType, 4);
     fData.Write(reserved, 4);
-    fData.Write(dataString[1], length(dataString));
+    if length(dataString) > 0 then
+      fData.Write(dataString[1], length(dataString));
 end;
 
 procedure TMetaAtom.SetIntData(aValue: Integer; aBitWidth: TBitWidth = bw16);
@@ -2085,7 +2087,8 @@ begin
         begin
             fData.Seek(4, soCurrent);
             setlength(dataString, newSize-16);
-            fData.Read(dataString[1], newSize - 16);
+            if length(dataString) > 0 then
+              fData.Read(dataString[1], newSize - 16);
             result := ConvertUTF8ToString(dataString);
         end else
             result := '';
@@ -2126,7 +2129,8 @@ begin
     o := ChangeEndian32(1);
     fData.Write(o, 4);
     fData.Write(n, 4);
-    fData.Write(dataString[1], length(dataString));
+    if length(dataString) > 0 then
+      fData.Write(dataString[1], length(dataString));
 end;
 
 function TMetaAtom.ContainsTextData: Boolean;
@@ -2136,7 +2140,7 @@ begin
            or (GetSpecialData(dummy1, dummy2) <> '');
 end;
 
-function TMetaAtom.GetDescription: UnicodeString;
+function TMetaAtom.GetReadableKey: UnicodeString;
 var i: Integer;
     aMean, aName: AnsiString;
 begin

@@ -90,6 +90,7 @@ type
 
             fOffset: DWord;   // Position (from End of File) where the Apev2Tag begins
             fItemList: TObjectList;
+            fLastExceptionMessage: string;
 
             function fIsValidHeader(aApeHeader: TApeHeader): Boolean;
             function fTagContainsHeader: Boolean;
@@ -181,6 +182,7 @@ type
             property Exists: Boolean read fExists;
             property Version: Cardinal read fGetVersion;
             property ContainsData: Boolean read fContainsData;
+            property LastExceptionMessage: string read fLastExceptionMessage;
 
             // Size of the Tag in Bytes
             property Apev2TagSize   : Cardinal read fGetTagSize;
@@ -226,6 +228,7 @@ type
             // Clear all Items and set Footer/Header to default values
             procedure Clear;
             procedure ClearOnlyApe;
+            procedure ClearExceptionMessage;
 
             // Get/Set arbitrary Keys
             // Use this with caution - you probably don't need this
@@ -289,6 +292,7 @@ begin
     fID3v1TagSize := 0;
     FillChar(fID3v1Tag, 128, 0);
     fExists := False;
+    fLastExceptionMessage := '';
 end;
 
 procedure TApeTag.ClearOnlyApe;
@@ -297,8 +301,13 @@ begin
     fOffset := 0;
     fPrepareFooterAndHeader;
     fExists := False;
+    fLastExceptionMessage := '';
 end;
 
+procedure TApeTag.ClearExceptionMessage;
+begin
+  fLastExceptionMessage := '';
+end;
 
 function TApeTag.fIsValidHeader(aApeHeader: TApeHeader): Boolean;
 begin
@@ -980,7 +989,10 @@ begin
                 fs.Free;
             end;
         except
+          on e: Exception do begin
+            fLastExceptionMessage := e.Message;
             result := FileErr_FileOpenR;
+          end;
         end;
     end else
         result := FileErr_NoFile;
@@ -1009,7 +1021,7 @@ var fs: TAudioFileStream;
     i: Integer;
 begin
     result := FileErr_None;
-
+    fLastExceptionMessage := '';
     fPrepareFooterAndHeader;
 
     if fItemList.Count = 0 then
@@ -1045,7 +1057,10 @@ begin
                     fs.Free;
                 end;
             except
+              on e:exception do begin
+                fLastExceptionMessage := e.Message;
                 result := FileErr_FileOpenRW;
+              end;
             end;
         end else
             result := FileErr_NoFile;
@@ -1057,6 +1072,7 @@ var fs: TAudioFileStream;
     oldTag: TApeTag;
 begin
     result := FileErr_None;
+    fLastExceptionMessage := '';
 
     if AudioFileExists(aFilename) then
     begin
@@ -1084,7 +1100,10 @@ begin
                 fs.Free;
             end;
         except
+          on e: Exception do begin
+            fLastExceptionMessage := e.Message;
             result := FileErr_FileOpenRW;
+          end;
         end;
     end else
         result := FileErr_NoFile;

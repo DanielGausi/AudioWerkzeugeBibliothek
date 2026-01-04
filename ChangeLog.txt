@@ -1,7 +1,7 @@
 =======================================================================
   AudioWerkzeugeBibliothek - ChangeLog 
-	Version 3.0
-	10/2024
+	Version 3.2
+	12/2025
 =======================================================================
 
 The library AudioWerkzeugeBibliothek originated from several format-specific 
@@ -16,6 +16,55 @@ AudioFile classes.
 
 Therefore, a lot of the previous methods like GetAllFrames or GetAllFields have 
 been replaced by a new method, which is the same for all classes.
+
+
+Bug fixes and changes in 3.2 (12/2025)
+======================================
+- Adding cover art to Flac files did not work properly. The mime type was 
+  not written correctly to the file, so some players could not display the cover.
+- Fixed some issues regarding duplicate identifiers in properties and 
+  method parameters.
+- Renamed property TTagItem.Description to TTagItem.ReadableKey to avoid mix-ups 
+  with the picture description in picture tags derived from TTagItem.
+- Added public properties TFlacFile.BitsPerSample und TFlacFile.Samples.
+- The field "nominal bitrate" (used as a backup for bitrate and duration 
+  calculation) in the OggVorbis Identification Header was misinterpreted 
+  (in kbit/s instead of bit/s). 
+- Bitrate was calculated as 0 for compressed wav files. 
+- Added property TWavfile.WaveCodec. 
+- Better exception handling: 
+  Removed "MessageBox(..)" from the exception block in some methods, added 
+  optional out parameter aExceptionMessage instead. 
+  Added property TBaseAudioFile.LastExceptionMessage. This can be used to get 
+  more information about the last exception occured during a read/write 
+  operation on files.
+
+
+Bug fixes and changes in 3.1.1 (12/2024)
+========================================
+- Fixed some possible Range Exceptions in "Rating" and "Private" ID3v2-Frames
+
+New in version 3.1 (10/2024)
+============================
+- Property TTagItem.DataSize.
+- Added URL frames and Comment to TID3v2Tag.GetUnusedTextTags.
+- Method TOggContainer.ReadPackets(Target: TObjectList) to get all packets 
+  from the OggStream. 
+- Property TOpusFile.VBR (which should be "True" in almost every case) 
+- Methods to read/write Integer atoms in m4a Files. 
+  Note: Use with caution. I need this in my main project "Nemp" for the "tmpo" 
+  atom (aka BPM, Beats Per Minute), but this is not widely tested for other atoms. 
+  The documentation there is not very helpful, and there are some inconsistencies 
+  regarding Signed/Unsigned Integers and the size of the values (8, 16, 24, 32 Bit).
+  
+Bug fixes in 3.1
+==================
+- TagType in `TApeTag.GetUnusedTextTags` was `ttVorbis`, correct is `ttApev2`. 
+- Getter and Setter for `TApeTag.EAN` used different keys.
+- Fixed the clutter with Cardinal/Integer type for SerialNumber in OggPages.
+- Flac files: deleted deprecated function fIsValid
+- Fixed a parsing error regarding OggPages and OggPackets (which had actually 
+  no effect on Ogg/Opus files, but on the new method ReadPackets).
 
 
 New in Version 3.0 (10/2024)

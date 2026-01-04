@@ -147,8 +147,8 @@ type
             function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
             function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
 
-            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
-            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
 
             function GetBinaryData(dest: TStream): boolean;
             procedure SetBinaryData(source: TStream);
@@ -306,13 +306,13 @@ begin
   end;
 end;
 
-function TApeTagItem.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+function TApeTagItem.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var i, c: Integer;
     tmp: Utf8String;
 begin
-    Mime := '';
-    Description := '';
-    PicType := GetPicType;
+    aMime := '';
+    aDescription := '';
+    aPicType := GetPicType;
     result := TagContentType in [tctBinary, tctPicture];
     if not result then
         exit;
@@ -329,11 +329,11 @@ begin
             c := i;
             break;
         end;
-    if c < length(fData)-1 then
+    if (c > 0) and (c < length(fData)-1) then
     begin
         Setlength(tmp, c);
         Move(fData[0], tmp[1], c);
-        description := ConvertUTF8ToString(tmp);
+        aDescription := ConvertUTF8ToString(tmp);
 
         dest.Write(fData[c+1], length(fData)-(c+1));
         result := True;
@@ -343,7 +343,7 @@ begin
 end;
 
 
-function TApeTagItem.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+function TApeTagItem.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
 var descUTF8: UTF8String;
 begin
     // parameters PicType and Mime are ignored
@@ -353,10 +353,10 @@ begin
     if not result then
       exit;
 
-    if (description = '') then
-        description := 'Cover Art';
+    if (aDescription = '') then
+        aDescription := 'Cover Art';
 
-    descUTF8 := ConvertStringToUTF8(description);
+    descUTF8 := ConvertStringToUTF8(aDescription);
     Setlength(fData, length(descUTF8) + 1 + source.Size);
     Move(descUTF8[1], fData[0], length(descUTF8));
     fData[length(descUTF8)] := 0;
@@ -421,12 +421,14 @@ begin
     begin
         // fill fDATA with the binary data for further parsing
         SetLength(fData, fValueSize);
-        aStream.Read(fData[0], fValueSize);
+        if fValueSize > 0 then
+          aStream.Read(fData[0], fValueSize);
     end else
     begin
         // Content is UTF8 encoded text
         SetLength(fValue, fValueSize);
-        aStream.Read(fValue[1], fValueSize);
+        if fValueSize > 0 then
+          aStream.Read(fValue[1], fValueSize);
     end;
 end;
 
@@ -441,11 +443,12 @@ begin
     aStream.Write(fKey[1], length(fKey));
     b := 0;
     aStream.Write(b, 1);
-
-    if TagContentType = tctBinary then
-        aStream.Write(fData[0], fValueSize)
-    else
-        aStream.Write(fValue[1], fValueSize);
+    if fValueSize > 0 then begin
+      if TagContentType = tctBinary then
+          aStream.Write(fData[0], fValueSize)
+      else
+          aStream.Write(fValue[1], fValueSize);
+    end;
 
     result := True;
 end;

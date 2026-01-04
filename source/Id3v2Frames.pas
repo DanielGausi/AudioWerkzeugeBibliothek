@@ -190,7 +190,7 @@ type
       protected
           function GetKey: UnicodeString; override;    // = FrameID
           function GetTagContentType: teTagContentType; override;
-          function GetDescription: UnicodeString; override;
+          function GetReadableKey: UnicodeString; override;
           function GetDataSize: Integer; override;
 
       public
@@ -272,8 +272,8 @@ type
           function GetURL: AnsiString;
           function SetURL(Value: AnsiString): Boolean;
 
-          function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
-          function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+          function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; override;
+          function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
 
           function GetRating(out UserEMail: AnsiString): Byte;
           function SetRating(UserEMail: AnsiString; Value: Byte): Boolean;
@@ -735,7 +735,7 @@ begin
   result := UniCodeString(fIDString);
 end;
 
-function TID3v2Frame.GetDescription: UnicodeString;
+function TID3v2Frame.GetReadableKey: UnicodeString;
 begin
   result := GetFrameTypeDescription;
 end;
@@ -1137,8 +1137,11 @@ begin
                     // june 2013
                     // no BOM detected. Just copy it as in TE_UTF16BE
                     // Todo for the future: Try to guess whether it is probably FF FE or FE FF
-                    setlength(result, alength DIV 2);
-                    move(fData[start], result[1], 2*length(result));
+                    if (alength DIV 2 > 0) then begin
+                      setlength(result, alength DIV 2);
+                      move(fData[start], result[1], 2*length(result));
+                    end else
+                      result := '';
                 end;
             // some Files seem to have a "double BOM" for whatever reasons
             // This BOM is nowhere displayed, but it will result in "two strings that look the same are actually different"
@@ -1148,9 +1151,12 @@ begin
         TE_UTF16BE: begin
            { UTF-16BE [UTF-16] encoded Unicode [UNICODE] __without__ BOM.
              Terminated with $00 00 }
-            setlength(result, alength DIV 2);
-            move(fData[start], result[1], 2*length(result));
-            result := trim(result);
+             if (alength DIV 2 > 0) then begin
+                setlength(result, alength DIV 2);
+                move(fData[start], result[1], 2*length(result));
+                result := trim(result);
+             end else
+                result := '';
         end;
         UTF8: begin
             {03   UTF-8 [UTF-8] encoded Unicode [UNICODE]. Terminated with $00.}
@@ -1574,7 +1580,7 @@ begin
 end;
 
 
-function TID3v2Frame.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+function TID3v2Frame.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var
     enc: TTextEncoding;
     i: Integer;
@@ -1586,21 +1592,21 @@ begin
             FV_2: begin
                 if length(fData) <= 6 then  // 1 Enc, 3 Mime, 1 PicTyp, 1 Descr.-Terminierung -> 6 is minimum
                 begin
-                    Mime := '';
-                    PicType := ptOther;
-                    Description := '';
+                    aMime := '';
+                    aPicType := ptOther;
+                    aDescription := '';
                     result := False;
                 end else
                 begin
                     // at least 7 Bytes in fData, so index of 6 will be ok
                     enc := ByteToTextEncoding(fData[0]);
                     // Mime-Type always 3 characters in subversion 2.2
-                    SetLength(Mime, 3);
-                    Move(fData[1], Mime[1], 3);
-                    PicType := TPictureType(fData[4]);
+                    SetLength(aMime, 3);
+                    Move(fData[1], aMime[1], 3);
+                    aPicType := TPictureType(fData[4]);
                     // description is terminated with 00 (00)
                     i := 5;
-                    Description := GetNullTerminatedString(enc, i);
+                    aDescription := GetNullTerminatedString(enc, i);
 
                     // here the image-data starts
                     if i < length(fData) then
@@ -1613,9 +1619,9 @@ begin
                 // subversion 2.3 or 2.4
                 if length(fData) <= 4 then  // 1 Enc, 1 mime-termination, 1 PicTyp, 1 Descr.-Terminierung -> this is minimum
                 begin
-                    Mime := '';
-                    PicType := ptOther;
-                    Description := '';
+                    aMime := '';
+                    aPicType := ptOther;
+                    aDescription := '';
                     result := False;
                 end else
                 begin
@@ -1625,20 +1631,20 @@ begin
                     While (i < length(fData)) and (fData[i] <> 0) do
                       inc(i);
                     // get mime-type
-                    Setlength(Mime, i-1);
-                    Move(fData[1], Mime[1], i-1);
+                    Setlength(aMime, i-1);
+                    Move(fData[1], aMime[1], i-1);
                     // 1 byte termination
                     inc(i);
 
                     // PicType
                     if i < length(fData) then
-                        PicType := TPictureType(fData[i])
+                        aPicType := TPictureType(fData[i])
                     else result := False;
 
                     inc(i);
                     // get termination of description
                     // dStart := i;
-                    Description := GetNullTerminatedString(enc, i);
+                    aDescription := GetNullTerminatedString(enc, i);
 
                     // here the image-data starts
                     if i < length(fData) then
@@ -1651,13 +1657,13 @@ begin
     end else
     begin
       result := False;
-      Mime := '';
-      PicType := ptOther;
-      Description := '';
+      aMime := '';
+      aPicType := ptOther;
+      aDescription := '';
     end;
 end;
 
-function TID3v2Frame.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+function TID3v2Frame.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
 var UseUnicode: Boolean;
     BytesWritten, helpIdx: Integer;
 begin
@@ -1665,52 +1671,52 @@ begin
     if not result  then
         exit;
 
-    UseUnicode :=  IsUnicodeNeeded(Description);
+    UseUnicode :=  IsUnicodeNeeded(aDescription);
     case fVersion of
         FV_2: begin
             // adjust mime-type for subversion 2.2
-            If length(Mime) <> 3 then
+            If length(aMime) <> 3 then
             begin
-                if Mime = AWB_MimePNG  then
-                    Mime := 'PNG'
+                if aMime = AWB_MimePNG  then
+                    aMime := 'PNG'
                 else
-                    Mime := 'JPG';
+                    aMime := 'JPG';
             end;
             if UseUnicode then
             begin
-                setlength(fData, 1 + 3 + 1 + (length(Description) + 1) * SizeOf(Widechar) + Source.size);
+                setlength(fData, 1 + 3 + 1 + (length(aDescription) + 1) * SizeOf(Widechar) + Source.size);
                 fData[0] := 1;
             end else
             begin
-                setlength(fData, 1 + 3 + 1 + length(Description) + 1 + Source.size);
+                setlength(fData, 1 + 3 + 1 + length(aDescription) + 1 + Source.size);
                 fData[0] := 0;
             end;
-            move(Mime[1], fData[1], 3);
-            fData[4] := Byte(PicType);
+            move(aMime[1], fData[1], 3);
+            fData[4] := Byte(aPicType);
             helpIdx := 5;
         end
         else
         begin
-            if Mime = '' then
-              Mime := AWB_MimeJpeg;
+            if aMime = '' then
+              aMime := AWB_MimeJpeg;
             // subversion 2.3 or 2.4
             if UseUnicode then
             begin
-                setlength(fData, 1 + length(Mime) + 1 + 1 + (length(Description) + 1) * SizeOf(Widechar) + Source.size);
+                setlength(fData, 1 + length(aMime) + 1 + 1 + (length(aDescription) + 1) * SizeOf(Widechar) + Source.size);
                 fData[0] := 1;
             end else
             begin
-                setlength(fData, 1 + length(Mime) + 1 + 1 + length(Description) + 1 + Source.size);
+                setlength(fData, 1 + length(aMime) + 1 + 1 + length(aDescription) + 1 + Source.size);
                 fData[0] := 0;
             end;
-            move(Mime[1], fData[1], length(Mime));
-            fData[1 + length(Mime)] := 0; // termination
-            fData[2 + length(Mime)] := Byte(PicType);
-            helpIdx := 3 + length(Mime);
+            move(aMime[1], fData[1], length(aMime));
+            fData[1 + length(aMime)] := 0; // termination
+            fData[2 + length(aMime)] := Byte(aPicType);
+            helpIdx := 3 + length(aMime);
         end; // else
     end;  // Case
 
-    BytesWritten := WideStringToData(Description, helpIdx, UseUnicode);
+    BytesWritten := WideStringToData(aDescription, helpIdx, UseUnicode);
     fData[helpIdx + BytesWritten] := 0;
     inc(BytesWritten);
     if UseUnicode then

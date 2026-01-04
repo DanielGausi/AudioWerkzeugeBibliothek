@@ -132,6 +132,8 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
 
+            function ReadFromStream(aStream: TStream): TAudioError; override;
+
         public
             property Samples: Integer read fMaxSamples;
             property VBR: Boolean read fVBR;
@@ -141,9 +143,8 @@ type
 
             constructor Create; override;
             destructor Destroy; override;
+            procedure Clear; override;
 
-            procedure ClearData;
-            function ReadFromFile(aFilename: UnicodeString): TAudioError; override;
             function WriteToFile(aFilename: UnicodeString): TAudioError; override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
     end;
@@ -161,7 +162,7 @@ begin
     fMaxPadding := 25500;
     fDefaultPadding := 2550;
     fUsePadding := True;
-    ClearData;
+    Clear;
 end;
 
 destructor TOpusFile.Destroy;
@@ -181,16 +182,13 @@ begin
     result := cAudioFileType[at_Opus];
 end;
 
-procedure TOpusFile.ClearData;
+procedure TOpusFile.Clear;
 begin
-    fFileSize       := 0;
-    fMaxSamples     := 0;
-    fSampleRate     := 0;
-    fValid          := False;
-    fChannels       := 0;
-    fVBR := True;
-    fIdentificationHeader.Clear;
-    fCommentHeader.Clear;
+  inherited Clear;
+  fMaxSamples := 0;
+  fVBR := True;
+  fIdentificationHeader.Clear;
+  fCommentHeader.Clear;
 end;
 
 function TOpusFile.GetVorbisComments: TVorbisComments;
@@ -311,55 +309,42 @@ begin
   end;
 end;
 
-function TOpusFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
-    OggContainer: TOggContainer;
+
+function TOpusFile.ReadFromStream(aStream: TStream): TAudioError;
+var
+  OggContainer: TOggContainer;
 begin
-    inherited ReadFromFile(aFilename);
-    ClearData;
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFileName, fmOpenRead or fmShareDenyWrite);
-            try
-                OggContainer := TOggContainer.Create(fs);
-                try
-                    fFileSize := fs.Size;
+  OggContainer := TOggContainer.Create(aStream);
+  try
+      fFileSize := aStream.Size;
 
-                    result := ReadIdentificationHeader(OggContainer, fIdentificationHeader);
-                    if result = FileErr_None then
-                      result := ReadCommentHeader(OggContainer, fCommentHeader);
+      result := ReadIdentificationHeader(OggContainer, fIdentificationHeader);
+      if result = FileErr_None then
+        result := ReadCommentHeader(OggContainer, fCommentHeader);
 
-                    // set some private variables from these headers
-                    if result = FileErr_None then
-                    begin
-                        fVBR := DetectVBR(OggContainer); // analyse stream for cbr/vbr
-                        fSampleRate := fIdentificationHeader.fOpusIdentification.InputSamplerate;
-                        fChannels   := fIdentificationHeader.fOpusIdentification.ChannelCount;
+      // set some private variables from these headers
+      if result = FileErr_None then
+      begin
+          fVBR := DetectVBR(OggContainer); // analyse stream for cbr/vbr
+          fSampleRate := fIdentificationHeader.fOpusIdentification.InputSamplerate;
+          fChannels   := fIdentificationHeader.fOpusIdentification.ChannelCount;
 
-                        // get number of samples in the File
-                        // "GetMaxSample" searches from the end of the file and is usually faster.
-                        // However, parsing the complete OggContainer may be safer.
-                        fMaxSamples := GetMaxSample(fs) - fIdentificationHeader.fOpusIdentification.Preskip;
-                        if fMaxSamples <= 0 then
-                          fMaxSamples := OggContainer.GetMaxGranulePosition(0) - fIdentificationHeader.fOpusIdentification.Preskip;
-                        if fMaxSamples < 0 then
-                          fMaxSamples := 0;
-                        fValid := True;
-                    end else
-                        fValid := False;
-                finally
-                    OggContainer.Free;
-                end;
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end else
-        result := FileErr_NoFile;
+          // get number of samples in the File
+          // "GetMaxSample" searches from the end of the file and is usually faster.
+          // However, parsing the complete OggContainer may be safer.
+          fMaxSamples := GetMaxSample(aStream) - fIdentificationHeader.fOpusIdentification.Preskip;
+          if fMaxSamples <= 0 then
+            fMaxSamples := OggContainer.GetMaxGranulePosition(0) - fIdentificationHeader.fOpusIdentification.Preskip;
+          if fMaxSamples < 0 then
+            fMaxSamples := 0;
+          fValid := True;
+      end else
+          fValid := False;
+  finally
+      OggContainer.Free;
+  end;
 end;
+
 
 function TOpusFile.WriteToFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
@@ -367,6 +352,7 @@ var fs: TAudioFileStream;
     existingIDHdr: TOpusIdentificationPacket;
     existingCommentHdr: TOpusCommentPacket;
     backupFilename: String;
+    tmp: Boolean;
 
     function CacheAudioData: TAudioError;
     var
@@ -381,7 +367,10 @@ var fs: TAudioFileStream;
           CacheStream.Free;
         end;
       except
-        result := FileErr_BackupFailed;
+        on e: Exception do begin
+          result := FileErr_BackupFailed;
+          fLastExceptionMessage := e.Message;
+        end;
       end;
     end;
 
@@ -398,7 +387,10 @@ var fs: TAudioFileStream;
           CacheStream.Free;
         end;
       except
-        result := FileErr_BackupFailed;
+        on e: Exception do begin
+          result := FileErr_BackupFailed;
+          fLastExceptionMessage := e.Message;
+        end;
       end;
     end;
 
@@ -415,7 +407,9 @@ begin
         existingCommentHdr := TOpusCommentPacket.Create;
         try
             fCommentHeader.Data.Clear;
-            fCommentHeader.fComments.WriteToStream(fCommentHeader.Data);
+            tmp := fCommentHeader.fComments.WriteToStream(fCommentHeader.Data);
+            if (not tmp) and (fCommentHeader.fComments.LastExceptionMessage <> '') then
+              fLastExceptionMessage := fCommentHeader.fComments.LastExceptionMessage;
 
             result := ReadIdentificationHeader(existingContainer, existingIDHdr);
             if result = FileErr_None then begin
@@ -461,7 +455,14 @@ begin
         fs.Free;
       end;
     except
-      result := FileErr_FileOpenRW;
+      on e: EFileStreamError do begin
+        result := FileErr_FileOpenRW;
+        fLastExceptionMessage := e.Message;
+      end;
+      on e: Exception do begin
+        result := FileErr_Unknown;
+        fLastExceptionMessage := e.Message;
+      end;
     end;
   end;
 end;

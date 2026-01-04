@@ -10,7 +10,7 @@ uses
   AudioFiles.Factory,  AudioFiles.Declarations, BaseApeFiles, ApeTagItem, ID3v2Frames,
   ID3v1Tags, ID3v2Tags, Apev2Tags, VorbisComments,
   Mp3Files, FlacFiles, BaseVorbisFiles, OggVorbisFiles, MonkeyFiles, WavPackFiles,
-  MusePackFiles, OptimFrogFiles, TrueAudioFiles,
+  MusePackFiles, OptimFrogFiles, TrueAudioFiles, WavFiles,
   M4aAtoms, M4AFiles, FileCtrl, ComCtrls
   {$IFDEF USE_PNG}, PNGImage, Vcl.Menus{$ENDIF} ;
 
@@ -44,7 +44,6 @@ type
     BtnRemoveTag: TButton;
     BtnSave: TButton;
     GroupBox4: TGroupBox;
-    MemoSpecific: TMemo;
     LblAudioType: TLabel;
     LblBitrate: TLabel;
     LblChannels: TLabel;
@@ -60,6 +59,7 @@ type
     PopupMenu1: TPopupMenu;
     pmEdit: TMenuItem;
     pmNew: TMenuItem;
+    MemoSpecific: TMemo;
     procedure FormDestroy(Sender: TObject);
     procedure BtnSaveClick(Sender: TObject);
     procedure cbPicturesChange(Sender: TObject);
@@ -129,7 +129,7 @@ begin
   newValue := TTagItem(lvMetaTags.Selected.Data).GetText(tmReasonable);
 
   if InputQuery('Edit TagItem',
-      Format('New value for "%s (%s)"', [TTagItem(lvMetaTags.Selected.Data).Description, TTagItem(lvMetaTags.Selected.Data).Key]),
+      Format('New value for "%s (%s)"', [TTagItem(lvMetaTags.Selected.Data).ReadableKey, TTagItem(lvMetaTags.Selected.Data).Key]),
       newValue)
   then begin
     if newValue = '' then
@@ -162,7 +162,8 @@ begin
     if not assigned(AudioFile) then
       exit;
 
-    AudioFile.ReadFromFile(FileListBox1.FileName);
+    if AudioFile.ReadFromFile(FileListBox1.FileName) <> FileErr_None then
+      Showmessage(AudioFile.LastExceptionMessage);
 
     MemoSpecific.Clear;
     MemoLyrics.Clear;
@@ -212,6 +213,7 @@ begin
             MemoSpecific.Lines.Add(Format('ApeV2: %d Bytes', [TBaseApeFile(AudioFile).Apev2TagSize]));
             EnableTagSelection := True;
         end;
+
     end;
 
     case AudioFile.FileType of
@@ -237,6 +239,11 @@ begin
         at_TrueAudio: begin
             MemoSpecific.Lines.Add(Format('AudioFormat: %d', [TTrueAudioFile(AudioFile).AudioFormat]));
             MemoSpecific.Lines.Add(Format('Bits/Sample: %d', [TTrueAudioFile(AudioFile).Bits]));
+        end;
+
+        at_Wav: begin
+          //LblAudioType.Caption  := AudioFile.FileTypeDescription + ' (' + TWavFile(AudioFile).WaveCodec + ')';
+          MemoSpecific.Lines.Add(Format('Codec: %s', [TWavFile(AudioFile).WaveCodec]));
         end;
     end;
 
@@ -271,7 +278,7 @@ begin
   try
     AudioFile.GetTagList(TagItems, [tctAll]);
     for i := 0 to TagItems.Count - 1 do
-      AddTagItem(TagItems[i], cTagTypes[TagItems[i].TagType], TagItems[i].Key, TagItems[i].Description, TagItems[i].GetText(tmForced));
+      AddTagItem(TagItems[i], cTagTypes[TagItems[i].TagType], TagItems[i].Key, TagItems[i].ReadableKey, TagItems[i].GetText(tmForced));
   finally
     TagItems.Free;
   end;

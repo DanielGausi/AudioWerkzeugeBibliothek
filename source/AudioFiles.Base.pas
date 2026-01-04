@@ -71,6 +71,7 @@ type
             fChannels   : Integer;
             fValid      : Boolean;
             fFileName   : UnicodeString;
+            fLastExceptionMessage : String;
 
             function fGetFileSize   : Int64;    virtual;
             function fGetDuration   : Integer;  virtual;
@@ -101,6 +102,8 @@ type
             function fGetFileType            : TAudioFileType; virtual; abstract;
             function fGetFileTypeDescription : String;         virtual; abstract;
 
+            function ReadFromStream(aStream: TStream): TAudioError; virtual;
+
         public
             property Valid      : Boolean read fGetValid;
             property FileSize 	: Int64	  read fGetFileSize;
@@ -124,7 +127,10 @@ type
             property Genre   : UnicodeString read fGetGenre  write fSetGenre ;
             property Lyrics  : UnicodeString read fGetLyrics write fSetLyrics;
 
+            property LastExceptionMessage: string read fLastExceptionMessage;
+
             constructor Create; virtual; abstract;
+            procedure Clear; virtual;
 
             function ReadFromFile(aFilename: UnicodeString): TAudioError;    virtual;
             function WriteToFile(aFilename: UnicodeString): TAudioError;     virtual;
@@ -151,8 +157,8 @@ type
 
             // Abstract methods to get/set picture data from the meta tag of the file.
             // Note that not all parameters are used in all meta tag formats.
-            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; virtual;
-            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; virtual; abstract;
+            function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; virtual;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; virtual; abstract;
     end;
 
     TBaseAudioFileClass = class of TBaseAudioFile;
@@ -194,22 +200,71 @@ begin
   result := fValid;
 end;
 
-function TBaseAudioFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
+procedure TBaseAudioFile.Clear;
 begin
-    fFileName := aFilename;
-    result := FileErr_None;
+  fFileSize := 0;
+  fDuration := 0;
+  fBitrate := 0;
+  fSamplerate := 0;
+  fChannels := 0;
+  fValid := False;
+  fFileName := '';
+  fLastExceptionMessage := '';
+end;
+
+function TBaseAudioFile.ReadFromStream(aStream: TStream): TAudioError;
+begin
+  result := FileErr_None;
+end;
+
+function TBaseAudioFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
+var
+  fs: TAudioFileStream;
+begin
+  Clear;
+  fFileName := aFilename;
+  // result := FileErr_None;
+
+  if not AudioFileExists(aFilename) then
+    result := FileErr_NoFile
+  else begin
+    try
+      fs := TAudioFileStream.Create(aFileName, fmOpenRead or fmShareDenyWrite);
+      try
+        fFileSize := fs.Size;
+        result := ReadFromStream(fs);
+      finally
+        fs.Free;
+      end;
+    except
+      on e: EFileStreamError do begin
+        result := FileErr_FileOpenR;
+        fLastExceptionMessage := e.Message;
+      end;
+      on e: EAWBException do begin
+        result := FileErr_Malicious;
+        fLastExceptionMessage := e.Message;
+      end;
+      on e: Exception do begin
+        result := FileErr_Unknown;
+        fLastExceptionMessage := e.Message;
+      end;
+    end;
+  end;
 end;
 
 function TBaseAudioFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     fFileName := aFilename;
     result := FileErr_None;
+    fLastExceptionMessage := '';
 end;
 
 function TBaseAudioFile.WriteToFile(aFilename: UnicodeString): TAudioError;
 begin
     fFileName := aFilename;
     result := FileErr_None;
+    fLastExceptionMessage := '';
 end;
 
 function TBaseAudioFile.UpdateFile: TAudioError;
@@ -217,7 +272,7 @@ begin
     result := WriteToFile(fFileName);
 end;
 
-function TBaseAudioFile.GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean;
+function TBaseAudioFile.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var
   TagItems: TTagItemList;
 begin
@@ -225,12 +280,12 @@ begin
   try
     GetTagList(TagItems, [tctPicture]);
     if TagItems.Count > 0 then begin
-      result := TagItems[0].GetPicture(Dest, Mime, PicType, Description);
+      result := TagItems[0].GetPicture(Dest, aMime, aPicType, aDescription);
     end else begin
       result := False;
-      Mime := '';
-      PicType := ptOther;
-      Description := '';
+      aMime := '';
+      aPicType := ptOther;
+      aDescription := '';
     end;
   finally
     TagItems.Free;

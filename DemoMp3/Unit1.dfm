@@ -87,7 +87,7 @@ object Form1: TForm1
     object Label58: TLabel
       Left = 168
       Top = 40
-      Width = 69
+      Width = 68
       Height = 15
       Caption = 'Experimental'
       Font.Charset = DEFAULT_CHARSET
@@ -753,7 +753,7 @@ object Form1: TForm1
     object Label19: TLabel
       Left = 168
       Top = 24
-      Width = 91
+      Width = 92
       Height = 15
       Caption = 'Tag alter preserve'
     end

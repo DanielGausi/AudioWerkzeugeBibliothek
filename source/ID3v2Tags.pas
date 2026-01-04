@@ -104,6 +104,7 @@ type
     fUsePadding: Boolean;
     fUseClusteredPadding: Boolean;
     fFilename: UnicodeString;
+    fLastExceptionMessage: string;
 
     // Always write Unicode?
     // True: frames will be written as utf-16 always
@@ -255,6 +256,7 @@ type
 
     property CharCode: TCodePage read fCharCode write SetCharCode;
     property AutoCorrectCodepage: Boolean read fAutoCorrectCodepage write SetAutoCorrectCodepage;
+    property LastExceptionMessage: string read fLastExceptionMessage;
 
     function ReadFromStream(Stream: TStream): TAudioError;
     function WriteToStream(Stream: TStream): TAudioError;
@@ -262,7 +264,9 @@ type
     function ReadFromFile(Filename: UnicodeString): TAudioError;
     function WriteToFile(Filename: UnicodeString): TAudioError;
     function RemoveFromFile(Filename: UnicodeString): TAudioError;
+
     procedure Clear;
+    procedure ClearExceptionMessage;
 
     // "Level 2": Some advanced Frames. Get/edit them on Tag-Level
     //           Setting a value to '' will delete the frame
@@ -705,6 +709,7 @@ var
   ExtendedHeaderSize: Integer;
 begin
   result := FileErr_None;
+  fLastExceptionMessage := '';
   try
     Stream.Seek(0, soBeginning);
     Stream.ReadBuffer(RawHeader, 10);
@@ -775,11 +780,14 @@ begin
           result := MP3ERR_Invalid_Header;
     end;
   except
-    on EReadError do result := FileErr_StreamRead;
+    on E: EReadError do begin
+      fLastExceptionMessage := E.Message;
+      result := FileErr_StreamRead;
+    end;
     on E: Exception do
     begin
+      fLastExceptionMessage := E.Message;
       result := Mp3ERR_Unclassified;
-      MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
@@ -792,6 +800,7 @@ var FrameIDstr: AnsiString;
     newFrame: TID3v2Frame;
 begin
   result := FileErr_None;
+  fLastExceptionMessage := '';
   FUsePadding := False;
   try
     case fVersion.Major of
@@ -833,11 +842,14 @@ begin
     end;
 
   except
-    on EReadError do result := FileErr_StreamRead;
+    on E: EReadError do begin
+      fLastExceptionMessage := E.Message;
+      result := FileErr_StreamRead;
+    end;
     on E: Exception do
     begin
+      fLastExceptionMessage := E.Message;
       result := Mp3ERR_Unclassified;
-      MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
@@ -881,36 +893,43 @@ var SyncedStream: TMemoryStream;
 begin
   // Clear self
   clear;
-
-  result := ReadHeader(Stream);
-  if (FExists) and (result = FileErr_None) then
-  begin
-      // if unsync and subversion 2.2 or 2.3 then:
-      // ReadfromStream - Synch to new stream - Readframes from new stream
-      if (Version.Major <> 4) and (FFlgUnsynch) then
+  try
+      result := ReadHeader(Stream);
+      if (FExists) and (result = FileErr_None) then
       begin
-          SyncedStream := TMemoryStream.Create;
-          try
-              SyncStream(Stream, SyncedStream);
-              SyncedStream.Position := 0;
-              result := ReadFrames(SyncedStream.Position, SyncedStream);
-          finally
-              SyncedStream.Free;
-          end;
-      end else
-      begin
-          // otheriwse: read frames from original stream
-          // but: copy the whole thing first - should be faster on slow devices
-          // Note: Synch on subversion 2.4 is done on frame-level
-          SyncedStream := TMemoryStream.Create;
-          try
-              SyncedStream.CopyFrom(Stream, fTagSize - Stream.Position);
-              SyncedStream.Position := 0;
-              result := ReadFrames(SyncedStream.Position, SyncedStream)
-          finally
-              SyncedStream.Free;
+          // if unsync and subversion 2.2 or 2.3 then:
+          // ReadfromStream - Synch to new stream - Readframes from new stream
+          if (Version.Major <> 4) and (FFlgUnsynch) then
+          begin
+              SyncedStream := TMemoryStream.Create;
+              try
+                  SyncStream(Stream, SyncedStream);
+                  SyncedStream.Position := 0;
+                  result := ReadFrames(SyncedStream.Position, SyncedStream);
+              finally
+                  SyncedStream.Free;
+              end;
+          end else
+          begin
+              // otheriwse: read frames from original stream
+              // but: copy the whole thing first - should be faster on slow devices
+              // Note: Synch on subversion 2.4 is done on frame-level
+              SyncedStream := TMemoryStream.Create;
+              try
+                  SyncedStream.CopyFrom(Stream, fTagSize - Stream.Position);
+                  SyncedStream.Position := 0;
+                  result := ReadFrames(SyncedStream.Position, SyncedStream)
+              finally
+                  SyncedStream.Free;
+              end;
           end;
       end;
+  except
+    on e: Exception do begin
+      fLastExceptionMessage := e.Message;
+      result := Mp3ERR_Unclassified;
+    end;
+
   end;
 end;
 
@@ -920,7 +939,8 @@ end;
 //--------------------------------------------------------------------
 
 function TID3v2Tag.GetExistingTagSize(aStream: TStream): Cardinal;
-var ExistingID3Tag: TID3v2Tag;
+var
+  ExistingID3Tag: TID3v2Tag;
 begin
     ExistingID3Tag := TID3v2Tag.Create;
     try
@@ -951,6 +971,7 @@ var
 
 begin
   result := FileErr_None;
+  fLastExceptionMessage := '';
   AudioDataSize := 0;
   v1AdditionalPadding := 0;
 
@@ -961,7 +982,6 @@ begin
   // Note: Other frames are not empty - they will care for it by themself. ;-)
   if Frames.Count = 0 then
     Title := ' ';
-
 
   // write frames to temporary file
   FrameName := GetTempFile;
@@ -1062,9 +1082,12 @@ begin
                       TmpStream.Free;
                   end;
               except
+                on e: Exception do begin
+                  fLastExceptionMessage := e.Message;
                   result := FileErr_BackupFailed;
                   // Failure -> Exit, to not damage the file
                   Exit;
+                end;
               end;
           end;
 
@@ -1123,8 +1146,11 @@ begin
                 TmpStream.Free;
               end;
             except
-              result := FileErr_FileOpenR;
-              Exit;
+              on e: Exception do begin
+                fLastExceptionMessage := e.Message;
+                result := FileErr_FileOpenR;
+                Exit;
+              end;
             end;
           end;
           // delete cache
@@ -1137,12 +1163,18 @@ begin
       DeleteFile(PChar(FrameName));
     end;
   except
-    on EFCreateError do result := FileErr_FileCreate;
-    on EWriteError do result := FileErr_StreamWrite;
+    on E: EFCreateError do begin
+      fLastExceptionMessage := e.Message;
+      result := FileErr_FileCreate;
+    end;
+    on E: EWriteError do begin
+      fLastExceptionMessage := e.Message;
+      result := FileErr_StreamWrite;
+    end;
     on E: Exception do
     begin
+      fLastExceptionMessage := e.Message;
       result := Mp3ERR_Unclassified;
-      MessageBox(0, PChar(E.Message), PChar('Error Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
@@ -1158,6 +1190,7 @@ var
   ExistingTagSize: Cardinal;
 begin
   result := FileErr_None;
+  fLastExceptionMessage := '';
   try
       ExistingTagSize := GetExistingTagSize(Stream);
       if ExistingTagSize = 0 then
@@ -1190,11 +1223,14 @@ begin
                   Exit;
               end;
           except
-              on EWriteError do result := FileErr_StreamWrite;
+              on E: EWriteError do begin
+                fLastExceptionMessage := E.Message;
+                result := FileErr_StreamWrite;
+              end;
               on E: Exception do
               begin
-                  result := Mp3ERR_Unclassified;
-                  MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
+                fLastExceptionMessage := E.Message;
+                result := Mp3ERR_Unclassified;
               end;
           end;
       finally
@@ -1202,13 +1238,15 @@ begin
           TmpStream.Free;
           DeleteFile(PChar(TmpName));
       end;
-
   except
-      on EFOpenError do result := FileErr_FileCreate;
+      on E: EFOpenError do begin
+        fLastExceptionMessage := E.Message;
+        result := FileErr_FileCreate;
+      end;
       on E: Exception do
       begin
-          result := Mp3ERR_Unclassified;
-          MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
+        fLastExceptionMessage := E.Message;
+        result := Mp3ERR_Unclassified;
       end;
   end;
 end;
@@ -1220,6 +1258,7 @@ end;
 function TID3v2Tag.ReadFromFile(Filename: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       FFilename := Filename;
@@ -1230,7 +1269,10 @@ begin
         Stream.Free;
       end;
     except
-      result := FileErr_FileOpenR;
+      on e: Exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenR;
+      end;
     end
   else
     result := FileErr_NoFile;
@@ -1242,6 +1284,7 @@ end;
 function TID3v2Tag.WriteToFile(Filename: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       FFilename := Filename;
@@ -1257,7 +1300,10 @@ begin
         end;
       end;
     except
-      result := FileErr_FileOpenRW;
+      on e: Exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenRW;
+      end;
     end
   else
     result := FileErr_NoFile;
@@ -1269,6 +1315,7 @@ end;
 function TID3v2Tag.RemoveFromFile(Filename: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       FFilename := Filename;
@@ -1279,7 +1326,10 @@ begin
         Stream.Free;
       end;
     except
-      result := FileErr_FileOpenRW;
+      on e: Exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenRW;
+      end;
     end
   else
     result := FileErr_NoFile;
@@ -1303,10 +1353,15 @@ begin
   fFlgFooterPresent := False;
   fFlgUnknown       := False;
   FUseClusteredPadding := True;
+  fLastExceptionMessage := '';
 
   Frames.Clear;
 end;
 
+procedure TID3v2Tag.ClearExceptionMessage;
+begin
+  fLastExceptionMessage := '';
+end;
 
 //--------------------------------------------------------------------
 // Get the text from a text-frame

@@ -178,8 +178,8 @@ type
             function GetText(TextMode: teTextMode = tmReasonable): UnicodeString; override;
             function SetText(aValue: UnicodeString; TextMode: teTextMode = tmReasonable): Boolean; override;
 
-            function GetPicture(Dest: TStream; out Mime: AnsiString; out PicType: TPictureType; out Description: UnicodeString): Boolean; override;
-            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
 
 
     end;
@@ -243,6 +243,7 @@ type
             fVendorString: UTF8String;
             fCommentVectorList: TObjectList;
             fValidComment: Boolean;
+            fLastExceptionMessage: string;
 
             function GetCount: Integer;
             function fGetCommentVectorByFieldname(aField: String): TCommentVector;
@@ -308,6 +309,8 @@ type
             property AlbumArtist : UnicodeString read fGetAlbumArtist  write fSetAlbumArtist ;
             property Lyrics      : UnicodeString read fGetLyrics       write fSetLyrics      ;
 
+            property LastExceptionMessage: string read fLastExceptionMessage;
+
             //property CommentVectorList: TObjectList read fCommentVectorList;
 
             constructor Create;
@@ -345,24 +348,6 @@ type
 
 implementation
 
-uses
-  WinApi.WinSock;
-
-
-// In FlacFiles, all Integers (except in the Comments) are stored BigEndian
-// We need to convert them to LittleEndian
-function ReadBigEndianCardinal(source: TStream): Cardinal;
-begin
-    Source.Read(result, SizeOf(result));
-    result := ntohl(result);
-end;
-
-procedure WriteBigEndianCardinal(Destination: TStream; value: Cardinal);
-var x: Cardinal;
-begin
-    x := htonl(value);
-    Destination.Write(x, sizeOf(value));
-end;
 
 
 { TCommentVector }
@@ -462,15 +447,15 @@ begin
   end;
 end;
 
-function TCommentVector.GetPicture(Dest: TStream; out Mime: AnsiString;
-  out PicType: TPictureType; out Description: UnicodeString): Boolean;
+function TCommentVector.GetPicture(Dest: TStream; out aMime: AnsiString;
+  out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var
   PicBlock: TMetaDataBlockPicture;
 begin
   result := (TagContentType = tctPicture) and (fValue <> '');
-  Mime := '';
-  PicType := ptOther;
-  Description := '';
+  aMime := '';
+  aPicType := ptOther;
+  aDescription := '';
 
   if result then begin
     PicBlock := TMetaDataBlockPicture.Create;
@@ -479,9 +464,9 @@ begin
       result := PicBlock.Size > 0;
       if result then begin
         Dest.CopyFrom(picBlock.PicData, 0);
-        Mime := picBlock.Mime;
-        PicType := picBlock.PictureType;
-        Description := picBlock.Description;
+        aMime := picBlock.Mime;
+        aPicType := picBlock.PictureType;
+        aDescription := picBlock.Description;
       end;
     finally
       PicBlock.Free;
@@ -489,12 +474,12 @@ begin
   end;
 end;
 
-function TCommentVector.SetPicture(Source: TStream; Mime: AnsiString;
-  PicType: TPictureType; Description: UnicodeString): Boolean;
+function TCommentVector.SetPicture(Source: TStream; aMime: AnsiString;
+  aPicType: TPictureType; aDescription: UnicodeString): Boolean;
 begin
   result := TagContentType = tctPicture;
   if result then
-    Value := UnicodeString(PicDataToBase64(Source, Mime, PicType, Description));
+    Value := UnicodeString(PicDataToBase64(Source, aMime, aPicType, aDescription));
 end;
 
 function TCommentVector.GetDataSize: Integer;
@@ -507,21 +492,23 @@ var c, e: integer;
     rawString: Utf8String;
     rawStringUnicode: String;
 begin
+    result := false;
     Source.Read(c, SizeOf(c));
-    setlength(rawString, c);
-    Source.Read(rawString[1], length(rawString));
-
-    rawStringUnicode := String(rawString);
-    e := pos('=', rawStringUnicode);
-    result := e > 0;
-
-    FieldName := Copy(rawStringUnicode, 1, e-1);
-
-    {$IFDEF UNICODE}
-        fValue := Copy(rawStringUnicode, e+1, length(rawStringUnicode) - e );
-    {$ELSE}
-        fValue := Copy(rawStringUnicode, e+1, length(rawStringUnicode) - e );
-    {$ENDIF}
+    if ValidateLength(Source, c) then begin
+        setlength(rawString, c);
+        Source.Read(rawString[1], length(rawString));
+        rawStringUnicode := String(rawString);
+        e := pos('=', rawStringUnicode);
+        if e > 0 then begin
+          result := true;
+          FieldName := Copy(rawStringUnicode, 1, e-1);
+          {$IFDEF UNICODE}
+              fValue := Copy(rawStringUnicode, e+1, length(rawStringUnicode) - e );
+          {$ELSE}
+              fValue := Copy(rawStringUnicode, e+1, length(rawStringUnicode) - e );
+          {$ENDIF}
+        end;
+    end;
 end;
 
 function TCommentVector.WriteToStream(Destination: TStream): Boolean;
@@ -554,6 +541,7 @@ begin
     fVendorString := '';
     fCommentVectorList.Clear;
     fValidComment := False;
+    fLastExceptionMessage := '';
 end;
 
 constructor TVorbisComments.Create;
@@ -918,6 +906,7 @@ var l,c,i: integer;
     framingBit: Byte;
 begin
     result := True;
+    fLastExceptionMessage := '';
     try
         case fContainerType of
           octOgg: Destination.Write(fVorbisHeader, SizeOf(fVorbisHeader)); // #3 + vorbis
@@ -948,7 +937,10 @@ begin
         end;
 
     except
-        result := False;
+        on e: Exception do begin
+          result := False;
+          fLastExceptionMessage := e.Message;
+        end;
     end;
 end;
 
@@ -1153,6 +1145,8 @@ procedure TMetaDataBlockPicture.SetAsBase64(Value: UTF8String);
 var
   InputStream, OutputStream: TMemoryStream;
 begin
+  if Value = '' then
+    exit;
   InputStream := TMemoryStream.Create;
   OutputStream := TMemoryStream.Create;
   try
@@ -1182,7 +1176,8 @@ begin
       Base64.Encode(InputStream, OutputStream);
       OutputStream.Position := 0;
       SetLength(result, OutputStream.Size);
-      OutputStream.Read(result[1], length(result));
+      if length(result) > 0 then
+        OutputStream.Read(result[1], length(result));
     finally
       OutputStream.Free;
       InputStream.Free;
@@ -1206,16 +1201,21 @@ function TMetaDataBlockPicture.ReadFromStream(Source: TStream): Boolean;
 var
   mimeLength, descLength, picSize: Cardinal;
 begin
+  Clear;
   // 1. Picture-Type
   fPictureType := TPictureType(ReadBigEndianCardinal(Source));
   // 2. Mime-type
   mimeLength := ReadBigEndianCardinal(Source);
-  SetLength(fMime, mimeLength);
-  Source.Read(fMime[1], mimeLength);
+  if ValidateLength(Source, mimeLength) then begin
+    SetLength(fMime, mimeLength);
+    Source.Read(fMime[1], mimeLength);
+  end;
   // 3. Description
   descLength := ReadBigEndianCardinal(Source);
-  SetLength(fDescription, descLength);
-  Source.Read(fDescription[1], descLength);
+  if ValidateLength(Source, descLength) then begin
+    SetLength(fDescription, descLength);
+    Source.Read(fDescription[1], descLength);
+  end;
   // 4. Some data about the Picture
   fWidth          := ReadBigEndianCardinal(Source);
   fHeight         := ReadBigEndianCardinal(Source);
@@ -1223,22 +1223,22 @@ begin
   fNumberOfColors := ReadBigEndianCardinal(Source);
   // 5. Picture Data
   picSize := ReadBigEndianCardinal(Source);
-  fPicData.Clear;
   fPicData.CopyFrom(Source, PicSize);
   result := True;
 end;
 
 function TMetaDataBlockPicture.WriteToStream(Destination: TStream): Boolean;
 begin
-
     // 1. Picture-Type
     WriteBigEndianCardinal(Destination, Cardinal(fPictureType));
     // 2. Mime-type
     WriteBigEndianCardinal(Destination, length(fMime));
-    Destination.Write(fMime[1], length(fMime));
+    if length(fMime) > 0 then
+      Destination.Write(fMime[1], length(fMime));
     // 3. Description
     WriteBigEndianCardinal(Destination, length(fDescription));
-    Destination.Write(fDescription[1], length(fDescription));
+    if length(fDescription) > 0 then
+      Destination.Write(fDescription[1], length(fDescription));
     // 4. Some data about the Picture
     WriteBigEndianCardinal(Destination, fWidth         );
     WriteBigEndianCardinal(Destination, fHeight        );

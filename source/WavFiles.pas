@@ -65,9 +65,10 @@ type
 
     Twavfile = class(TBaseAudioFile)
         private
-            procedure fResetData;
+          fWaveCodec: String;
+          function GetCodecName(aFormatTag: Word): string;
+            
         protected
-
             procedure fSetTitle           (aValue: UnicodeString); override;
             procedure fSetArtist          (aValue: UnicodeString); override;
             procedure fSetAlbum           (aValue: UnicodeString); override;
@@ -88,10 +89,14 @@ type
             function fGetAlbumArtist : UnicodeString; override;
             function fGetLyrics           : UnicodeString;  override;
 
+            function ReadFromStream(aStream: TStream): TAudioError; override;
+
         public
             { Public declarations }
-            constructor Create; override;
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
+            property WaveCodec: String read fWaveCodec; 
+            
+            constructor Create; override;          
+
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
             // dummy methods
@@ -107,7 +112,7 @@ implementation
 constructor TWavfile.Create;
 begin
     inherited;
-    fResetData;
+    Clear;
 end;
 
 function Twavfile.fGetFileType: TAudioFileType;
@@ -119,17 +124,6 @@ end;
 function Twavfile.fGetFileTypeDescription: String;
 begin
     result := cAudioFileType[at_Wav];
-end;
-
-procedure TWavfile.FResetData;
-begin
-    // Reset variables
-    fValid := false;
-    fFileSize := 0;
-    fSampleRate := 0;
-    fChannels := 0;
-    fDuration := 0;
-    fBitRate := 0;
 end;
 
 procedure TWavfile.fSetAlbum(aValue: UnicodeString);
@@ -253,15 +247,130 @@ begin
 end;
 
 
+function Twavfile.GetCodecName(aFormatTag: Word): string;
+begin
+  // source: https://www.iana.org/assignments/wave-avi-codec-registry/wave-avi-codec-registry.xhtml
+  case aFormatTag of
+    $0000	: Result := 'Unknown';
+    $0001	: Result := 'PCM (Uncompressed)';
+    $0002	: Result := 'Microsoft ADPCM Format';
+    $0003	: Result := 'IEEE Float';
+    $0004	: Result := 'Compaq Computer''s VSELP';
+    $0005	: Result := 'IBM CVSD';
+    $0006	: Result := 'Microsoft ALAW';
+    $0007	: Result := 'Microsoft MULAW';
+    $0010	: Result := 'OKI ADPCM';
+    $0011	: Result := 'Intel''s DVI ADPCM';
+    $0012	: Result := 'Videologic''s MediaSpace ADPCM';
+    $0013	: Result := 'Sierra ADPCM';
+    $0014	: Result := 'G.723 ADPCM';
+    $0015	: Result := 'DSP Solution''s DIGISTD';
+    $0016	: Result := 'DSP Solution''s DIGIFIX';
+    $0017	: Result := 'Dialogic OKI ADPCM';
+    $0018	: Result := 'MediaVision ADPCM';
+    $0019	: Result := 'HP CU';
+    $0020	: Result := 'Yamaha ADPCM';
+    $0021	: Result := 'Speech Compression''s Sonarc';
+    $0022	: Result := 'DSP Group''s True Speech';
+    $0023	: Result := 'Echo Speech''s EchoSC1';
+    $0024	: Result := 'Audiofile AF36';
+    $0025	: Result := 'APTX';
+    $0026	: Result := 'AudioFile AF10';
+    $0027	: Result := 'Prosody 1612';
+    $0028	: Result := 'LRC';
+    $0030	: Result := 'Dolby AC2';
+    $0031	: Result := 'GSM610';
+    $0032	: Result := 'MSNAudio';
+    $0033	: Result := 'Antex ADPCME';
+    $0034	: Result := 'Control Res VQLPC';
+    $0035	: Result := 'Digireal';
+    $0036	: Result := 'DigiADPCM';
+    $0037	: Result := 'Control Res CR10';
+    $0038	: Result := 'NMS VBXADPCM';
+    $0039	: Result := 'Roland RDAC';
+    $003A	: Result := 'EchoSC3';
+    $003B	: Result := 'Rockwell ADPCM';
+    $003C	: Result := 'Rockwell Digit LK';
+    $003D	: Result := 'Xebec';
+    $0040	: Result := 'Antex Electronics G.721';
+    $0041	: Result := 'G.728 CELP';
+    $0042	: Result := 'MSG723';
+    $0050	: Result := 'MPEG Layer 1/2';
+    $0052	: Result := 'RT24';
+    $0053	: Result := 'PAC';
+    $0055	: Result := 'MP3 (MPEG Layer 3)';
+    $0059	: Result := 'Lucent G.723';
+    $0060	: Result := 'Cirrus';
+    $0061	: Result := 'ESPCM';
+    $0062	: Result := 'Voxware';
+    $0063	: Result := 'Canopus Atrac';
+    $0064	: Result := 'G.726 ADPCM';
+    $0065	: Result := 'G.722 ADPCM';
+    $0066	: Result := 'DSAT';
+    $0067	: Result := 'DSAT Display';
+    $0069	: Result := 'Voxware Byte Aligned';
+    $0070	: Result := 'Voxware AC8';
+    $0071	: Result := 'Voxware AC10';
+    $0072	: Result := 'Voxware AC16';
+    $0073	: Result := 'Voxware AC20';
+    $0074	: Result := 'Voxware MetaVoice';
+    $0075	: Result := 'Voxware MetaSound';
+    $0076	: Result := 'Voxware RT29HW';
+    $0077	: Result := 'Voxware VR12';
+    $0078	: Result := 'Voxware VR18';
+    $0079	: Result := 'Voxware TQ40';
+    $0080	: Result := 'Softsound';
+    $0081	: Result := 'Voxware TQ60';
+    $0082	: Result := 'MSRT24';
+    $0083	: Result := 'G.729A';
+    $0084	: Result := 'MVI MV12';
+    $0085	: Result := 'DF G.726';
+    $0086	: Result := 'DF GSM610';
+    $0088	: Result := 'ISIAudio';
+    $0089	: Result := 'Onlive';
+    $0091	: Result := 'SBC24';
+    $0092	: Result := 'Dolby AC3 SPDIF';
+    $0097	: Result := 'ZyXEL ADPCM';
+    $0098	: Result := 'Philips LPCBB';
+    $0099	: Result := 'Packed';
+    $0100	: Result := 'Rhetorex ADPCM';
+    $0101	: Result := 'BeCubed Software''s IRAT';
+    $0111	: Result := 'Vivo G.723';
+    $0112	: Result := 'Vivo Siren';
+    $0123	: Result := 'Digital G.723';
+    $0200	: Result := 'Creative ADPCM';
+    $0202	: Result := 'Creative FastSpeech8';
+    $0203	: Result := 'Creative FastSpeech10';
+    $0220	: Result := 'Quarterdeck';
+    $0300	: Result := 'FM Towns Snd';
+    $0400	: Result := 'BTV Digital';
+    $0680	: Result := 'VME VMPCM';
+    $1000	: Result := 'OLIGSM';
+    $1001	: Result := 'OLIADPCM';
+    $1002	: Result := 'OLICELP';
+    $1003	: Result := 'OLISBC';
+    $1004	: Result := 'OLIOPR';
+    $1100	: Result := 'LH Codec';
+    $1400	: Result := 'Norris';
+    $1401	: Result := 'ISIAudio';
+    $1500	: Result := 'Soundspace Music Compression';
+    $2000	: Result := 'AC3 DVM';
+    $FFFE : Result := 'Extensible (WAVE_FORMAT_EXTENSIBLE)';
+  else
+    Result := Format('Unknown (0x%.4x)', [aFormatTag]);
+  end;  
+end;
+
 
 { --------------------------------------------------------------------------- }
 
-function TWavfile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
+function Twavfile.ReadFromStream(aStream: TStream): TAudioError;
+var
     groupID: array[0..3] of AnsiChar;
     riffType: array[0..3] of AnsiChar;
     BytesPerSec: Integer;
     dataSize: Integer;
+    wFormatTag: WORD;
     wChannels: WORD;
     dwSamplesPerSec: LongInt;
     BytesPerSample:Word;
@@ -273,87 +382,69 @@ var fs: TAudioFileStream;
     begin
         Result := -1;
         // index of first chunk
-        fs.Position := 12;
+        aStream.Position := 12;
         repeat
             // read next chunk
-            fs.Read(chunkID, 4);
-            fs.Read(chunkSize, 4);
+            aStream.Read(chunkID, 4);
+            aStream.Read(chunkSize, 4);
             if chunkID <> ID then
                 // skip chunk
-                fs.Position := fs.Position + chunkSize;
-        until (chunkID = ID) or (fs.Position >= fs.Size);
+                aStream.Position := aStream.Position + chunkSize;
+        until (chunkID = ID) or (aStream.Position >= aStream.Size);
 
         if chunkID = ID then
             // chunk found,
             // return chunk size
             Result := chunkSize
     end;
-
-
 begin
-    inherited ReadFromFile(aFilename);
+  fFileSize := aStream.Size;
+  result := FileErr_None;
 
-    // Reset variables and load file data
-    fResetData;
-    result := FileErr_None;
+  aStream.Read(groupID, 4);
+  aStream.Position := aStream.Position + 4; // skip four bytes (file size)
+  aStream.Read(riffType, 4);
+  if (groupID = 'RIFF') and (riffType = 'WAVE') then
+  begin
+      // search for format chunk
+      if GotoChunk('fmt ') <> -1 then
+      begin
+          // found it
+          // aStream.Position := aStream.Position + 2;
+          aStream.Read(wFormatTag, 2);
+          fWaveCodec := GetCodecName(wFormatTag);
+          aStream.Read(wChannels,2);
+          fChannels := wChannels;
 
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
-            try
-                fFileSize := fs.Size;
+          aStream.Read(dwSamplesPerSec,4);
+          fSampleRate := dwSamplesPerSec;
 
-                fs.Read(groupID, 4);
-                fs.Position := fs.Position + 4; // skip four bytes (file size)
-                fs.Read(riffType, 4);
-                if (groupID = 'RIFF') and (riffType = 'WAVE') then
-                begin
-                    // search for format chunk
-                    if GotoChunk('fmt ') <> -1 then
-                    begin
-                        // found it
-                        fs.Position := fs.Position + 2;
-                        fs.Read(wChannels,2);
-                        fChannels := wChannels;
+          aStream.Read(BytesPerSec,4);
+          aStream.Read(BytesPerSample,2);
+          aStream.Read(BitsPerSample,2);
+          fBitrate := wChannels * BitsPerSample * dwSamplesPerSec ;
+          // search for data chunk
+          dataSize := GotoChunk('data');
 
-                        fs.Read(dwSamplesPerSec,4);
-                        fSampleRate := dwSamplesPerSec;
+          if dataSize <> -1 then begin
+              // found it
+              if BytesPerSec <> 0 then
+                  fDuration := dataSize DIV BytesPerSec
+              else
+                  fDuration := 0;
+          end;
 
-                        fs.Read(BytesPerSec,4);
-                        fs.Read(BytesPerSample,2);
-                        fs.Read(BitsPerSample,2);
-                        fBitrate := wChannels * BitsPerSample * dwSamplesPerSec ;
-                        // search for data chunk
-                        dataSize := GotoChunk('data');
+          if (dataSize >= 0) and (fBitrate = 0) and (fDuration <> 0) then begin
+            // for compressed files, it is often BitsPerSample = 0, therefore the calculated Bitrate is also zero.
+            // in that case: get the Bitrate by the datasize and duration
+            fBitrate := Round(dataSize * 8 / fDuration);
 
-                        if dataSize <> -1 then
-                            // found it
-                            if BytesPerSec <> 0 then
-                                fDuration := dataSize DIV BytesPerSec
-                            else
-                                fDuration := 0;
-                    end
-                end
+          end;
 
-
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end
-    else
-        result := FileErr_NoFile;
-
-
-    if result = FileErr_None then
-    begin
-        // Process data if loaded and valid
-        fValid := true;
-
-    end;
+          fValid := true;
+      end
+  end else
+    result := FileErr_Invalid;
 end;
 
 function TWavfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;

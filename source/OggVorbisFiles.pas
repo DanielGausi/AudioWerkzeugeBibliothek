@@ -114,6 +114,8 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
 
+            function ReadFromStream(aStream: TStream): TAudioError; override;
+
         public
             property Samples: Integer read fMaxSamples;
             property BitRateNominal: Word read FBitRateNominal; // Nominal bit rate
@@ -123,9 +125,8 @@ type
 
             constructor Create; override;
             destructor Destroy; override;
+            procedure Clear; override;
 
-            procedure ClearData;
-            function ReadFromFile(aFilename: UnicodeString): TAudioError; override;
             function WriteToFile(aFilename: UnicodeString): TAudioError; override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
     end;
@@ -144,8 +145,7 @@ begin
     fMaxPadding := 25500;
     fDefaultPadding := 2550;
     fUsePadding     := True;
-
-    ClearData;
+    Clear;
 end;
 
 destructor TOggVorbisFile.Destroy;
@@ -167,17 +167,14 @@ begin
     result := cAudioFileType[at_Ogg];
 end;
 
-procedure TOggVorbisFile.ClearData;
+procedure TOggVorbisFile.Clear;
 begin
-    fFileSize       := 0;
-    fMaxSamples     := 0;
-    fSampleRate     := 0;
-    fBitRateNominal := 0;
-    fValid          := False;
-    fChannels       := 0;
-    fIdentificationHeader.Clear;
-    fCommentHeader.Clear;
-    fSetupHeader.Clear;
+  inherited Clear;
+  fMaxSamples     := 0;
+  fBitRateNominal := 0;
+  fIdentificationHeader.Clear;
+  fCommentHeader.Clear;
+  fSetupHeader.Clear;
 end;
 
 
@@ -273,56 +270,39 @@ begin
     result := OVErr_InvalidHeader;
 end;
 
-
-function TOggVorbisFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
-    OggContainer: TOggContainer;
+function TOggVorbisFile.ReadFromStream(aStream: TStream): TAudioError;
+var
+  OggContainer: TOggContainer;
 begin
-    inherited ReadFromFile(aFilename);
-    ClearData;
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFileName, fmOpenRead or fmShareDenyWrite);
-            try
-                OggContainer := TOggContainer.Create(fs);
-                try
-                    fFileSize := fs.Size;
+  OggContainer := TOggContainer.Create(aStream);
+  try
+      fFileSize := aStream.Size;
 
-                    result := ReadIdentificationHeader(OggContainer, fIdentificationHeader);
-                    if result = FileErr_None then
-                      result := ReadCommentHeader(OggContainer, fCommentHeader);
-                    if result = FileErr_None then
-                      result := ReadSectionHeader(OggContainer, fSetupHeader);
+      result := ReadIdentificationHeader(OggContainer, fIdentificationHeader);
+      if result = FileErr_None then
+        result := ReadCommentHeader(OggContainer, fCommentHeader);
+      if result = FileErr_None then
+        result := ReadSectionHeader(OggContainer, fSetupHeader);
 
-                    // set some private variables from these headers
-                    if result = FileErr_None then
-                    begin
-                        fSampleRate    := fIdentificationHeader.fVorbisIdentification.SampleRate;
-                        fChannels      := fIdentificationHeader.fVorbisIdentification.ChannelMode;
-                        fBitRateNominal:= fIdentificationHeader.fVorbisIdentification.BitRateNominal;
-                        // get number of samples in the File
-                        // "GetMaxSample" searches from the end of the file and is usually faster.
-                        // However, parsing the complete OggContainer may be safer.
-                        fMaxSamples := GetMaxSample(fs);
-                        if fMaxSamples <= 0 then
-                          fMaxSamples := OggContainer.GetMaxGranulePosition(0);
-                        fValid := True;
-                    end else
-                        fValid := False;
-                finally
-                    OggContainer.Free;
-                end;
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end else
-        result := FileErr_NoFile;
+      // set some private variables from these headers
+      if result = FileErr_None then
+      begin
+          fSampleRate    := fIdentificationHeader.fVorbisIdentification.SampleRate;
+          fChannels      := fIdentificationHeader.fVorbisIdentification.ChannelMode;
+          fBitRateNominal:= fIdentificationHeader.fVorbisIdentification.BitRateNominal Div 1000; // We use kbit/s, but the value in the header is bit/s!
+          // get number of samples in the File
+          // "GetMaxSample" searches from the end of the file and is usually faster.
+          // However, parsing the complete OggContainer may be safer.
+          fMaxSamples := GetMaxSample(aStream);
+          if fMaxSamples <= 0 then
+            fMaxSamples := OggContainer.GetMaxGranulePosition(0);
+          fValid := True;
+      end else
+          fValid := False;
+  finally
+      OggContainer.Free;
+  end;
 end;
-
 
 function TOggVorbisFile.WriteToFile(aFilename: UnicodeString): TAudioError;
 var fs: TAudioFileStream;
@@ -331,6 +311,7 @@ var fs: TAudioFileStream;
     existingCommentHdr: TOggVorbisCommentPacket;
     existingSetupHeader: TOggPacket;
     backupFilename: String;
+    tmp: Boolean;
 
     function CacheAudioData: TAudioError;
     var
@@ -345,7 +326,10 @@ var fs: TAudioFileStream;
           CacheStream.Free;
         end;
       except
-        result := FileErr_BackupFailed;
+        on e: Exception do begin
+          result := FileErr_BackupFailed;
+          fLastExceptionMessage := e.Message;
+        end;
       end;
     end;
 
@@ -362,7 +346,10 @@ var fs: TAudioFileStream;
           CacheStream.Free;
         end;
       except
-        result := FileErr_BackupFailed;
+        on e: Exception do begin
+          result := FileErr_BackupFailed;
+          fLastExceptionMessage := e.Message;
+        end;
       end;
     end;
 
@@ -381,7 +368,9 @@ begin
         try
 
             fCommentHeader.Data.Clear;
-            fCommentHeader.fComments.WriteToStream(fCommentHeader.Data);   // change to method of TVorbisCommentPacket ?
+            tmp := fCommentHeader.fComments.WriteToStream(fCommentHeader.Data);   // change to method of TVorbisCommentPacket ?
+            if (not tmp) and (fCommentHeader.fComments.LastExceptionMessage <> '') then
+              fLastExceptionMessage := fCommentHeader.fComments.LastExceptionMessage;
 
             result := ReadIdentificationHeader(existingContainer, existingIDHdr);
             if result = FileErr_None then begin
@@ -436,7 +425,10 @@ begin
         fs.Free;
       end;
     except
-      result := FileErr_FileOpenRW;
+      on e: Exception do begin
+        result := FileErr_FileOpenRW;
+        fLastExceptionMessage := e.Message;
+      end;
     end;
   end;
 end;

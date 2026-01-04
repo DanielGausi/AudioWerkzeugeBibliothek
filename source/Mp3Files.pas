@@ -115,6 +115,9 @@ type
             function GetMpegScanMode: TMpegScanMode;
             procedure SetMpegScanMode(const Value: TMpegScanMode);
 
+            procedure ForwardTagExceptionMessages;
+            procedure ClearTagExceptionMessages;
+
         protected
 
             procedure fSetTitle           (aValue: UnicodeString); override;
@@ -139,6 +142,8 @@ type
 
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
+
+            function ReadFromStream(aStream: TStream): TAudioError; override;
 
         public
 
@@ -178,9 +183,8 @@ type
 
             constructor Create; override;
             destructor Destroy; override;
+            procedure Clear; override;
 
-            procedure Clear;
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;    override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;     override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  override;
 
@@ -214,18 +218,11 @@ implementation
 
 procedure TMP3File.Clear;
 begin
-    fID3v2Tag.Clear;
-    fID3v1Tag.Clear;
-    ApeTag.Clear;
-
-    FFileSize := 0;
-
-    fDuration   := 0;
-    fBitrate    := 0;
-    fSamplerate := 0;
-    fChannels   := 0;
-    fValid      := False;
-    fSecondaryTagsProcessed := False;
+  inherited Clear;
+  fID3v2Tag.Clear;
+  fID3v1Tag.Clear;
+  ApeTag.Clear;
+  fSecondaryTagsProcessed := False;
 end;
 
 constructor TMP3File.Create;
@@ -510,76 +507,76 @@ begin
         result := 0;
 end;
 
-
-function TMP3File.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
-    tmp1, tmp2, tmpMpeg: TAudioError;
+procedure TMP3File.ForwardTagExceptionMessages;
 begin
-    inherited ReadFromFile(aFilename);
+  // check for exception messages from the tag objects
+  if fApeTag.LastExceptionMessage   <> '' then fLastExceptionMessage := fApeTag.LastExceptionMessage;
+  if fID3v1Tag.LastExceptionMessage <> '' then fLastExceptionMessage := fID3v1Tag.LastExceptionMessage;
+  if fID3v2Tag.LastExceptionMessage <> '' then fLastExceptionMessage := fID3v2Tag.LastExceptionMessage;
+end;
 
-    Clear;
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
-            try
-                fFileSize := fs.Size;
+procedure TMP3File.ClearTagExceptionMessages;
+begin
+  fApeTag.ClearExceptionMessage;
+  fID3v1Tag.ClearExceptionMessage;
+  fID3v2Tag.ClearExceptionMessage;
+end;
 
-                // Read ID3v2-Tag
-                tmp2 := id3v2tag.ReadFromStream(fs);
-                if fID3v2Tag.exists then
-                    fs.Seek(id3v2tag.size, soBeginning)
-                else
-                    fs.Seek(0, sobeginning);
+function TMP3File.ReadFromStream(aStream: TStream): TAudioError;
+var
+  tmp1, tmp2, tmpMpeg: TAudioError;
+begin
+  fFileSize := aStream.Size;
+  ClearTagExceptionMessages;
 
-                // Read MPEG-Information
-                if ReadWithCompleteAnalysis then
-                    tmpMpeg := fMpegInfo.StoreFrames(fs)
-                else
-                    tmpMpeg := fMpegInfo.LoadFromStream(fs);
+  // Read ID3v2-Tag
+  tmp2 := id3v2tag.ReadFromStream(aStream);
+  if fID3v2Tag.exists then
+      aStream.Seek(id3v2tag.size, soBeginning)
+  else
+      aStream.Seek(0, sobeginning);
 
-                // Read ID3v1-Tag and APE
-                if SecondaryTagsAreNeeded or ReadWithCompleteAnalysis then
-                begin
-                    tmp1 := ApeTag.ReadFromStream(fs);
-                    if ApeTag.ID3v1Present then
-                        fID3v1Tag.CopyFromRawTag(ApeTag.ID3v1TagRaw);
-                    fSecondaryTagsProcessed := True;
-                end
-                else
-                    tmp1 := FileErr_None;
+  // Read MPEG-Information
+  if ReadWithCompleteAnalysis then
+      tmpMpeg := fMpegInfo.StoreFrames(aStream)
+  else
+      tmpMpeg := fMpegInfo.LoadFromStream(aStream);
 
-                // summarize
-                result := tmpMpeg;
-                if result = FileErr_None then
-                    result := tmp2;
-                if result = FileErr_None then
-                    result := tmp1;
+  // Read ID3v1-Tag and APE
+  if SecondaryTagsAreNeeded or ReadWithCompleteAnalysis then
+  begin
+      tmp1 := ApeTag.ReadFromStream(aStream);
+      if ApeTag.ID3v1Present then
+          fID3v1Tag.CopyFromRawTag(ApeTag.ID3v1TagRaw);
+      fSecondaryTagsProcessed := True;
+  end
+  else
+      tmp1 := FileErr_None;
 
-                fValid := tmpMpeg = FileErr_None;
-                if fValid then
-                begin
-                    fDuration    := fMpegInfo.Duration;
-                    fBitrate     := fMpegInfo.Bitrate * 1000;
-                    fSamplerate  := fMpegInfo.Samplerate;
-                    case fMpegInfo.Channelmode of
-                        0: fChannels := 2;
-                        1: fChannels := 2;
-                        2: fChannels := 2;
-                        3: fChannels := 1;
-                    else
-                         fChannels := 0;
-                    end;
-                end;
+  // summarize
+  result := tmpMpeg;
+  if result = FileErr_None then
+      result := tmp2;
+  if result = FileErr_None then
+      result := tmp1;
 
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end else
-        result := FileErr_NoFile;
+  fValid := tmpMpeg = FileErr_None;
+  if fValid then
+  begin
+      fDuration    := fMpegInfo.Duration;
+      fBitrate     := fMpegInfo.Bitrate * 1000;
+      fSamplerate  := fMpegInfo.Samplerate;
+      case fMpegInfo.Channelmode of
+          0: fChannels := 2;
+          1: fChannels := 2;
+          2: fChannels := 2;
+          3: fChannels := 1;
+      else
+           fChannels := 0;
+      end;
+  end;
+
+  ForwardTagExceptionMessages;
 end;
 
 
@@ -594,6 +591,7 @@ end;
 function TMP3File.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited RemoveFromFile(aFilename);
+    ClearTagExceptionMessages;
     result := FileErr_None;
 
     if (mt_Existing in fTagsToBeDeleted) or (mt_ID3v1 in fTagsToBeDeleted) then
@@ -602,6 +600,8 @@ begin
       result := fApeTag.RemoveFromFile(aFilename);
     if (mt_Existing in fTagsToBeDeleted) or (mt_ID3v2 in fTagsToBeDeleted) then
       result := fId3v2Tag.RemoveFromFile(aFilename);
+
+    ForwardTagExceptionMessages;
 end;
 
 function TMP3File.WriteToFile(aFilename: UnicodeString): TAudioError;
@@ -609,6 +609,7 @@ var TagWritten: Boolean;
   DoWriteV1, DoWriteV2, DoWriteApe: Boolean;
 begin
     inherited WriteToFile(aFilename);
+    ClearTagExceptionMessages;
     result := FileErr_None;
 
     TagWritten := False;
@@ -645,6 +646,8 @@ begin
         if DoWriteV2 then
             result := fId3v2Tag.WriteToFile(aFileName);
     end;
+
+    ForwardTagExceptionMessages;
 end;
 
 procedure TMP3File.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);

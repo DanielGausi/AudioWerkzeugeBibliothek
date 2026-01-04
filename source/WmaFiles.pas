@@ -82,7 +82,7 @@ type
             fYear: UnicodeString;
             fGenre: UnicodeString;
             fComment: UnicodeString;
-            procedure fResetData;
+            // procedure fResetData;
             function fGetChannelMode: String;
         protected
             function fGetChannels   : Integer;  override;
@@ -107,10 +107,12 @@ type
             function fGetAlbumArtist : UnicodeString; override;
             function fGetLyrics           : UnicodeString;  override;
 
+            function ReadFromStream(aStream: TStream): TAudioError; override;
         public
             { Public declarations }
             constructor Create;  override;                        { Create object }
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
+            procedure Clear; override;
+
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
             property ChannelModeID: Byte read FChannelModeID;   { Channel mode code }
@@ -300,7 +302,7 @@ constructor TWMAfile.Create;
 begin
   { Create object }
   inherited;
-  FResetData;
+  Clear;
 end;
 
 function TWMAfile.fGetFileType: TAudioFileType;
@@ -315,23 +317,17 @@ end;
 
 { ********************** Private functions & procedures ********************* }
 
-procedure TWMAfile.FResetData;
+procedure TWMAfile.Clear;
 begin
-    // Reset variables
-    fValid := false;
-    fFileSize := 0;
-    fChannelModeID := WMA_CM_UNKNOWN;
-    fChannels := 0;
-    fSampleRate := 0;
-    fDuration := 0;
-    fBitRate := 0;
-    fTitle := '';
-    fArtist := '';
-    fAlbum := '';
-    fTrack := '0';
-    fYear := '';
-    fGenre := '';
-    fComment := '';
+  inherited Clear;
+  fChannelModeID := WMA_CM_UNKNOWN;
+  fTitle := '';
+  fArtist := '';
+  fAlbum := '';
+  fTrack := '0';
+  fYear := '';
+  fGenre := '';
+  fComment := '';
 end;
 
 procedure TWMAfile.fSetAlbum(aValue: UnicodeString);
@@ -465,81 +461,63 @@ end;
 
 { --------------------------------------------------------------------------- }
 
-function TWMAfile.ReadFromFile(aFilename: UnicodeString): TAudioError;
+function TWMAfile.ReadFromStream(aStream: TStream): TAudioError;
 var
   Data: FileData;
-  fs: TAudioFileStream;
   ID: ObjectID;
   Iterator, ObjectCount, ObjectSize, Position: Integer;
 begin
-    inherited ReadFromFile(aFilename);
-    // Reset variables and load file data
-    fResetData;
-    FillChar(Data, SizeOf(Data), 0);
-    result := FileErr_None;
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
-            try
-                fFileSize := fs.Size;
+  fFileSize := aStream.Size;
+  FillChar(Data, SizeOf(Data), 0);
+  result := FileErr_None;
 
-                fs.ReadBuffer(ID, SizeOf(ID));
-                if ID = WMA_HEADER_ID then
-                begin
-                    fs.Seek(8, soFromCurrent);
-                    fs.ReadBuffer(ObjectCount, SizeOf(ObjectCount));
-                    fs.Seek(2, soFromCurrent);
-                    // Read all objects in header and get needed data
-                    for Iterator := 1 to ObjectCount do
-                    begin
-                        Position := fs.Position;
-                        fs.ReadBuffer(ID, SizeOf(ID));
-                        fs.ReadBuffer(ObjectSize, SizeOf(ObjectSize));
-                        ReadObject(ID, fs, Data);
-                        fs.Seek(Position + ObjectSize, soFromBeginning);
-                    end;
-                end;
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end
-    else
-        result := FileErr_NoFile;
+  aStream.ReadBuffer(ID, SizeOf(ID));
+  if ID = WMA_HEADER_ID then
+  begin
+      aStream.Seek(8, soFromCurrent);
+      aStream.ReadBuffer(ObjectCount, SizeOf(ObjectCount));
+      aStream.Seek(2, soFromCurrent);
+      // Read all objects in header and get needed data
+      for Iterator := 1 to ObjectCount do
+      begin
+          Position := aStream.Position;
+          aStream.ReadBuffer(ID, SizeOf(ID));
+          aStream.ReadBuffer(ObjectSize, SizeOf(ObjectSize));
+          ReadObject(ID, aStream, Data);
+          aStream.Seek(Position + ObjectSize, soFromBeginning);
+      end;
+  end else
+    result := FileErr_Invalid;
 
+  if result = FileErr_None then begin
+      // Process data if loaded and valid
+      fValid := true;
+      // Fill properties with loaded data
+      if (Data.Channels = WMA_CM_MONO) or (Data.Channels = WMA_CM_STEREO) then
+          fChannelModeID := Data.Channels
+      else
+          fChannelModeID := WMA_CM_UNKNOWN;
 
-    if result = FileErr_None then
-    begin
-        // Process data if loaded and valid
-        fValid := true;
-        // Fill properties with loaded data
-        if (Data.Channels = WMA_CM_MONO) or (Data.Channels = WMA_CM_STEREO) then
-            fChannelModeID := Data.Channels
-        else
-            fChannelModeID := WMA_CM_UNKNOWN;
+      fSampleRate := Data.SampleRate;
+      if Data.MaxBitRate > 0 then
+          FDuration := round(fFileSize * 8 / Data.MaxBitRate)
+      else
+          FDuration := 0;
 
-        fSampleRate := Data.SampleRate;
-        if Data.MaxBitRate > 0 then
-            FDuration := round(fFileSize * 8 / Data.MaxBitRate)
-        else
-            FDuration := 0;
+      fBitRate := Data.ByteRate * 8;
+      fTitle   := Trim(Data.Tag[1]);
+      fArtist  := Trim(Data.Tag[2]);
+      fAlbum   := Trim(Data.Tag[3]);
+      fYear    := Trim(Data.Tag[5]);
+      fGenre   := Trim(Data.Tag[6]);
+      fComment := Trim(Data.Tag[7]);
 
-        fBitRate := Data.ByteRate * 8;
-        fTitle   := Trim(Data.Tag[1]);
-        fArtist  := Trim(Data.Tag[2]);
-        fAlbum   := Trim(Data.Tag[3]);
-        fYear    := Trim(Data.Tag[5]);
-        fGenre   := Trim(Data.Tag[6]);
-        fComment := Trim(Data.Tag[7]);
-
-        fTrack := Trim(Data.Tag[8]);
-        if fTrack = '' then
-            fTrack := Trim(Data.Tag[4]);
-    end;
+      fTrack := Trim(Data.Tag[8]);
+      if fTrack = '' then
+          fTrack := Trim(Data.Tag[4]);
+  end;
 end;
+
 
 function TWMAfile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin

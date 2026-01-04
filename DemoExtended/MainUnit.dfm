@@ -319,9 +319,9 @@ object MainFormAWB: TMainFormAWB
     object MemoSpecific: TMemo
       AlignWithMargins = True
       Left = 10
-      Top = 104
+      Top = 112
       Width = 190
-      Height = 273
+      Height = 265
       Margins.Left = 8
       Margins.Top = 0
       Margins.Right = 8

@@ -104,6 +104,10 @@ type
             function fGetFileType            : TAudioFileType; override;
             function fGetFileTypeDescription : String;         override;
 
+            procedure ClearTagExceptionMessages;
+            procedure ForwardTagExceptionMessages;
+            function ReadFromStream(aStream: TStream): TAudioError; override;
+
         public
             property ApeTag: TApeTag read fApeTag;
             property ID3v1Tag: TID3v1tag read fID3v1Tag;
@@ -130,10 +134,8 @@ type
 
             constructor Create; override;
             destructor Destroy; override;
+            procedure Clear; override;
 
-            procedure Clear;
-
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
 
@@ -182,16 +184,10 @@ end;
 }
 procedure TBaseApeFile.Clear;
 begin
-    ApeTag.Clear;
-    ID3v1Tag.Clear;
-
-    FFileSize := 0;
-    fID3v2TagSize := 0;
-    fDuration   := 0;
-    fBitrate    := 0;
-    fSamplerate := 0;
-    fChannels   := 0;
-    fValid      := False;
+  inherited Clear;
+  ApeTag.Clear;
+  ID3v1Tag.Clear;
+  fID3v2TagSize := 0;
 end;
 
 
@@ -339,89 +335,83 @@ begin
     result := True;
 end;
 
-
-function TBaseApeFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
+procedure TBaseApeFile.ForwardTagExceptionMessages;
 begin
-    inherited ReadFromFile(aFileName);
-    Clear;
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
-            try
-                fFileSize := fs.Size;
-
-                // Check for an existing ID3v2Tag and get its size
-                fID3v2TagSize := GetID3Size(fs);
-
-                // Read the APEv2Tag from the stream
-                result := ApeTag.ReadFromStream(fs);
-
-                // no matter what the result is: we may have also already read a raw ID3v1Tag
-                if ApeTag.ID3v1Present then
-                    fID3v1Tag.CopyFromRawTag(ApeTag.ID3v1TagRaw);
-
-                // Read the Audio Data (duration, bitrate, ) from the file.
-                // This should be done in derivate classes
-                // TagSizes (all 3) may be needed there
-                fs.Seek(fID3v2TagSize, soBeginning);
-                ReadAudioDataFromStream(fs);
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end else
-        result := FileErr_NoFile;
+  if fApeTag.LastExceptionMessage   <> '' then fLastExceptionMessage := fApeTag.LastExceptionMessage;
+  if fID3v1Tag.LastExceptionMessage <> '' then fLastExceptionMessage := fID3v1Tag.LastExceptionMessage;
 end;
 
+procedure TBaseApeFile.ClearTagExceptionMessages;
+begin
+  fApeTag.ClearExceptionMessage;
+  fID3v1Tag.ClearExceptionMessage;
+end;
+
+function TBaseApeFile.ReadFromStream(aStream: TStream): TAudioError;
+begin
+  ClearTagExceptionMessages;
+  fFileSize := aStream.Size;
+  // Check for an existing ID3v2Tag and get its size
+  fID3v2TagSize := GetID3Size(aStream);
+  // Read the APEv2Tag from the stream
+  result := ApeTag.ReadFromStream(aStream);
+  // no matter what the result is: we may have also already read a raw ID3v1Tag
+  if ApeTag.ID3v1Present then
+      fID3v1Tag.CopyFromRawTag(ApeTag.ID3v1TagRaw);
+  // Read the Audio Data (duration, bitrate, ) from the file.
+  // This should be done in derivate classes
+  // TagSizes (all 3) may be needed there
+  aStream.Seek(fID3v2TagSize, soBeginning);
+  ReadAudioDataFromStream(aStream);
+  ForwardTagExceptionMessages;
+end;
 
 function TBaseApeFile.WriteToFile(aFilename: UnicodeString): TAudioError;
 var TagWritten : Boolean;
     DoWriteV1, DoWriteApe: Boolean;
-
 begin
     inherited WriteToFile(aFilename);
+    ClearTagExceptionMessages;
     result := FileErr_None;
 
     TagWritten := False;
     DoWriteV1  := (mt_ID3v1 in fTagsToBeWritten) or ((mt_Existing in fTagsToBeWritten) and fId3v1Tag.Exists);
     DoWriteApe := (mt_APE in fTagsToBeWritten)   or ((mt_Existing in fTagsToBeWritten) and fApeTag.Exists);
 
-    if DoWriteApe then
-    begin
+    if DoWriteApe then begin
+      result := fApeTag.WriteToFile(aFileName);
+      TagWritten := result = FileErr_None;
+    end;
+    if DoWriteV1 then begin
+      result := fId3v1Tag.WriteToFile(aFileName);
+      TagWritten := result = FileErr_None;
+    end;
+
+    if not TagWritten then begin
+      DoWriteV1  := mt_ID3v1 in fDefaultTags;
+      DoWriteApe := mt_APE in fDefaultTags  ;
+
+      if DoWriteApe then
         result := fApeTag.WriteToFile(aFileName);
-        TagWritten := True;
-    end;
-    if DoWriteV1 then
-    begin
+      if DoWriteV1 then
         result := fId3v1Tag.WriteToFile(aFileName);
-        TagWritten := True;
     end;
 
-    if not TagWritten then
-    begin
-        DoWriteV1  := mt_ID3v1 in fDefaultTags;
-        DoWriteApe := mt_APE in fDefaultTags  ;
-
-        if DoWriteApe then
-            result := fApeTag.WriteToFile(aFileName);
-        if DoWriteV1 then
-            result := fId3v1Tag.WriteToFile(aFileName);
-    end;
+    ForwardTagExceptionMessages;
 end;
 
 function TBaseApeFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;
 begin
     inherited RemoveFromFile(aFilename);
-
+    ClearTagExceptionMessages;
     result := FileErr_None;
+
     if (mt_Existing in fTagsToBeDeleted) or (mt_ID3v1 in fTagsToBeDeleted) then
       result := fId3v1Tag.RemoveFromFile(aFilename);
     if (mt_Existing in fTagsToBeDeleted) or (mt_APE in fTagsToBeDeleted) then
       result := fApeTag.RemoveFromFile(aFilename);
+
+    ForwardTagExceptionMessages;
 end;
 
 

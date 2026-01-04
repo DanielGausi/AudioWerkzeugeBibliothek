@@ -75,6 +75,7 @@ type
     FGenre: Byte;
     FExists: Boolean;
     FVersion: Byte;
+    fLastExceptionMessage: string;
 
     // convert the ansi-data to UnicodeString using a codepage
     // * use GetCodepage(Filename) to get the probably used codepage
@@ -105,6 +106,7 @@ type
     destructor Destroy; override;
     property TagExists: Boolean read FExists;
     property Exists:    Boolean read FExists;
+    property LastExceptionMessage: string read fLastExceptionMessage;
 
     property Version: Byte read FVersion;
     property Title: UnicodeString read GetTitle write SetTitle;
@@ -119,11 +121,12 @@ type
     property AutoCorrectCodepage: Boolean read FAutoCorrectCodepage write FAutoCorrectCodepage;
 
     procedure Clear;
+    procedure ClearExceptionMessage;
     procedure CopyFromRawTag(Rawtag: TID3v1Structure);
     function ReadFromStream(Stream: TStream): TAudioError;
     function WriteToStream(Stream: TStream): TAudioError;
     function RemoveFromStream(Stream: TStream): TAudioError;
-    function ReadFromFile(Filename: UnicodeString): TAudioError;        // UnicodeString
+    function ReadFromFile(Filename: UnicodeString): TAudioError;
     function WriteToFile(Filename: UnicodeString): TAudioError;
     function RemoveFromFile(Filename: UnicodeString): TAudioError;
   end;
@@ -225,7 +228,6 @@ var
 begin
   clear;
   result := FileErr_None;
-  FExists := False;
   try
     Stream.Seek(-128, soEnd);
     if (Stream.Read(RawTag, 128) = 128) then
@@ -238,8 +240,8 @@ begin
   except
     on E: Exception do
     begin
+      fLastExceptionMessage := E.Message;
       result := Mp3ERR_Unclassified;
-      MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
@@ -251,6 +253,7 @@ var
   ExistingTag: TID3v1Structure;
 begin
   result := FileErr_None;
+  fLastExceptionMessage := '';
   try
     FillChar(NewRawTag, 128, 0);
     NewRawTag.ID := ID3V1_PREAMBLE; // 'TAG';
@@ -282,8 +285,8 @@ begin
   except
     on E: Exception do
     begin
+      fLastExceptionMessage := E.Message;
       result := Mp3ERR_Unclassified;
-      MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
 end;
@@ -292,6 +295,7 @@ end;
 function TID3v1Tag.RemoveFromStream(Stream: TStream): TAudioError;
 var ExistingTag: TID3v1Structure;
 begin
+  fLastExceptionMessage := '';
   result := FileErr_None;
   try
     Stream.Seek(-128, soEnd);
@@ -308,10 +312,11 @@ begin
   except
     on E: Exception do
     begin
+      fLastExceptionMessage := E.Message;
       result := Mp3ERR_Unclassified;
-      MessageBox(0, PChar(E.Message), PChar('Error'), MB_OK or MB_ICONERROR or MB_TASKMODAL or MB_SETFOREGROUND);
     end;
   end;
+
 end;
 
 // Set default-values
@@ -327,6 +332,12 @@ begin
   FGenre   := 0;
   FVersion := 0;
   FExists  := False;
+  fLastExceptionMessage := '';
+end;
+
+procedure TID3v1Tag.ClearExceptionMessage;
+begin
+  fLastExceptionMessage := '';
 end;
 
 // read tag from a file
@@ -335,6 +346,7 @@ function TID3v1Tag.ReadFromFile(Filename: UnicodeString): TAudioError;
 var
   Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       Stream := TAudioFileStream.Create(Filename, fmOpenRead or fmShareDenyWrite);
@@ -344,7 +356,10 @@ begin
         Stream.Free;
       end;
     except
-      result := FileErr_FileOpenR;
+      on e: exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenR;
+      end;
     end
   else
     result := FileErr_NoFile;
@@ -356,6 +371,7 @@ function TID3v1Tag.WriteToFile(Filename: UnicodeString): TAudioError;
 var
   Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       Stream := TAudioFileStream.Create(Filename, fmOpenReadWrite or fmShareDenyWrite);
@@ -365,7 +381,10 @@ begin
         Stream.Free;
       end;
     except
-      result := FileErr_FileOpenRW;
+      on e: exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenRW;
+      end;
     end
   else
     result := FileErr_NoFile;
@@ -377,6 +396,7 @@ function TID3v1Tag.RemoveFromFile(Filename: UnicodeString): TAudioError;
 var
   Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       Stream := TAudioFileStream.Create(Filename, fmOpenReadWrite or fmShareDenyWrite);
@@ -386,7 +406,10 @@ begin
         Stream.Free;
       end;
     except
-      result := FileErr_FileOpenRW;
+      on e: exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenRW;
+      end;
     end
   else
     result := FileErr_NoFile;

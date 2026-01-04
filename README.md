@@ -1,4 +1,4 @@
-# AudioWerkzeugeBibliothek (v3.1)
+# AudioWerkzeugeBibliothek (v3.2)
 
 A Delphi library for audio files. 
 
@@ -17,11 +17,25 @@ Limitations:
 
 * no support for compression and encryption in ID3v2-Tags.
 
-## New features in version 3.0
+### Bug fixes and changes in 3.2
 
-* new: Support for Opus-Files
-* new: Support for Cover Art in Vorbis Comments
-* Extensive refactoring (see below).
+* Adding cover art to Flac files did not work properly. The mime type was not written correctly to the file, so some players could not display the cover.
+
+* Fixed some issues regarding duplicate identifiers in properties and method parameters.
+
+* Renamed property `TTagItem.Description` to `TTagItem.ReadableKey` to avoid mix-ups with the picture description in picture tags derived from TTagItem.
+
+* Added public properties `TFlacFile.BitsPerSample` und `TFlacFile.Samples`.
+
+* The field "nominal bitrate" (used as a backup for bitrate and duration calculation) in the OggVorbis Identification Header was misinterpreted (in kbit/s instead of bit/s).
+
+* Bitrate was calculated as 0 for compressed wav files.
+
+* Added property `TWavfile.WaveCodec`.
+
+* Better exception handling: 
+  Removed  `MessageBox(..)` from the exception block in some methods, added optional `out` parameter `aExceptionMessage` instead. 
+  Added property `TBaseAudioFile.LastExceptionMessage`. This can be used to get more information about the last exception occured during a read/write operation on files.
 
 ### New in version 3.1
 
@@ -51,6 +65,12 @@ Limitations:
 ### Bug fixes and changes in 3.1.1
 
 * Fixed some possible Range Exceptions in "Rating" and "Private" ID3v2-Frames
+
+### New features in version 3.0
+
+- new: Support for Opus-Files
+- new: Support for Cover Art in Vorbis Comments
+- Extensive refactoring (see below).
 
 ## Important note for upgrading from version 2.0
 

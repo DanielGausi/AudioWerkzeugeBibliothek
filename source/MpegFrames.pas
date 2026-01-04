@@ -322,6 +322,7 @@ type
     // Array with all mpeg frames of the file. Filled only by StoreFrames()
     // Usually this is not needed, only for a more detailed analysis of the file.s
     fMpegFrames: TMpegFramesArray;
+    fLastExceptionMessage: string;
 
     // Check, wether there is in aBuffer on position a valid MPEG-header
     function GetValidatedHeader(aBuffer: TBuffer; position: integer): TMpegHeader;
@@ -361,6 +362,7 @@ type
     property Vbr: boolean             read   Fvbr;
     property Valid: boolean           read   Fvalid;
     property FirstHeaderPosition: int64 read   FfirstHeaderPosition;
+    property LastExceptionMessage: string read fLastExceptionMessage;
 
     property MpegScanMode: TMpegScanMode read fMpegScanMode write fMpegScanMode;
   end;
@@ -450,6 +452,7 @@ var buffer: TBuffer;
 
 
 begin
+  fLastExceptionMessage := '';
   FFilesize := Stream.Size;
 
   // be pessimistic first. No mpeg-frame-header found.
@@ -728,6 +731,7 @@ end;
 function TMpegInfo.LoadFromFile(FileName: UnicodeString): TAudioError;
 var Stream: TAudioFileStream;
 begin
+  fLastExceptionMessage := '';
   if AudioFileExists(Filename) then
     try
       stream := TAudioFileStream.Create(filename, fmOpenRead or fmShareDenyWrite);
@@ -737,7 +741,10 @@ begin
         Stream.Free;
       end;
     except
-      result := FileErr_FileOpenR;
+      on e: Exception do begin
+        fLastExceptionMessage := e.Message;
+        result := FileErr_FileOpenR;
+      end;
     end
   else
     result := FileErr_NoFile;

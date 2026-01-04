@@ -58,8 +58,6 @@ uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.Bas
 type
 
     TDummyFile = class(TBaseAudioFile)
-        private
-            procedure fResetData;
         protected
             procedure fSetTitle           (aValue: UnicodeString); override;
             procedure fSetArtist          (aValue: UnicodeString); override;
@@ -81,10 +79,10 @@ type
             function fGetAlbumArtist : UnicodeString; override;
             function fGetLyrics           : UnicodeString;  override;
 
+            function ReadFromStream(aStream: TStream): TAudioError; override;
         public
             { Public declarations }
             constructor Create; override;
-            function ReadFromFile(aFilename: UnicodeString): TAudioError;   override;
             function WriteToFile(aFilename: UnicodeString): TAudioError;    override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError; override;
             // dummy methods
@@ -104,8 +102,8 @@ end;
 
 constructor TDummyFile.Create;
 begin
-    inherited;
-    fResetData;
+  inherited;
+  Clear;
 end;
 
 function TDummyFile.fGetFileType: TAudioFileType;
@@ -117,17 +115,6 @@ end;
 function TDummyFile.fGetFileTypeDescription: String;
 begin
     result := cAudioFileType[at_Invalid];
-end;
-
-procedure TDummyFile.FResetData;
-begin
-    // Reset variables
-    fValid := false;
-    fFileSize := 0;
-    fSampleRate := 0;
-    fChannels := 0;
-    fDuration := 0;
-    fBitRate := 0;
 end;
 
 procedure TDummyFile.fSetAlbum(aValue: UnicodeString);
@@ -241,29 +228,9 @@ end;
 
 { --------------------------------------------------------------------------- }
 
-function TDummyFile.ReadFromFile(aFilename: UnicodeString): TAudioError;
-var fs: TAudioFileStream;
+function TDummyFile.ReadFromStream(aStream: TStream): TAudioError;
 begin
-    inherited ReadFromFile(aFilename);
-
-    fResetData;
-    result := FileErr_NotSupportedFileType;
-
-    if AudioFileExists(aFilename) then
-    begin
-        try
-            fs := TAudioFileStream.Create(aFilename, fmOpenRead or fmShareDenyWrite);
-            try
-                fFileSize := fs.Size;
-            finally
-                fs.Free;
-            end;
-        except
-            result := FileErr_FileOpenR;
-        end;
-    end
-    else
-        result := FileErr_NoFile;
+  result := FileErr_NotSupportedFileType;
 end;
 
 function TDummyFile.RemoveFromFile(aFilename: UnicodeString): TAudioError;

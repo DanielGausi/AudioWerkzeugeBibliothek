@@ -104,6 +104,25 @@ type
           ptStudio, ptRecording, ptPerformance, ptScreenCapture, ptBrightColoredFish,
           ptIllustration, ptBandLogo, ptPublisherLogo);
 
+type
+  teAWBExceptions = (
+    awbeNone,
+    awbeDataSizeTooLarge,
+    awbeDataSizeNegative
+  );
+
+  EAWBException = class(Exception)
+    public
+      constructor Create(const aType: teAWBExceptions);
+  end;
+
+const
+    TAWBExceptionMessages: Array[teAWBExceptions] of string =
+      ( 'Ok',
+        'Malformed meta data: Data size specified is too large.',
+        'Malformed meta data: Data size specified is negative.'
+      );
+
 const
     cPictureTypes: Array[TPictureType] of string =
           (	'Other',
@@ -133,6 +152,9 @@ type
     TAudioError = (
           // general errors with file handling
           FileErr_None,
+          FileErr_Invalid, // Invalid file in general.
+          FileErr_Malicious, // Possibly maliciously manipulated
+          FileErr_Unknown, // "unexpected exception", something odd went wrong
           FileErr_NoFile,
           FileErr_FileCreate,
           FileErr_FileOpenR,
@@ -186,6 +208,9 @@ type
 const
       cAudioError: Array[TAudioError] of String = (
               'No Error',                                       // FileErr_None,
+              'Invalid file',                                   // FileErr_Invalid
+              'Invalid File (maliciously manipulated?)',        // FileErr_Malicious
+              'Unexpected error',                               // FileErr_Unknown
               'File not found',                                 // FileErr_NoFile,
               'FileCreate failed.',                             // FileErr_FileCreate,
               'Could not read from file',                       // FileErr_FileOpenR,
@@ -349,6 +374,15 @@ begin
     result := (aID3v1Tag.ID = ID3V1_PREAMBLE)
           and (hiddenApeFooter.Preamble <> APE_PREAMBLE);
 end;
+
+
+{ EAWBException }
+
+constructor EAWBException.Create(const aType: teAWBExceptions);
+begin
+  inherited Create(TAWBExceptionMessages[aType]);
+end;
+
 
 
 
