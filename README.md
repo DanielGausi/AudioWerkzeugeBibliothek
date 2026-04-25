@@ -17,6 +17,21 @@ Limitations:
 
 * no support for compression and encryption in ID3v2-Tags.
 
+### Bug fixes and changes in 3.3
+
+* Restored compatibilty to older Delphi versions (Delphi 7 and up)
+
+* Basic method `TBaseAudioFile.GetPicture()` now returns a picture labeled as "Front Cover" by preference.
+
+* Using `Nil` as destination stream in `TBaseAudioFile.GetPicture()` is possible now. In that case, only the pictures meta data is returned. 
+
+* The function `TBaseAudioFile.SetPicture()` now prefers to replace an image of the same type. If none is available, the first one is replaced.
+
+* New method `TBaseAudioFile.AddPicture()`. *Please read the section "Pictures and cover art" for details about this.*
+
+* m4a files: Mime Type "image/png" was not set properly.
+
+
 ### Bug fixes and changes in 3.2
 
 * Adding cover art to Flac files did not work properly. The mime type was not written correctly to the file, so some players could not display the cover.
@@ -120,15 +135,70 @@ MainAudioFile.Title := EditTitle.Text;
 MainAudioFile.UpdateFile;
 ```
 
+You can also use `MainAudioFile.GetPicture(aStream, Mime, PicType, Description)` to get some cover art from the file. `aStream` will contain the actual picture data, `Mime`, `Pictype`and `Description` are `out` parameters containing additional meta data about the picture.
+However, this is not always *that* simple.
+
 Note that you don't need to create (or free) the AudioFileFactory-Object. This is handled by the unit `AudioFiles.Factory.pas` automatically.
 
 See demo "DemoSimple" for details.
 
-**Important note:** The factory is probably not thread-safe. If you want to use it in a secondary thread, you should create another factory within the context of the thread.
+### Pictures and cover art
+
+In many cases, it's pretty simple: The audio file contains an embedded image, often the album's "cover art (front)". You can use `MainAudioFile.GetPicture(aStream, Mime, PicType, Description)` to copy the actual picture data into `aStream` and display the picture in a `TImage` component. 
+
+In some cases however, it is *not* that simple. Because most meta data formats support more than one picture element. A picture element often includes information about the image type - for example, "Front Cover", "Back Cover", or "Bright colored fish" (*the latter of which seems to be some kind of inside joke that no one understands*). However, it is often also possible to store multiple images of the same type in the metadata.
+
+As I wrote before: Sometimes it's not that simple.
+
+At the basic level, which uses only the basic functions from `TBaseAudioFile`, the following applies:
+
+* `MainAudioFile.GetPicture()` will return a picture of the type "Front Cover". If there is more than one "Front Cover", the first one is returned. If there is no "Front Cover", the first picture element is returned, regardless of the type.
+
+If you want to *add* an image, you'll face similar challenges at the basic level: Do you want to replace the image, or add a new one? And if there are already more than one, which one should be replaced?
+
+At the basic level, `TBaseAudioFile` will work as follows when setting or adding picture data:
+
+1. The meta tag currently contains no picture 
+    * `MainAudioFile.SetPicture(SourceStream, aMime, aPicType, aDescription)` will add a picture element of type `aPicType` to the meta data.
+    * `MainAudioFile.AddPicture(...)` will do the same.
+
+2. The meta tag currently contains exactly one picture
+    * `MainAudioFile.SetPicture(SourceStream, aMime, aPicType, aDescription)` will *replace* the current picture element with the new one. The picture type and description will be changed as well.
+        * Special case APEv2 tags: This library does not support changing the picture type of existing picture elements in the APEv2 tags. *See "Notes regarding various metadata formats" below for more about this.* 
+        Therefore, `SetPicture()` will replace the existing image with the new one, only if the current type matches `aPicType`. Otherwise, i.e. if the picture types are different, a new picture element is added to the meta tag.        
+    
+    * `MainAudioFile.AddPicture(SourceStream, aMime, aPicType, aDescription, true)` will *replace* the current picture element, if it's type is equal to `aPictype`. Otherwise, a new picture element is added to the meta tag. *The last boolean parameter is named `WantUniqueByType`*.
+        
+    * `MainAudioFile.AddPicture(SourceStream, aMime, aPicType, aDescription, false)` will  *add* a new picture element, even if the existing element is of the same type.
+        * Special cases `aPictype` is `ptIcon32` or `ptOtherIcon`. All supported meta tag formats allow only one element for each of these two types. Therefore `MainAudioFile.AddPicture()` will *replace* the existing image, even if the parameter `WantUniqueByType` is set to `false`.
+        * Special case APEv2 tags: This tag format does not allow multiple images of the same type. Therefore, the last parameter `WantUniqueByType` is ignored for filetypes with APEv2 tags.
+
+3. The meta tag currently contains more than one picture
+    * `MainAudioFile.SetPicture(SourceStream, aMime, aPicType, aDescription)` will *replace* the first picture element of type `aPicType`. If there is no element of this type, the first picture element is replaced, regardless of it's type. *The comments regarding Apev2 in case (2) also apply here.*        
+
+    *  `MainAudioFile.AddPicture(SourceStream, aMime, aPicType, aDescription, true)` will *replace* the first picture element of type `aPicType`, if there is one. Otherwise, a new picture element is added to the meta tag.
+
+    * `MainAudioFile.AddPicture(SourceStream, aMime, aPicType, aDescription, false)`. See case (2)
+
+#### Notes regarding various metadata formats
+
+* For ID3v2 tags (used in mp3 files), the `Description` field within the picture elements must be unique. At the basic level, this library ensures that the description remains unique when adding or modifying picture elements. To do this, a counter (1), (2), ... is automatically added to the passed description in case of conflicts.
+
+* The difference between APEv2 and other formats is as follows: In other formats (which are essentially based on the format used in ID3v2 tags), the list looks like this (in very simplified terms):\
+` PicElement1 = Type, ImageData; PicElement2 = Type, ImageData; PicElement3 = Type, ImageData; ...`\
+In APEv2 tags, the type is part of the key: `FrontCoverPic = ImageData; BackCoverPic = ImageData; ComposerPic = ImageData; BrightColouredFishPic = ImageData; ...`\
+As the key of each element must be unique, there is only one picture element of each type allowed in this format. Also (by design of this library) a tag element cannot change it's own key, and therefore it is not possible to change the picture type of an element afterwards in APEv2 tags.
+
+* This library offers only limited support for cover art in m4a/mp4 files. There is only one picture element supported by this library. Therefore, `SetPicture()` and `AddPicture()` will always replace the existing image.
+
+* No support for cover art in wma and wav files.
+    
 
 ### Advanced
 
-If the named properties provided (such as artist, title and others) are not sufficient, there is the AudioFile.GetTagList method (new in version 3 of this library). This allows you to list and edit all data elements in a file.
+If you want to display more information than the values provided by the basic properties like artist, title, duration and some others, you'll need to write a few more lines of code.
+
+One option to display all text information from the meta tag is to use the `AudioFile.GetTagList()` method. This allows you to list and edit all data elements in a file.
 
 ```pascal
 lvMetaTags.Clear; // a ListView on the Form
@@ -161,9 +231,33 @@ if InputQuery('Edit Item', 'New value:', editValue) then begin
 end;
 ```
 
+Another option would be to directly access the meta data in the different file types. To do this, however, you must check the file type and cast the `TBaseAudioFile` variable to the specific class in order to access the format-specific properties. For example, to retrieve the disc number, you can use the following code
+
+```pascal
+  case AudioFile.FileType of
+      at_Invalid: ;
+      at_Mp3:  CD  := TMp3File(AudioFile).ID3v2Tag.GetText(IDv2_PARTOFASET); 
+      at_Ogg: CD := TOggVorbisFile(AudioFile).GetPropertyByFieldname(VORBIS_DISCNUMBER);
+      at_Opus: CD := TOpusFile(AudioFile).GetPropertyByFieldname(VORBIS_DISCNUMBER);
+      at_Flac: CD := TFlacFile(AudioFile).GetPropertyByFieldname(VORBIS_DISCNUMBER);
+      at_M4A: CD := TM4aFile(AudioFile).Disc;
+      at_Monkey,
+      at_WavPack,
+      at_MusePack,
+      at_OptimFrog,
+      at_TrueAudio: CD := TBaseApeFile(AudioFile).ApeTag.GetValueByKey(APE_DISCNUMBER);
+      at_Wma: ; // N/A
+      at_wav: ; // N/A
+  end;
+```
+
+Predefined keys for some other properties can be found in the Units `ID3v2Frames.pas`, `VorbisComments`, `ApeTagItem.pas` and `M4aAtoms.pas`. Some meta tag formats also allow arbitrary keys (with certain syntactic restrictions). You can use your own key names - but this is generally not recommended, so that the metadata can be interpreted properly by other applications as well.
+
+
+
 #### Some notes about different types of TagItems
 
-While most metadata in audio files contains text, there is some data that has a more complex structure or even contains pure binary data. How the type of data can be recognized differs from format to format. The possible types are also sometimes more and sometimes less differentiated. And there are also some subtleties to consider with the "texts", especially with the ID3v2 tag. There, for example, "lyrics" contain not only the text itself, but also some additional data - e.g. the language.
+While most meta data in audio files contains text, there is some data that has a more complex structure or even contains pure binary data. How the type of data can be recognized differs from format to format. The possible types are also sometimes more and sometimes less differentiated. And there are also some subtleties to consider with the "texts", especially with the ID3v2 tag. There, for example, "lyrics" contain not only the text itself, but also some additional data - e.g. the language.
 For this purpose, the Audio Werkzeuge Bibliothek provides the enumeration types `teTagContentType` and `teTextMode`. The TagContentType provides information about the type of content. In addition to a few generally valid types (`tctText, tctPicture, tctBinary`), there are various format-specific types such as `tctLyrics` or `tctUserText` for ID3v2, `tctExternal` for Apev2 or `tctGenre` for M4A files.
 For some of these types, it is reasonable to consider them as text, even if they have a different internal structure and should be treated separately. The TextMode parameter can be set to `tmReasonable` for this purpose. When reading the data, `tmForced` is also available. Binary data is then also displayed in text form (non-printable characters are replaced with dots ".").
 
@@ -175,38 +269,19 @@ The default value will return all kinds of tags that can be interpreted as text,
 
 `cDefaultTagContentTypes = [tctText, tctComment, tctLyrics, tctURL, tctUserText, tctUserURL, tctExternal, tctTrackOrDiskNumber, tctGenre, tctSpecialText];`
 
-#### Pictures
-
-Most metadata container allow more than one picture, aka "Cover Art". If you want to display the cover art, you need to get a list of all picture tag items first.
+If you want to list all embedded Pictures, you can use the ContentType `tctPicture`:
 
 ```pascal
 picList := TTagItemList.Create;
 try
   AudioFile.GetTagList(picList, [tctPicture]);
   if picList.Count > 0 then begin
-    // show first picture in the list, or try to get the "Front Cover"
-    // here: Just diplay the first one in the list (which ist often 
-    // the only one)
-    stream := TMemoryStream.Create;
-    try    
-      if picList[0].GetPicture(stream, Mime, PicType, Description) 
-      then begin
-        Stream.Position := 0;
-        // Modern versions of Delphi also recognize the graphic type when
-        // using LoadFromStream
-        // For older versions, you may have to adapt the code depending 
-        // on the mimetype.
-        Image1.Picture.LoadFromStream(Stream);
-      end;
-    finally
-      stream.Free;
-    end;
+    // Add items to some GUI element - TComboBox, ListView, whatever
   end;
 finally
-  picList.Free;
+  picList.Free; // the tag items will not be destroyed here, only the list
 end;
 ```
-
 See demo "DemoExtended" for details.
 
 ### Expert

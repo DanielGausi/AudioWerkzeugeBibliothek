@@ -63,12 +63,15 @@ unit AudioFiles.Factory;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, ContNrs,
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes,
+  {$ENDIF}
   {$IFDEF USE_DICTIONARY}
   System.Generics.Collections,
   {$ENDIF}
-  AudioFiles.Declarations,
-  AudioFiles.Base;
+  AudioFiles.Declarations, AudioFiles.Base;
 
 type
     {$IFDEF USE_DICTIONARY}
@@ -272,7 +275,7 @@ end;
 
 
 procedure TAudioFileFactory.UnRegisterClass(aClass: TBaseAudioFileClass);
-var Extension: string;
+{$IFDEF USE_DICTIONARY}var Extension: string;{$ENDIF}
 begin
     {$IFDEF USE_DICTIONARY}
     for Extension in FRegisteredFileTypes.Keys do

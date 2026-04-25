@@ -52,7 +52,12 @@ unit ID3v2Frames;
 interface
 
 uses
-  SysUtils, Classes, Windows, dialogs, U_CharCode, AudioFiles.Declarations, AudioFiles.BaseTags;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.Classes,
+  {$ELSE}
+  Windows, SysUtils, Classes,
+  {$ENDIF}
+  U_CharCode, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 type
 
@@ -1609,8 +1614,10 @@ begin
                     aDescription := GetNullTerminatedString(enc, i);
 
                     // here the image-data starts
-                    if i < length(fData) then
-                      Dest.Write(fData[i], length(fData) - i)
+                    if i < length(fData) then begin
+                      if assigned(Dest) then
+                        Dest.Write(fData[i], length(fData) - i)
+                    end
                     else
                       result := False;
                 end;
@@ -1647,8 +1654,10 @@ begin
                     aDescription := GetNullTerminatedString(enc, i);
 
                     // here the image-data starts
-                    if i < length(fData) then
-                      Dest.Write(fData[i], length(fData) - i)
+                    if i < length(fData) then begin
+                      if assigned(Dest) then
+                        Dest.Write(fData[i], length(fData) - i)
+                    end
                     else
                       result := False;
                 end

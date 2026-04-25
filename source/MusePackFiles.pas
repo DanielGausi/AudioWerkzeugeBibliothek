@@ -56,10 +56,17 @@
 
 unit MusePackFiles;
 
+{$I config.inc}
+
 interface
 
-uses Windows, Messages, SysUtils,  Classes, BaseApeFiles, Dialogs,
-     AudioFiles.Base,  AudioFiles.Declarations;
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.Classes,
+  {$ELSE}
+  Windows, SysUtils,  Classes,
+  {$ENDIF}
+  BaseApeFiles, AudioFiles.Base,  AudioFiles.Declarations;
 
 const
 

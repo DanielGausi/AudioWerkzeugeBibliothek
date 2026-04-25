@@ -55,10 +55,18 @@
 
 unit OptimFrogFiles;
 
+{$I config.inc}
+
 interface
 
-uses Windows, Messages, SysUtils,  Classes, BaseApeFiles, Dialogs,
-     AudioFiles.Base, AudioFiles.Declarations;
+uses
+  //Windows, Messages, SysUtils,  Classes,  Dialogs,
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.Classes,
+  {$ELSE}
+  Windows, SysUtils, Classes,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.Declarations, BaseApeFiles;
 
 const
     OFR_COMPRESSION: array [0..9] of String = ('fast', 'normal', 'high', 'extra',

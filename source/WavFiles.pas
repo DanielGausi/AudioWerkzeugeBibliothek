@@ -56,9 +56,17 @@
 
 unit WavFiles;
 
+{$I config.inc}
+
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  System.Classes, System.SysUtils,
+  {$ELSE}
+  Classes, SysUtils,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 
 type
@@ -105,6 +113,7 @@ type
             function GetUnusedTextTags: TTagItemInfoDynArray; override;
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
             function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
         end;
 
 implementation
@@ -241,6 +250,14 @@ begin
 end;
 
 function TWavfile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  // not supported
+  result := False;
+end;
+
+function Twavfile.AddPicture(Source: TStream; aMime: AnsiString;
+  aPicType: TPictureType; aDescription: UnicodeString;
+  WantUniqueByType: Boolean): Boolean;
 begin
   // not supported
   result := False;

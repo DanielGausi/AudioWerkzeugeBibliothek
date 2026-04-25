@@ -61,10 +61,16 @@
 
 unit U_CharCode;
 
+{$I config.inc}
+
 interface
 
 uses
-  SysUtils, Classes, Windows;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.Classes;
+  {$ELSE}
+  Windows, SysUtils, Classes;
+  {$ENDIF}
 
 type
 

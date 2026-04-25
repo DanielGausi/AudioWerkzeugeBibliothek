@@ -47,10 +47,12 @@
 
 unit Id3Basics;
 
+{$I config.inc}
+
 interface
 
 uses
-   Classes;
+  {$IFDEF USE_UNIT_SCOPES}System.Classes{$ELSE}Classes{$ENDIF};
 
   function GetID3Size(Source: TStream): Integer;
 

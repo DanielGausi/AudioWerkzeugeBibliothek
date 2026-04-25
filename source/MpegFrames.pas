@@ -247,8 +247,12 @@ unit MpegFrames;
 interface
 
 uses
-  SysUtils, Classes, Windows, Contnrs, U_CharCode, AudioFiles.Declarations
-  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.Types,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, Types,
+  {$ENDIF}
+  U_CharCode, AudioFiles.Declarations;
 
 type
 

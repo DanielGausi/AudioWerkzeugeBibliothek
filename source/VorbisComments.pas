@@ -52,9 +52,13 @@ unit VorbisComments;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, ContNrs, Classes, System.NetEncoding,
-  AudioFiles.Declarations, AudioFiles.BaseTags
-  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF} ;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.Types,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, Types,
+  {$ENDIF}
+  {$IFDEF B64_FALLBACK} AWB.Base64, {$ELSE}System.NetEncoding,{$ENDIF}
+  AudioFiles.Declarations, AudioFiles.BaseTags;
 
 const
 
@@ -339,7 +343,8 @@ type
                                         var aDescription: UnicodeString): Boolean; overload;
 
             function SetPicture(Source: TStream; aMime: AnsiString;
-                        aPicType: TPictureType; aDescription: UnicodeString): Boolean;  // use Source=NIL, to delete the picture
+                        aPicType: TPictureType; aDescription: UnicodeString;
+                        aMode: teSetPictureMode): Boolean;  // use Source=NIL, to delete the picture
             // Add a new Picture
             procedure AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
                   aDescription: UnicodeString);
@@ -460,10 +465,11 @@ begin
   if result then begin
     PicBlock := TMetaDataBlockPicture.Create;
     try
-      PicBlock.AsBase64 := UTF8String(fValue);
+      PicBlock.AsBase64 := UTF8String(trim(fValue));
       result := PicBlock.Size > 0;
       if result then begin
-        Dest.CopyFrom(picBlock.PicData, 0);
+        if assigned(Dest) then
+          Dest.CopyFrom(picBlock.PicData, 0);
         aMime := picBlock.Mime;
         aPicType := picBlock.PictureType;
         aDescription := picBlock.Description;
@@ -962,31 +968,35 @@ begin
   end;
 end;
 
-function TVorbisComments.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
+function TVorbisComments.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; aMode: teSetPictureMode): Boolean;
 var
   picTags: TTagItemList;
+  ReplaceableTag: TTagItem;
 begin
   picTags := TTagItemList.Create;
   try
     GetTagList(picTags, [tctPicture]);
+    ReplaceableTag := GetReplaceablePictureTag(picTags, aPicType, aDescription, aMode);
+  finally
+    picTags.Free;
+  end;
 
-    result := picTags.Count > 0;
-    // currently no pic in the file, and stream contains a pic: Add a pic.
-    if (picTags.Count = 0) and assigned(Source) then begin
+  result := assigned(ReplaceableTag);
+  if assigned(ReplaceableTag) then begin
+    // replace existing Picture Tag
+    if assigned(Source) then
+      result := ReplaceableTag.SetPicture(Source, aMime, aPicType, aDescription)
+    else begin
+      fCommentVectorList.Extract(ReplaceableTag);
+      ReplaceableTag.Free;
+      result := True;
+    end;
+  end else begin
+    // add new Picture Tag
+    if assigned(Source) and (Source.Size > 0) then begin
       AddPicture(Source, aMime, aPicType, aDescription);
       result := True;
     end;
-    // otherwise: replace a current pic (or delete it)
-    if picTags.Count > 0 then begin
-      if assigned(Source) then
-        result := picTags[0].SetPicture(Source, aMime, aPicType, aDescription)
-      else begin
-        fCommentVectorList.Extract(picTags[0]);
-        FreeAndNil(picTags[0]);
-      end;
-    end;
-  finally
-    picTags.Free;
   end;
 end;
 
@@ -1147,26 +1157,40 @@ var
 begin
   if Value = '' then
     exit;
+
   InputStream := TMemoryStream.Create;
   OutputStream := TMemoryStream.Create;
   try
     InputStream.Write(Value[1], Length(Value));
     InputStream.Position := 0;
+    {$IFDEF B64_FALLBACK}
+    TAwbBase64Encoding.Decode(InputStream, OutPutStream);
+    {$ELSE}
     TNetEncoding.Base64.Decode(InputStream, OutPutStream);
+    {$ENDIF}
     OutPutStream.Position := 0;
     ReadFromStream(OutputStream);
   finally
     InputStream.Free;
     OutputStream.Free;
   end;
+
 end;
 
 function TMetaDataBlockPicture.GetAsBase64: UTF8String;
 var
+  {$IFDEF B64_FALLBACK}
+  Base64: TAwbBase64Encoding;
+  {$ELSE}
   Base64: TBase64Encoding;
+  {$ENDIF}
   InputStream, OutputStream: TMemoryStream;
 begin
+  {$IFDEF B64_FALLBACK}
+  Base64 := TAwbBase64Encoding.Create;
+  {$ELSE}
   Base64 := TBase64Encoding.Create(0); // no LineBreaks!!
+  {$ENDIF}
   try
     InputStream := TMemoryStream.Create;
     OutputStream := TMemoryStream.Create;

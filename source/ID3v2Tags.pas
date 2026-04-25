@@ -53,9 +53,12 @@ unit ID3v2Tags;
 interface
 
 uses
-  SysUtils, Classes, Windows, Contnrs, U_CharCode
-  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF}
-  , AudioFiles.Declarations, AudioFiles.BaseTags, ID3v2Frames;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.Types,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, Types,
+  {$ENDIF}
+  U_CharCode, AudioFiles.Declarations, AudioFiles.BaseTags, ID3v2Frames;
 
 type
 
@@ -118,7 +121,9 @@ type
     function GetFrameIndex(ID:TFrameIDs):integer;
     function GetUserTextFrameIndex(aDescription: UnicodeString): integer;
     function GetDescribedTextFrameIndex(ID:TFrameIDs; Language:AnsiString; Description:UnicodeString): Integer;
-    function GetPictureFrameIndex(aDescription: UnicodeString): Integer;
+    function GetPictureFrameIndex(aDescription: UnicodeString): Integer; overload;
+    function GetUniquePictureDescription(aBase: UnicodeString; currentItem: TTagItem = Nil): UnicodeString;
+
     function GetUserDefinedURLFrameIndex(Description: UnicodeString): Integer;
     function GetPopularimaterFrameIndex(aEMail: AnsiString):integer;
     function GetPrivateFrameIndex(aOwnerID: AnsiString): Integer;
@@ -293,7 +298,7 @@ type
     // Pictures (APIC)
     // Note: Delete by setting Stream = Nil
     function GetPicture(stream: TStream; Description: UnicodeString): AnsiString; // Rückgabe: Mime-Type
-    function SetPicture(Source: TStream; MimeTyp: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+    function SetPicture(Source: TStream; MimeTyp: AnsiString; PicType: TPictureType; Description: UnicodeString; aMode: teSetPictureMode): Boolean;
 
     // User-defined URL (WXXX)
     // Note: Delete by Set(..., '');
@@ -611,26 +616,20 @@ end;
 function TID3v2Tag.GetPictureFrameIndex(aDescription: UnicodeString): Integer;
 var mime, idstr: AnsiString;
   i: integer;
-  PictureData : TMemoryStream;
   desc: UnicodeString;
   picTyp: TPictureType;
 begin
   result := -1;
   idstr := GetFrameIDString(IDv2_PICTURE);
   for i := 0 to Frames.Count - 1 do
-    if (Frames[i] as TID3v2Frame).FrameIDString = IDstr then
-    begin
-        // matching IDstring found
-        PictureData := TMemoryStream.Create;
-        (Frames[i] as TID3v2Frame).GetPicture(PictureData, Mime, PicTyp, Desc);
-        PictureData.Free;
-
-        if (aDescription = Desc) or (aDescription = '*') then
-        begin
-            // matching description found
-            result := i;
-            break;
-        end;
+    if (Frames[i] as TID3v2Frame).FrameIDString = IDstr then begin
+      // matching IDstring found
+      (Frames[i] as TID3v2Frame).GetPicture(Nil, Mime, PicTyp, Desc);
+      if (aDescription = Desc) or (aDescription = '*') then begin
+        // matching description found
+        result := i;
+        break;
+      end;
     end;
 end;
 // Get the index of a URL-Frame, given by its description
@@ -1587,7 +1586,7 @@ var idx: Integer;
     DummyPicTyp: TPictureType;
     DummyDesc: UnicodeString;
 begin
-    IDX := GetPictureFrameIndex( Description);
+    IDX := GetPictureFrameIndex(Description);
     if IDX <> -1 then
     begin
       (Frames[IDX] as TID3v2Frame).GetPicture(stream, Mime, DummyPicTyp, DummyDesc);
@@ -1598,31 +1597,84 @@ end;
 // ------------------------------------------
 // set pictures
 // ------------------------------------------
-function TID3v2Tag.SetPicture(Source: TStream; MimeTyp: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
-var IDX: Integer;
-    NewFrame: TID3v2Frame;
-    idStr: AnsiString;
-    oldMime: AnsiString;
-    oldDescription: UnicodeString;
-    oldType: TPictureType;
-    oldStream: TMemoryStream;
+
+function TID3v2Tag.GetUniquePictureDescription(aBase: UnicodeString; currentItem: TTagItem = Nil): UnicodeString;
+var
+  picList: TTagItemList;
+  descriptions: TStringList;
+  iMime: AnsiString;
+  iPicTyp: TPictureType;
+  iDesc: UnicodeString;
+  i: Integer;
+begin
+  result := aBase;
+
+  picList := TTagItemList.Create;
+  try
+    GetAllPictureFrames(picList);
+    if picList.Count > 0 then begin
+      descriptions := TStringList.Create;
+      try
+        // get all Descriptions from the picture frames
+        for i := 0 to picList.Count - 1 do begin
+          if picList[i] <> currentItem then begin
+            picList[i].GetPicture(Nil, iMime, iPicTyp, iDesc);
+            descriptions.Add(iDesc);
+          end;
+        end;
+        // create a unique one, first attempt is value from "aBase"
+        i := 0;
+        while (descriptions.IndexOf(result) >= 0) and (i < 100) do begin
+          inc(i);
+          result := aBase + '(' + IntToStr(i) + ')';
+        end;
+      finally
+        descriptions.Free;
+      end;
+    end;
+  finally
+    picList.Free;
+  end;
+end;
+
+function TID3v2Tag.SetPicture(Source: TStream; MimeTyp: AnsiString; PicType: TPictureType; Description: UnicodeString; aMode: teSetPictureMode): Boolean;
+var
+  NewFrame: TID3v2Frame;
+  oldMime: AnsiString;
+  oldDescription: UnicodeString;
+  oldType: TPictureType;
+  oldStream: TMemoryStream;
+  picTags: TTagItemList;
+  ReplaceableTag: TTagItem;
 begin
     result := True;
-    idStr := GetFrameIDString(IDv2_PICTURE);
-    IDX := GetPictureFrameIndex(Description);
-    if IDX <> -1 then
+
+    picTags := TTagItemList.Create;
+    try
+      GetTagList(picTags, [tctPicture]);
+      ReplaceableTag := GetReplaceablePictureTag(picTags, PicType, Description, aMode);
+    finally
+      picTags.Free;
+    end;
+
+    if assigned(ReplaceableTag) then
     begin
-        if Source = NIL then
-          Frames.Delete(IDX)
+        if Source = NIL then begin
+          Frames.Extract(ReplaceableTag);
+          ReplaceableTag.Free;
+        end
         else
         begin
             if (Description = '*') or (MimeTyp = '*') or (Source.size = 0) then
             begin
                 oldStream := TMemoryStream.Create;
                 try
-                    (Frames[IDX] as TID3v2Frame).GetPicture(oldStream, oldMime, oldType, oldDescription);
+                    ReplaceableTag.GetPicture(oldStream, oldMime, oldType, oldDescription);
                     if (Description = '*') then
-                      Description := oldDescription;
+                      Description := oldDescription
+                    else
+                      // If a new Description is specified: Ensure the description remains unique
+                      Description := GetUniquePictureDescription(Description, ReplaceableTag);
                     if (MimeTyp = '*') then
                       MimeTyp := oldMime;
                     if Source.Size = 0 then
@@ -1630,22 +1682,26 @@ begin
                 finally
                     oldStream.Free;
                 end;
-            end;
-            (Frames[IDX] as TID3v2Frame).SetPicture(Source, MimeTyp, PicType, Description)
+            end else
+              Description := GetUniquePictureDescription(Description, ReplaceableTag);
+            ReplaceableTag.SetPicture(Source, MimeTyp, PicType, Description)
         end;
     end else
     begin
-        if (Source <> NIL) and (Source.Size > 0)then
+        if (Source <> NIL) and (Source.Size > 0) then
         begin
-            NewFrame := TID3v2Frame.Create(idStr, TID3v2FrameVersions(FVersion.Major));
+            NewFrame := TID3v2Frame.Create(GetFrameIDString(IDv2_PICTURE), TID3v2FrameVersions(FVersion.Major));
             NewFrame.AlwaysWriteUnicode := fAlwaysWriteUnicode;
             newFrame.CharCode := fCharCode;
             NewFrame.AutoCorrectCodepage := fAutoCorrectCodepage;
             Frames.Add(newFrame);
             if (Description = '*') then
-                Description := '';
+              Description := GetUniquePictureDescription(cPictureTypes[PicType], newFrame)
+            else
+              Description := GetUniquePictureDescription(Description, newFrame);
+
             if (MimeTyp = '*') then
-                  MimeTyp := AWB_MimeJpeg;
+              MimeTyp := AWB_MimeJpeg;
             newFrame.SetPicture(Source, MimeTyp, PicType, Description)
         end;
     end;

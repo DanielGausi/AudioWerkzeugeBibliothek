@@ -47,9 +47,16 @@
 
 unit ApeTagItem;
 
+{$I config.inc}
+
 interface
 
-uses Windows, Messages, SysUtils, Variants, ContNrs, Classes, StrUtils,
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.StrUtils,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, StrUtils,
+  {$ENDIF}
   AudioFiles.Declarations, AudioFiles.BaseTags;
 
 const
@@ -306,6 +313,7 @@ begin
   end;
 end;
 
+
 function TApeTagItem.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var i, c: Integer;
     tmp: Utf8String;
@@ -335,7 +343,8 @@ begin
         Move(fData[0], tmp[1], c);
         aDescription := ConvertUTF8ToString(tmp);
 
-        dest.Write(fData[c+1], length(fData)-(c+1));
+        if assigned(dest) then
+          dest.Write(fData[c+1], length(fData)-(c+1));
         result := True;
     end else
         // unexpected data format

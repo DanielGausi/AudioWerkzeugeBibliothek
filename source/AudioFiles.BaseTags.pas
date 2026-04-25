@@ -53,9 +53,12 @@ interface
 
 {$I config.inc}
 
-uses Classes, SysUtils, AudioFiles.Declarations
-  {$IFDEF USE_GENERICS}, System.Generics.Collections {$ELSE}, System.Contnrs {$ENDIF}
-  ;
+uses
+  {$IFDEF USE_UNIT_SCOPES}System.Classes, System.SysUtils,
+  {$ELSE} Classes, SysUtils,
+  {$ENDIF}
+  {$IFDEF USE_GENERICS}System.Generics.Collections, {$ELSE} Contnrs, {$ENDIF}
+  AudioFiles.Declarations;
 
 var
   {
@@ -68,7 +71,11 @@ var
     This Library will check for the Keys defined in "AWB_SupportedLyricsKeys".
     If a file contains no Lyrics yet, setting lyrics will use the key defined in "AWB_DefaultLyricsKey"
   }
+  {$IF CompilerVersion < 28}
+  AWB_SupportedLyricsKeys: Array of String; // initialization in "initialization"
+  {$ELSE}
   AWB_SupportedLyricsKeys: Array of String = ['UNSYNCEDLYRICS', 'UNSYNCED LYRICS', 'LYRICS'];
+  {$IFEND}
   AWB_DefaultLyricsKey: String = 'UNSYNCEDLYRICS';
 
 const
@@ -180,7 +187,15 @@ type
     {$IFDEF USE_GENERICS}
       TTagItemList = TList<TTagItem>;
     {$ELSE}
-      TTagItemList = TList;
+      TTagItemList = class(TList)
+      private
+        function GetItem(Index: NativeInt): TTagItem;
+        procedure SetItem(Index: NativeInt; Value: TTagItem);
+
+      public
+        property Items[Index: NativeInt]: TTagItem read GetItem write SetItem; default;
+
+      end;
     {$ENDIF}
 
     TTagItemClass = class of TTagItem;
@@ -205,11 +220,13 @@ type
     TTagItemInfoDynArray = Array of TTagItemInfo;
 
     function ByteArrayToString(const A: array of Byte): string;
-    function SwapCardinal(value: Cardinal): Cardinal; inline;
+    function SwapCardinal(value: Cardinal): Cardinal; {$IF CompilerVersion >= 17} inline;{$IFEND}
     function ReadBigEndianCardinal(source: TStream): Cardinal;
     procedure WriteBigEndianCardinal(Destination: TStream; value: Cardinal);
 
     function ValidateLength(aStream: TStream; aValue: Integer): Boolean;
+
+    function GetReplaceablePictureTag(aTagList: TTagItemList; aPicType: TPictureType; aDescription: UnicodeString; aMode: teSetPictureMode): TTagItem;
 
 
 implementation
@@ -227,7 +244,7 @@ begin
   end;
 end;
 
-function SwapCardinal(value: Cardinal): Cardinal; inline;
+function SwapCardinal(value: Cardinal): Cardinal; {$IF CompilerVersion >= 17} inline;{$IFEND}
 begin
   Result := (value shl 24)
     or ((value shl 8) and $00FF0000)
@@ -259,6 +276,71 @@ begin
       raise EAWBException.Create(awbeDataSizeNegative);
 end;
 
+{ TTagItemList }
+{$IFNDEF USE_GENERICS}
+function TTagItemList.GetItem(Index: NativeInt): TTagItem;
+begin
+  Result := TTagItem(inherited Items[Index]);
+end;
+
+procedure TTagItemList.SetItem(Index: NativeInt; Value: TTagItem);
+begin
+  inherited Items[Index] := Value;
+end;
+{$ENDIF}
+
+function GetReplaceablePictureTag(aTagList: TTagItemList; aPicType: TPictureType; aDescription: UnicodeString; aMode: teSetPictureMode): TTagItem;
+var
+  dummyMime: AnsiString;
+  loopDesc: UnicodeString;
+  loopType: TPictureType;
+  firstItem, matchItem: TTagItem;
+  i: Integer;
+begin
+  result := nil;
+
+  if aTagList.Count > 0 then firstItem := aTagList[0]
+  else firstItem := nil;
+  matchItem := nil;
+
+  ///  Getting a Picture tag that should be replaced by SetPicture()
+  ///  While for ID3v2 Tags the "Description" should be unique within the tag,
+  ///  It's not very intuitive when calling "SetPicture(ptFrontCover, 'Example')" would replace
+  ///  the cover art for ptLeadArtist, if that one had the deascription "Example".
+  ///  Therefore: Only try to match the PictureType, and ignore the Description (more or less).
+  ///             class ID3v2Tag should ensure uniqueness of "Description" when adding/changing picture tags
+
+  for i := 0 to aTagList.Count - 1 do begin
+    if aTagList[i].GetPicture(nil, dummyMime, loopType, loopDesc) then begin
+      if ((matchItem = nil) and (loopType = aPicType))
+        or ((loopType = aPicType) and (loopDesc = aDescription))
+      then
+        matchItem := aTagList[i];
+    end;
+  end;
+
+  case aMode of
+
+    // Fallback to firstItem (if there is only one pic before SetPicture, there will be only one after it as well)
+    spmSet: begin
+      result := matchItem;
+      if result = nil then
+        result := firstItem;
+    end;
+
+    // allow one picture of each type, replace existing ones of the same type
+    spmAddUniqueByType:
+      result := matchItem;
+
+    // allow multiple pictures of each type, unless for types ptIcon32, ptOtherIcon (required by all tag formats)
+    spmAdd:
+      if (aPicType in [ptIcon32, ptOtherIcon]) then
+        result := matchItem
+      else
+        result := nil;
+  end;
+end;
+
 
 { TTagItem }
 
@@ -279,6 +361,15 @@ begin
   result := (TagContentType in ContentTypes) or
    ((tctAll in ContentTypes) and not (TagContentType in [tctInvalid, tctUndef]))
 end;
+
+{$IF CompilerVersion < 28}
+initialization
+  SetLength(AWB_SupportedLyricsKeys, 3);
+  AWB_SupportedLyricsKeys[0] := 'UNSYNCEDLYRICS';
+  AWB_SupportedLyricsKeys[1] := 'UNSYNCED LYRICS';
+  AWB_SupportedLyricsKeys[2] := 'LYRICS';
+{$IFEND}
+
 
 
 end.

@@ -1,5 +1,7 @@
 program DemoSimple;
 
+{$I ..\source\config.inc}
+
 uses
   Forms,
   SimpleMain in 'SimpleMain.pas' {SimpleTagger},
@@ -34,7 +36,11 @@ uses
   BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
   OggContainer in '..\source\OggContainer.pas',
   AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
-  DummyFiles in '..\source\DummyFiles.pas';
+  {$IFDEF B64_FALLBACK}
+  AWB.Base64 in '..\source\AWB.Base64.pas',
+  {$ENDIF }
+  DummyFiles in '..\source\DummyFiles.pas',
+  AWBDemo.Common in '..\DemoCommon\AWBDemo.Common.pas';
 
 {$R *.res}
 

@@ -1,9 +1,9 @@
 object Form1: TForm1
-  Left = 284
-  Top = 165
+  Left = 270
+  Top = 255
+  Width = 938
+  Height = 722
   Caption = 'MP3FileUtils Demo'
-  ClientHeight = 691
-  ClientWidth = 930
   Color = clBtnFace
   Constraints.MinHeight = 620
   Constraints.MinWidth = 840
@@ -12,12 +12,14 @@ object Form1: TForm1
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  OldCreateOrder = True
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   DesignSize = (
     930
     691)
+  PixelsPerInch = 96
   TextHeight = 15
   object GroupBox1: TGroupBox
     Left = 8
@@ -27,7 +29,6 @@ object Form1: TForm1
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'ID3v2-Tag properties'
     TabOrder = 3
-    ExplicitWidth = 876
     object Label52: TLabel
       Left = 320
       Top = 24
@@ -235,8 +236,6 @@ object Form1: TForm1
     Anchors = [akLeft, akTop, akRight, akBottom]
     Caption = 'Frame content (after editing: click "Apply changes")'
     TabOrder = 0
-    ExplicitWidth = 589
-    ExplicitHeight = 319
     DesignSize = (
       607
       320)
@@ -250,8 +249,6 @@ object Form1: TForm1
       MultiLine = True
       Style = tsButtons
       TabOrder = 0
-      ExplicitWidth = 448
-      ExplicitHeight = 290
       object TSText: TTabSheet
         Caption = 'Text'
         DesignSize = (
@@ -267,8 +264,6 @@ object Form1: TForm1
           EditLabel.Height = 15
           EditLabel.Caption = 'Text'
           TabOrder = 0
-          Text = ''
-          ExplicitWidth = 411
         end
       end
       object TSComments: TTabSheet
@@ -295,7 +290,6 @@ object Form1: TForm1
           EditLabel.Caption = 'Language'
           ReadOnly = True
           TabOrder = 0
-          Text = ''
         end
         object Ed4_CommentDescription: TLabeledEdit
           Left = 88
@@ -309,7 +303,6 @@ object Form1: TForm1
           EditLabel.Caption = 'Description'
           ReadOnly = True
           TabOrder = 1
-          Text = ''
         end
         object Ed4_CommentValue: TMemo
           Left = 16
@@ -319,7 +312,6 @@ object Form1: TForm1
           Anchors = [akLeft, akTop, akRight, akBottom]
           ScrollBars = ssVertical
           TabOrder = 2
-          ExplicitWidth = 411
         end
       end
       object TSURL: TTabSheet
@@ -338,8 +330,6 @@ object Form1: TForm1
           EditLabel.Height = 15
           EditLabel.Caption = 'URL'
           TabOrder = 0
-          Text = ''
-          ExplicitWidth = 411
         end
         object BtnVisitURL: TButton
           Left = 16
@@ -369,8 +359,6 @@ object Form1: TForm1
           EditLabel.Caption = 'Description'
           ReadOnly = True
           TabOrder = 0
-          Text = ''
-          ExplicitWidth = 419
         end
         object Ed4_UserDefURLValue: TLabeledEdit
           Left = 16
@@ -382,7 +370,6 @@ object Form1: TForm1
           EditLabel.Height = 15
           EditLabel.Caption = 'URL'
           TabOrder = 1
-          Text = ''
         end
         object Btn_VisitUserDefURL: TButton
           Left = 16
@@ -416,7 +403,6 @@ object Form1: TForm1
           Center = True
           Proportional = True
           Stretch = True
-          ExplicitWidth = 318
         end
         object Label5: TLabel
           Left = 8
@@ -450,12 +436,11 @@ object Form1: TForm1
           Height = 23
           Color = clScrollBar
           EditLabel.Width = 3
-          EditLabel.Height = 23
+          EditLabel.Height = 15
           EditLabel.Caption = ' '
           LabelPosition = lpLeft
           ReadOnly = True
           TabOrder = 0
-          Text = ''
         end
         object ed4_cbPictureType: TComboBox
           Left = 241
@@ -463,6 +448,7 @@ object Form1: TForm1
           Width = 79
           Height = 23
           Style = csDropDownList
+          ItemHeight = 15
           TabOrder = 1
         end
         object Ed4_PicDescription: TLabeledEdit
@@ -472,12 +458,11 @@ object Form1: TForm1
           Height = 23
           Color = clScrollBar
           EditLabel.Width = 3
-          EditLabel.Height = 23
+          EditLabel.Height = 15
           EditLabel.Caption = ' '
           LabelPosition = lpLeft
           ReadOnly = True
           TabOrder = 2
-          Text = ''
         end
         object BtnLoadPic: TButton
           Left = 360
@@ -488,7 +473,6 @@ object Form1: TForm1
           Caption = 'Load cover art'
           TabOrder = 3
           OnClick = BtnLoadPicClick
-          ExplicitLeft = 342
         end
         object BtnSavePicture: TButton
           Left = 360
@@ -499,7 +483,6 @@ object Form1: TForm1
           Caption = 'Save to file'
           TabOrder = 4
           OnClick = BtnSavePictureClick
-          ExplicitLeft = 356
         end
       end
       object TSPrivate: TTabSheet
@@ -527,8 +510,6 @@ object Form1: TForm1
           EditLabel.Caption = 'Description (set by the software that uses this frame)'
           ReadOnly = True
           TabOrder = 0
-          Text = ''
-          ExplicitWidth = 419
         end
         object memoPrivateFrame: TMemo
           Left = 16
@@ -547,7 +528,6 @@ object Form1: TForm1
           ScrollBars = ssBoth
           TabOrder = 1
           WordWrap = False
-          ExplicitWidth = 419
         end
       end
       object TSBinary: TTabSheet
@@ -580,7 +560,6 @@ object Form1: TForm1
           ScrollBars = ssBoth
           TabOrder = 0
           WordWrap = False
-          ExplicitWidth = 433
         end
         object Btn_ExtractData: TButton
           Left = 339
@@ -591,7 +570,6 @@ object Form1: TForm1
           Caption = 'Save data to file'
           TabOrder = 1
           OnClick = Btn_ExtractDataClick
-          ExplicitLeft = 325
         end
       end
     end
@@ -604,7 +582,6 @@ object Form1: TForm1
       Caption = 'Apply changes'
       TabOrder = 1
       OnClick = BtnApplyChangeClick
-      ExplicitLeft = 469
     end
     object BtnAddFrame: TButton
       Left = 487
@@ -615,7 +592,6 @@ object Form1: TForm1
       Caption = 'Add Frame'
       TabOrder = 2
       OnClick = BtnAddFrameClick
-      ExplicitLeft = 469
     end
     object BtnSaveToFile: TButton
       Left = 487
@@ -626,7 +602,6 @@ object Form1: TForm1
       Caption = 'Update Mp3-File'
       TabOrder = 3
       OnClick = BtnSaveToFileClick
-      ExplicitLeft = 469
     end
     object BtnDeleteFrame: TButton
       Left = 487
@@ -637,7 +612,6 @@ object Form1: TForm1
       Caption = 'Delete Frame'
       TabOrder = 4
       OnClick = BtnDeleteFrameClick
-      ExplicitLeft = 469
     end
     object BtnUndo: TButton
       Left = 487
@@ -648,7 +622,6 @@ object Form1: TForm1
       Caption = 'Undo changes'
       TabOrder = 5
       OnClick = BtnUndoClick
-      ExplicitLeft = 469
     end
   end
   object GrpBoxExpert: TGroupBox
@@ -659,7 +632,6 @@ object Form1: TForm1
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'Write settings'
     TabOrder = 2
-    ExplicitWidth = 876
     DesignSize = (
       890
       121)
@@ -683,7 +655,6 @@ object Form1: TForm1
       ParentColor = False
       ParentFont = False
       WordWrap = True
-      ExplicitWidth = 645
     end
     object Bevel1: TBevel
       Left = 224
@@ -706,7 +677,7 @@ object Form1: TForm1
       Width = 65
       Height = 23
       EditLabel.Width = 52
-      EditLabel.Height = 23
+      EditLabel.Height = 15
       EditLabel.Caption = 'ID (0..255)'
       LabelPosition = lpLeft
       MaxLength = 3
@@ -749,7 +720,6 @@ object Form1: TForm1
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'Frame properties'
     TabOrder = 1
-    ExplicitWidth = 876
     object Label19: TLabel
       Left = 168
       Top = 24
@@ -907,6 +877,7 @@ object Form1: TForm1
       Width = 265
       Height = 23
       Style = csDropDownList
+      ItemHeight = 15
       ItemIndex = 0
       TabOrder = 0
       Text = 'Text Frames'

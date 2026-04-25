@@ -56,9 +56,12 @@ interface
 
 {$I config.inc}
 
-uses Classes, SysUtils, AudioFiles.Declarations, AudioFiles.BaseTags
-  {$IFDEF USE_GENERICS}, System.Generics.Collections {$ELSE}, System.Contnrs {$ENDIF}
-  ;
+uses
+  {$IFDEF USE_UNIT_SCOPES}System.Classes, System.SysUtils,
+  {$ELSE} Classes, SysUtils,
+  {$ENDIF}
+  {$IFDEF USE_GENERICS}System.Generics.Collections, {$ELSE} Contnrs, {$ENDIF}
+  AudioFiles.Declarations, AudioFiles.BaseTags;
 
 type
 
@@ -102,6 +105,8 @@ type
             function fGetFileType            : TAudioFileType; virtual; abstract;
             function fGetFileTypeDescription : String;         virtual; abstract;
 
+            function GetFrontCoverIndex(aPictureTags: TTagItemList): Integer; virtual;
+
             function ReadFromStream(aStream: TStream): TAudioError; virtual;
 
         public
@@ -129,7 +134,7 @@ type
 
             property LastExceptionMessage: string read fLastExceptionMessage;
 
-            constructor Create; virtual; abstract;
+            constructor Create; virtual;
             procedure Clear; virtual;
 
             function ReadFromFile(aFilename: UnicodeString): TAudioError;    virtual;
@@ -159,6 +164,7 @@ type
             // Note that not all parameters are used in all meta tag formats.
             function GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean; virtual;
             function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; virtual; abstract;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; virtual; abstract;
     end;
 
     TBaseAudioFileClass = class of TBaseAudioFile;
@@ -168,6 +174,11 @@ implementation
 
 
 { TBaseAudioFile }
+
+constructor TBaseAudioFile.Create;
+begin
+  inherited;
+end;
 
 
 function TBaseAudioFile.fGetFileSize: Int64;
@@ -272,15 +283,37 @@ begin
     result := WriteToFile(fFileName);
 end;
 
+function TBaseAudioFile.GetFrontCoverIndex(aPictureTags: TTagItemList): Integer;
+var
+  i: Integer;
+  aMime: AnsiString;
+  aPicType: TPictureType;
+  aDescription: UnicodeString;
+begin
+  // by default, consider the first Items as "the Front Cover"
+  result := 0;
+  // try to get a better picture
+  for i := 1 to aPicturetags.Count - 1 do begin
+    if aPictureTags[i].GetPicture(Nil, aMime, aPicType, aDescription) then begin
+      if aPicType = ptFrontCover then begin
+        result := i;
+        break;
+      end;
+    end;
+  end;
+end;
+
 function TBaseAudioFile.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 var
   TagItems: TTagItemList;
+  preferredPicIndex: Integer;
 begin
   TagItems := TTagItemList.Create;
   try
     GetTagList(TagItems, [tctPicture]);
     if TagItems.Count > 0 then begin
-      result := TagItems[0].GetPicture(Dest, aMime, aPicType, aDescription);
+      preferredPicIndex := GetFrontCoverIndex(TagItems);
+      result := TagItems[preferredPicIndex].GetPicture(Dest, aMime, aPicType, aDescription);
     end else begin
       result := False;
       aMime := '';
@@ -291,5 +324,6 @@ begin
     TagItems.Free;
   end;
 end;
+
 
 end.

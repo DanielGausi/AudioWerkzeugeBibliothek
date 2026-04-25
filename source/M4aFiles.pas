@@ -47,11 +47,17 @@
 
 unit M4aFiles;
 
+{$I config.inc}
+
 interface
 
-uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
- AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations, M4aAtoms;
-
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.StrUtils,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, StrUtils,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations, M4aAtoms;
 
 const DEFAULT_MEAN: AnsiString = 'com.apple.iTunes';
 
@@ -154,6 +160,7 @@ type
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
 
             function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
             function GetSpecialData(mean, name: AnsiString): UnicodeString;
             procedure SetSpecialData(mean, name: AnsiString; aValue: UnicodeString);
     end;
@@ -315,6 +322,12 @@ end;
 function TM4AFile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
 begin
   result := MOOV.UdtaAtom.SetPictureStream(Source, MimeStringToM4APicType(Mime));
+end;
+
+function TM4AFile.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean;
+begin
+  // same as SetPicture, only ony Picture supported anyway
+  result := MOOV.UdtaAtom.SetPictureStream(Source, MimeStringToM4APicType(aMime));
 end;
 
 function TM4AFile.GetSpecialData(mean, name: AnsiString): UnicodeString;

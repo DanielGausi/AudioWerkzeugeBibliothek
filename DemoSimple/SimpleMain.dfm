@@ -1,32 +1,32 @@
 object SimpleTagger: TSimpleTagger
   Left = 0
   Top = 0
+  Width = 635
+  Height = 472
   Caption = 'AudioWerkzeugeBibliothek (Demo Level 1)'
-  ClientHeight = 447
-  ClientWidth = 620
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
+  OldCreateOrder = True
   DesignSize = (
-    620
-    447)
+    627
+    441)
+  PixelsPerInch = 96
   TextHeight = 13
   object GroupBox1: TGroupBox
     Left = 8
     Top = 8
-    Width = 599
-    Height = 214
+    Width = 606
+    Height = 208
     Anchors = [akLeft, akTop, akRight, akBottom]
     Caption = 'File selection'
     TabOrder = 0
-    ExplicitWidth = 595
-    ExplicitHeight = 213
     DesignSize = (
-      599
-      214)
+      606
+      208)
     object DriveComboBox1: TDriveComboBox
       Left = 16
       Top = 24
@@ -39,17 +39,17 @@ object SimpleTagger: TSimpleTagger
       Left = 16
       Top = 49
       Width = 258
-      Height = 162
+      Height = 156
       Anchors = [akLeft, akTop, akBottom]
       FileList = FileListBox1
+      ItemHeight = 16
       TabOrder = 1
-      ExplicitHeight = 161
     end
     object FileListBox1: TFileListBox
       Left = 280
       Top = 16
-      Width = 311
-      Height = 195
+      Width = 318
+      Height = 189
       Anchors = [akLeft, akTop, akRight, akBottom]
       ItemHeight = 13
       Mask = 
@@ -57,20 +57,19 @@ object SimpleTagger: TSimpleTagger
         'v;*.mpc;*.mp+;*.mpp;*.ofr;*.ofs;*.tta;*.wav;*.wma;*.opus'
       TabOrder = 2
       OnChange = FileListBox1Change
-      ExplicitWidth = 307
-      ExplicitHeight = 194
     end
   end
   object GroupBox2: TGroupBox
     Left = 8
-    Top = 229
-    Width = 599
+    Top = 223
+    Width = 606
     Height = 210
     Anchors = [akLeft, akRight, akBottom]
     Caption = 'File properties'
     TabOrder = 1
-    ExplicitTop = 228
-    ExplicitWidth = 595
+    DesignSize = (
+      606
+      210)
     object Label1: TLabel
       Left = 16
       Top = 27
@@ -112,6 +111,15 @@ object SimpleTagger: TSimpleTagger
       Width = 22
       Height = 13
       Caption = 'Year'
+    end
+    object Image1: TImage
+      Left = 461
+      Top = 24
+      Width = 128
+      Height = 128
+      Anchors = [akTop, akRight]
+      Proportional = True
+      Stretch = True
     end
     object EdtTitle: TEdit
       Left = 72
@@ -158,8 +166,9 @@ object SimpleTagger: TSimpleTagger
     object Memo1: TMemo
       Left = 264
       Top = 24
-      Width = 350
+      Width = 191
       Height = 129
+      Anchors = [akLeft, akTop, akRight]
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
       Font.Height = -11

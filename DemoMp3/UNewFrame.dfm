@@ -1,15 +1,16 @@
 object FormNewFrame: TFormNewFrame
   Left = 1190
   Top = 162
+  Width = 452
+  Height = 319
   Caption = 'Add a new Frame to the ID3-Tag'
-  ClientHeight = 288
-  ClientWidth = 444
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  OldCreateOrder = True
   Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -17,6 +18,7 @@ object FormNewFrame: TFormNewFrame
   DesignSize = (
     444
     288)
+  PixelsPerInch = 96
   TextHeight = 15
   object pcFrameTypeSelection: TPageControl
     Left = 8
@@ -27,8 +29,6 @@ object FormNewFrame: TFormNewFrame
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
     OnChange = pcFrameTypeSelectionChange
-    ExplicitWidth = 412
-    ExplicitHeight = 232
     object tsText: TTabSheet
       Caption = 'Text'
       object Label1: TLabel
@@ -61,6 +61,7 @@ object FormNewFrame: TFormNewFrame
         Width = 393
         Height = 23
         Style = csDropDownList
+        ItemHeight = 0
         TabOrder = 0
       end
       object Ed_TextFrame: TLabeledEdit
@@ -72,7 +73,6 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Height = 15
         EditLabel.Caption = 'Content'
         TabOrder = 1
-        Text = ''
         OnChange = Ed_TextFrameChange
       end
     end
@@ -106,6 +106,7 @@ object FormNewFrame: TFormNewFrame
         Width = 73
         Height = 23
         Style = csDropDownList
+        ItemHeight = 0
         TabOrder = 0
         OnChange = EdtCommentDescriptionChange
       end
@@ -156,6 +157,7 @@ object FormNewFrame: TFormNewFrame
         Width = 73
         Height = 23
         Style = csDropDownList
+        ItemHeight = 0
         TabOrder = 0
         OnChange = EdtLyricDescriptionChange
       end
@@ -207,6 +209,7 @@ object FormNewFrame: TFormNewFrame
         Width = 329
         Height = 23
         Style = csDropDownList
+        ItemHeight = 0
         TabOrder = 0
       end
       object ED_URLFrame: TLabeledEdit
@@ -218,7 +221,6 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Height = 15
         EditLabel.Caption = 'URL'
         TabOrder = 1
-        Text = ''
         OnChange = ED_URLFrameChange
       end
     end
@@ -249,7 +251,6 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Height = 15
         EditLabel.Caption = 'Url'
         TabOrder = 1
-        Text = ''
         OnChange = Ed_UserDefURLDescriptionChange
       end
     end
@@ -285,6 +286,7 @@ object FormNewFrame: TFormNewFrame
         Width = 193
         Height = 23
         Style = csDropDownList
+        ItemHeight = 0
         TabOrder = 0
       end
       object EdtPictureDescription: TEdit
@@ -353,8 +355,6 @@ object FormNewFrame: TFormNewFrame
         EditLabel.Caption = 'Description (set by the software, not by the user)'
         ReadOnly = True
         TabOrder = 0
-        Text = ''
-        ExplicitWidth = 336
       end
       object BtnSelectPrivateFile: TButton
         Left = 294
@@ -377,8 +377,6 @@ object FormNewFrame: TFormNewFrame
     ModalResult = 1
     TabOrder = 1
     OnClick = Btn_OkClick
-    ExplicitLeft = 256
-    ExplicitTop = 254
   end
   object BtnCancel: TButton
     Left = 349
@@ -389,8 +387,6 @@ object FormNewFrame: TFormNewFrame
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 2
-    ExplicitLeft = 345
-    ExplicitTop = 254
   end
   object OpenPictureDialog1: TOpenPictureDialog
     Filter = 'All supported files (*.jpg;*.jpeg;*.png;)|*.jpg;*.jpeg;*.png;'

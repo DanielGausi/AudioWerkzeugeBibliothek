@@ -1,7 +1,6 @@
 object MainFormAWB: TMainFormAWB
-  Left = 0
-  Top = 0
-  BorderStyle = bsSingle
+  Left = 70
+  Top = 292
   Caption = 'AudioWerkzeugeBibliothek (Demo Level 2)'
   ClientHeight = 646
   ClientWidth = 966
@@ -12,6 +11,9 @@ object MainFormAWB: TMainFormAWB
   Font.Name = 'Tahoma'
   Font.Style = []
   OnDestroy = FormDestroy
+  DesignSize = (
+    966
+    646)
   TextHeight = 13
   object GroupBox1: TGroupBox
     Left = 8
@@ -131,21 +133,36 @@ object MainFormAWB: TMainFormAWB
     end
     object BtnNewPicture: TButton
       Left = 175
-      Top = 51
+      Top = 62
       Width = 130
       Height = 25
-      Caption = 'New'
+      Caption = 'Set/Add'
       TabOrder = 1
       OnClick = BtnNewPictureClick
     end
     object BtnDeletePicture: TButton
       Left = 175
-      Top = 82
+      Top = 143
       Width = 130
       Height = 25
       Caption = 'Delete'
       TabOrder = 2
       OnClick = BtnDeletePictureClick
+    end
+    object cbSetPictureMode: TComboBox
+      Left = 175
+      Top = 93
+      Width = 130
+      Height = 21
+      Style = csDropDownList
+      ItemIndex = 0
+      TabOrder = 3
+      Text = 'Replace existing'
+      Items.Strings = (
+        'Replace existing'
+        'Add (one per type)'
+        'Add (multiple per type)'
+        'Replace Selected')
     end
   end
   object GroupBox3: TGroupBox
@@ -153,6 +170,7 @@ object MainFormAWB: TMainFormAWB
     Top = 401
     Width = 953
     Height = 185
+    Anchors = [akLeft, akTop, akRight, akBottom]
     Caption = 
       'Meta tag overview (in this demo: limited editing, use popup menu' +
       ')'
@@ -261,6 +279,7 @@ object MainFormAWB: TMainFormAWB
     Top = 603
     Width = 98
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'Remove Tag'
     TabOrder = 5
     OnClick = BtnRemoveTagClick
@@ -270,6 +289,7 @@ object MainFormAWB: TMainFormAWB
     Top = 603
     Width = 96
     Height = 25
+    Anchors = [akRight, akBottom]
     Caption = 'Save changes'
     TabOrder = 6
     OnClick = BtnSaveClick
@@ -317,15 +337,10 @@ object MainFormAWB: TMainFormAWB
       Caption = 'File Size'
     end
     object MemoSpecific: TMemo
-      AlignWithMargins = True
-      Left = 10
-      Top = 112
-      Width = 190
+      Left = 2
+      Top = 120
+      Width = 206
       Height = 265
-      Margins.Left = 8
-      Margins.Top = 0
-      Margins.Right = 8
-      Margins.Bottom = 8
       Align = alBottom
       BorderStyle = bsNone
       Color = clBtnFace
@@ -345,6 +360,7 @@ object MainFormAWB: TMainFormAWB
     Top = 594
     Width = 289
     Height = 42
+    Anchors = [akRight, akBottom]
     Caption = 'Tags to update/remove'
     TabOrder = 8
     object cb_Existing: TCheckBox

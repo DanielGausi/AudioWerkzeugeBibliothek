@@ -52,10 +52,13 @@ unit FlacFiles;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, ContNrs, Classes
-  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF},
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows,  System.SysUtils, System.ContNrs, System.Classes, System.StrUtils, System.Types,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, StrUtils, Types,
+  {$ENDIF}
   AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations, BaseVorbisFiles,
-  VorbisComments, Id3Basics , winsock;
+  VorbisComments, Id3Basics;
 
 const
     FLAC_MARKER = 'fLaC';
@@ -181,7 +184,7 @@ type
             fMetaBlocks: TObjectList;
             fFlacCommentsBlock: TFlacCommentsBlock;
 
-            function fGetArbitraryPictureBlock: TFlacPictureBlock;
+            // function fGetArbitraryPictureBlock: TFlacPictureBlock;
             function PrepareDataToWrite(tmpFlacFile: TFlacFile; BufferStream: TStream; aFilename: String): TAudioError;
             function BackupAudioData(source: TStream; BackUpFilename: UnicodeString): TAudioError;
             function AppendBackup(Destination: TStream; BackUpFilename: UnicodeString): TAudioError;
@@ -196,6 +199,8 @@ type
 
             function ReadFromStream(aStream: TStream): TAudioError; override;
 
+            function DoSetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; aMode: teSetPictureMode): Boolean;
+
         public
             property UsePadding: Boolean read fUsePadding write fUsePadding;
             property BitsPerSample: Byte read fBitsPerSample;
@@ -208,11 +213,8 @@ type
             function WriteToFile(aFilename: UnicodeString): TAudioError;  override;
             function RemoveFromFile(aFilename: UnicodeString): TAudioError;  override;
 
-            function SetPicture(Source: TStream;
-                                    aMime: AnsiString;
-                                    aPicType: TPictureType;
-                                    aDescription: UnicodeString): Boolean;  override;
-            procedure AddPicture(Source: TStream; aMime: AnsiString; aType: TPictureType;  aDescription: UnicodeString); override;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
 
             procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
             procedure DeleteTagItem(aTagItem: TTagItem); override;
@@ -598,7 +600,8 @@ end;
 
 function TFlacPictureBlock.GetPicture(Dest: TStream; out aMime: AnsiString; out aPicType: TPictureType; out aDescription: UnicodeString): Boolean;
 begin
-  Dest.CopyFrom(fMetaDataBlockPicture.PicData, 0);
+  if assigned(Dest) then
+    Dest.CopyFrom(fMetaDataBlockPicture.PicData, 0);
   aMime := MimeType;
   aPicType := PictureType;
   aDescription := PicDescription;
@@ -612,6 +615,7 @@ begin
   if result then begin
     MimeType        := aMime;
     PicDescription  := aDescription;
+    PictureType     := aPicType;
     Width         := 0;
     Height        := 0;
     ColorDepth    := 0;
@@ -650,7 +654,7 @@ begin
     result := cAudioFileType[at_Flac];
 end;
 
-function TFlacFile.fGetArbitraryPictureBlock: TFlacPictureBlock;
+(*function TFlacFile.fGetArbitraryPictureBlock: TFlacPictureBlock;
 var i: Integer;
     tmpPicBlock: TFlacPictureBlock;
     arbitraryPicFound: Boolean;
@@ -674,7 +678,7 @@ begin
             arbitraryPicFound := True;
         end;
     end;
-end;
+end;*)
 
 procedure TFlacFile.GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes);
 var
@@ -702,52 +706,65 @@ begin
   end;
 end;
 
-procedure TFlacFile.AddPicture(Source: TStream; aMime: AnsiString; aType: TPictureType;
-                  aDescription: UnicodeString);
+function TFlacFile.DoSetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; aMode: teSetPictureMode): Boolean;
 var
-  picBlock: TFlacPictureBlock;
-begin
-  if PicBlockSize(Source, aMime, aDescription) < cMaxBlockSize then begin
-    if assigned(Source) and (Source.Size > 0) then begin
-      picBlock := TFlacPictureBlock.Create;
-      fMetaBlocks.Add(picBlock);
-      picBlock.SetPicture(Source, aMime, aType, aDescription);
-    end; // else: nothing to do
-  end
-  else begin
-    raise Exception.Create('Maximum picture size exceeded: Datasize > 16MiB.');
-  end;
-end;
-
-function TFlacFile.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
-     aDescription: UnicodeString): Boolean;
-var
-  picBlock: TFlacPictureBlock;
+  newPicBlock: TFlacPictureBlock;
+  picTags: TTagItemList;
+  ReplaceableTag: TTagItem;
+  i: Integer;
 begin
   result := PicBlockSize(Source, aMime, aDescription) < cMaxBlockSize;
   if result then begin
-    picBlock := fGetArbitraryPictureBlock;
-    if assigned(Source) and (Source.Size > 0) then
-    begin
-      if not assigned(picBlock) then begin
-        picBlock := TFlacPictureBlock.Create;
-        picBlock.PictureType := aPicType;
-        fMetaBlocks.Add(picBlock);
+    picTags := TTagItemList.Create;
+    try
+      for i := 0 to self.fMetaBlocks.Count - 1 do begin
+        if TFlacMetaBlock(fMetaBlocks[i]).BlockType = 6 then
+          picTags.Add(TFlacMetaBlock(fMetaBlocks[i]));
       end;
-      result := picBlock.SetPicture(Source, aMime, aPicType, aDescription);
-    end else
-    begin
-      // Delete the Block from the file
-      if assigned(picBlock) then begin
+      ReplaceableTag := GetReplaceablePictureTag(picTags, aPicType, aDescription, aMode);
+    finally
+      picTags.Free;
+    end;
+
+    if assigned(ReplaceableTag) then begin
+      // replace existing Picture Tag
+      if assigned(Source) then begin
+        result := ReplaceableTag.SetPicture(Source, aMime, aPicType, aDescription)
+      end
+      else begin
+        fMetaBlocks.Extract(ReplaceableTag);
+        ReplaceableTag.Free;
         result := True;
-        fMetaBlocks.Extract(picBlock);
-        FreeAndNil(picBlock);
+      end;
+    end else begin
+      // add new Picture Tag
+      if assigned(Source) and (Source.Size > 0) then begin
+        newPicBlock := TFlacPictureBlock.Create;
+        fMetaBlocks.Add(newPicBlock);
+        result := newPicBlock.SetPicture(Source, aMime, aPicType, aDescription);
       end;
     end;
   end
   else begin
     raise Exception.Create('Maximum picture size exceeded: Datasize > 16MiB.');
   end;
+end;
+
+function TFlacFile.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
+begin
+  result := DoSetPicture(Source, aMime, aPicType, aDescription, spmSet);
+end;
+
+function TFlacFile.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean;
+begin
+  if assigned(Source) and (Source.Size > 0) then begin
+    if WantUniqueByType then
+      result := DoSetPicture(Source, aMime, aPicType, aDescription, spmAddUniqueByType)
+    else
+      result := DoSetPicture(Source, aMime, aPicType, aDescription, spmAdd)
+  end
+  else
+    result := false;
 end;
 
 procedure TFlacFile.Clear;

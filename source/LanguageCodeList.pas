@@ -10,9 +10,12 @@
 
 unit LanguageCodeList;
 
+{$I config.inc}
+
 interface
 
-uses classes;
+uses
+  {$IFDEF USE_UNIT_SCOPES}System.Classes{$ELSE}Classes{$ENDIF};
 
 var
   LanguageCodes: TStringlist;

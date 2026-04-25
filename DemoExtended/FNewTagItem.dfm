@@ -1,5 +1,4 @@
 object FormNewTagItem: TFormNewTagItem
-  AlignWithMargins = True
   Left = 0
   Top = 0
   BorderStyle = bsDialog
@@ -12,10 +11,12 @@ object FormNewTagItem: TFormNewTagItem
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
+  OldCreateOrder = True
   Position = poScreenCenter
   DesignSize = (
     370
     197)
+  PixelsPerInch = 96
   TextHeight = 13
   object lbl_FrameType: TLabel
     Left = 16
@@ -39,28 +40,24 @@ object FormNewTagItem: TFormNewTagItem
     Caption = 'No more known text items available'
   end
   object cbKey: TComboBox
-    AlignWithMargins = True
     Left = 16
     Top = 41
     Width = 330
     Height = 21
     Style = csDropDownList
     Anchors = [akLeft, akTop, akRight]
+    ItemHeight = 13
     TabOrder = 0
-    ExplicitWidth = 326
   end
   object edtValue: TEdit
-    AlignWithMargins = True
     Left = 16
     Top = 91
     Width = 330
     Height = 21
     Anchors = [akLeft, akTop, akRight]
     TabOrder = 1
-    ExplicitWidth = 326
   end
   object BtnOK: TButton
-    AlignWithMargins = True
     Left = 271
     Top = 159
     Width = 75
@@ -70,10 +67,8 @@ object FormNewTagItem: TFormNewTagItem
     Default = True
     ModalResult = 1
     TabOrder = 2
-    ExplicitLeft = 267
   end
   object BtnCancel: TButton
-    AlignWithMargins = True
     Left = 182
     Top = 159
     Width = 75
@@ -83,6 +78,5 @@ object FormNewTagItem: TFormNewTagItem
     Caption = 'Cancel'
     ModalResult = 2
     TabOrder = 3
-    ExplicitLeft = 178
   end
 end

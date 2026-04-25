@@ -52,11 +52,18 @@
 
 unit BaseVorbisFiles;
 
+{$I config.inc}
+
 interface
 
-uses Windows, SysUtils, Classes, System.ContNrs,
-     AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
-     VorbisComments, OggContainer;
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.Classes,
+  {$ELSE}
+  Windows, SysUtils, Classes,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
+  VorbisComments, OggContainer;
 
 type
 
@@ -134,7 +141,7 @@ type
               aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
 
         // Add a new METADATA_BLOCK_PICTURE
-        procedure AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString); virtual;
+        function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
 
         procedure GetTagList(Dest: TTagItemList; ContentTypes: TTagContentTypes = cDefaultTagContentTypes); override;
         procedure DeleteTagItem(aTagItem: TTagItem); override;
@@ -373,14 +380,20 @@ end;
 function TBaseVorbisFile.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
   aDescription: UnicodeString): Boolean;
 begin
-  result := VorbisComments.SetPicture(Source, aMime, aPicType, aDescription);
+  result := VorbisComments.SetPicture(Source, aMime, aPicType, aDescription, spmSet);
 end;
 
 // Add a new Picture
-procedure TBaseVorbisFile.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType;
-      aDescription: UnicodeString);
+function TBaseVorbisFile.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean;
 begin
-  VorbisComments.AddPicture(Source, aMime, aPicType, aDescription);
+   if assigned(Source) and (Source.Size > 0) then begin
+    if WantUniqueByType then
+      result := VorbisComments.SetPicture(Source, aMime, aPicType, aDescription, spmAddUniqueByType)
+    else
+      result := VorbisComments.SetPicture(Source, aMime, aPicType, aDescription, spmAdd)
+  end
+  else
+    result := false;
 end;
 
 end.

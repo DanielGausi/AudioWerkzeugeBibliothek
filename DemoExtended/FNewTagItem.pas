@@ -3,9 +3,9 @@ unit FNewTagItem;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  System.Contnrs,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations;
+  Windows, Messages, SysUtils, Variants, Classes, Graphics,
+  Contnrs, Controls, Forms, Dialogs, StdCtrls,
+  AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations;
 
 type
   TFormNewTagItem = class(TForm)

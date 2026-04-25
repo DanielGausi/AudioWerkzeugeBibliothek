@@ -55,12 +55,17 @@
 
 unit OggContainer;
 
+{$I config.inc}
+
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, ContNrs, Classes,
-  VorbisComments, ID3Basics,
-  AudioFiles.Base, AudioFiles.Declarations;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes,
+  {$ELSE}
+  Windows,  SysUtils, ContNrs, Classes, StrUtils,
+  {$ENDIF}
+  VorbisComments, ID3Basics, AudioFiles.Base, AudioFiles.Declarations;
 
 const
     OGG_PAGE_ID = 'OggS';
@@ -346,7 +351,7 @@ begin
   fFinished := Value.fFinished;
 
   fData.Clear;
-  fData.CopyFrom(Value.fData);
+  fData.CopyFrom(Value.fData, 0);
 end;
 
 function TOggPage.CalculateChecksum: Cardinal;
@@ -543,7 +548,7 @@ begin
   try
     WriteHeader(Target);
     fData.Position := 0;
-    Target.CopyFrom(fData);
+    Target.CopyFrom(fData, 0);
   except
     result := FileErr_StreamWrite;
   end;
@@ -617,7 +622,7 @@ begin
     aErr := BackupContainer.ReadPage(BackupPage);
     if (fCurrentPage.PageNumber = BackupPage.PageNumber) or not ReNumberPages then begin
       // just copy all the data
-      fPhysicalStream.CopyFrom(Source);
+      fPhysicalStream.CopyFrom(Source, 0);
     end else begin
       // renumbering the Pages is necessary (and wanted)
       BackupPage.PageNumber := fCurrentPage.PageNumber;

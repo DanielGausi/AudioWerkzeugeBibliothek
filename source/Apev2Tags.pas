@@ -69,11 +69,18 @@
 
 unit Apev2Tags;
 
+{$I config.inc}
+
 interface
 
-uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes, Types,
-     AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
-     Id3Basics, ApeTagItem;
+uses
+
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.StrUtils, System.Types,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, StrUtils, Types,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations, Id3Basics, ApeTagItem;
 
 type
 
@@ -88,7 +95,7 @@ type
             fID3v1Present: Boolean;
             fID3v1TagSize: Cardinal;
 
-            fOffset: DWord;   // Position (from End of File) where the Apev2Tag begins
+            fOffset: Integer; // DWord;   // Position (from End of File) where the Apev2Tag begins
             fItemList: TObjectList;
             fLastExceptionMessage: string;
 
@@ -925,7 +932,7 @@ begin
     if ContainsHeader then  // i.e. the flag in the footer is set
     begin
         fOffset := fApev2TagFooter.Size + 32 + fID3v1TagSize;
-        aStream.Seek(- fOffset, soEnd);
+        aStream.Seek(-fOffset, soEnd);
         aStream.Read(fApev2TagHeader, 32);
         if Not fIsValidHeader(fApev2TagHeader) then
         begin
@@ -938,7 +945,7 @@ begin
     else
     begin
         fOffset := fApev2TagFooter.Size + fID3v1TagSize;
-        aStream.Seek(-fOffset, soEnd);
+        aStream.Seek(-fOffset, soFromEnd);
     end;
 
     // ReadItems
@@ -948,7 +955,6 @@ begin
         try
             MemStream.CopyFrom(aStream, fApev2TagFooter.Size );
             MemStream.Position := 0;
-
             for i := 1 to fApev2TagFooter.ItemCount do
             begin
                 newItem := TApeTagItem.Create('');

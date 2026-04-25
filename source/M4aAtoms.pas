@@ -51,8 +51,13 @@ unit M4aAtoms;
 
 interface
 
-uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFiles.Declarations, AudioFiles.BaseTags {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF};
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.StrUtils, System.Types,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, StrUtils, Types,
+  {$ENDIF}
+  AudioFiles.Declarations, AudioFiles.BaseTags;
 
 
 type
@@ -2019,7 +2024,8 @@ begin
                 typ := M4A_Invalid;
             end;
             fData.Seek(4, soCurrent);
-            Dest.CopyFrom(fData, fData.Size - 16);
+            if assigned(Dest) then
+              Dest.CopyFrom(fData, fData.Size - 16);
             result := True;
         end else
             result := False;
@@ -2035,7 +2041,7 @@ begin
 
     case typ of
         M4A_JPG: t := ChangeEndian32(13) ;
-        M4A_PNG: t := ChangeEndian32(13)
+        M4A_PNG: t := ChangeEndian32(14)
     else
         t := 0;
     end;

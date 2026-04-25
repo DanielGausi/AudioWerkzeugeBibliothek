@@ -56,11 +56,18 @@
 
 unit BaseApeFiles;
 
+{$I config.inc}
+
 interface
 
-uses Windows, SysUtils, Classes,
-     AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags,
-     Id3Basics, ID3v1Tags, ApeV2Tags, ApeTagItem;
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.Classes,
+  {$ELSE}
+  Windows,  SysUtils, Classes,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags,
+  Id3Basics, ID3v1Tags, ApeV2Tags, ApeTagItem;
 
 type
 
@@ -145,6 +152,7 @@ type
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
 
             function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
     end;
 
 implementation
@@ -153,6 +161,7 @@ implementation
 
 constructor TBaseApeFile.Create;
 begin
+    inherited;
     fApeTag := TApeTag.Create;
     fID3v1Tag := TID3v1Tag.Create;
 
@@ -320,6 +329,13 @@ function TBaseApeFile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPi
 begin
   result := ApeTag.SetPicture(PicType, Description, Source);
 end;
+
+function TBaseApeFile.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean;
+begin
+  // for ape files, SetPicture and AddPicture are the same due to the structure of the Apev2Tag
+  result := ApeTag.SetPicture(aPicType, aDescription, Source);
+end;
+
 
 {
     ReadAudioDataFromStream

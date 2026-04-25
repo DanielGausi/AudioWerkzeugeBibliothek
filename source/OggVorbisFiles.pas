@@ -55,12 +55,17 @@
 
 unit OggVorbisFiles;
 
+{$I config.inc}
+
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, ContNrs, Classes,  Dialogs,
-  VorbisComments, ID3Basics, OggContainer,
-  AudioFiles.Base, AudioFiles.Declarations, BaseVorbisFiles;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes,
+  {$ELSE}
+  Windows,  SysUtils, ContNrs, Classes, StrUtils,
+  {$ENDIF}
+  VorbisComments, ID3Basics, OggContainer, AudioFiles.Base, AudioFiles.Declarations, BaseVorbisFiles;
 
 type
 

@@ -50,10 +50,13 @@
 
 unit DummyFiles;
 
+{$I config.inc}
+
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
-
+uses
+  {$IFDEF USE_UNIT_SCOPES} System.Classes, System.SysUtils, {$ELSE} Classes, SysUtils, {$ENDIF}
+  AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 type
 
@@ -91,6 +94,7 @@ type
             function GetUnusedTextTags: TTagItemInfoDynArray; override;
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
             function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
         end;
 
 implementation
@@ -241,6 +245,13 @@ end;
 
 function TDummyFile.SetPicture(Source: TStream; Mime: AnsiString;
   PicType: TPictureType; Description: UnicodeString): Boolean;
+begin
+  result := false;
+end;
+
+function TDummyFile.AddPicture(Source: TStream; aMime: AnsiString;
+  aPicType: TPictureType; aDescription: UnicodeString;
+  WantUniqueByType: Boolean): Boolean;
 begin
   result := false;
 end;

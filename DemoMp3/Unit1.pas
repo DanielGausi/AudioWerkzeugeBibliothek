@@ -2,13 +2,11 @@ unit Unit1;
 
 interface
 
-{$DEFINE USE_PNG}
-
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms, ContNrs,
   Dialogs, ExtCtrls, StdCtrls, ComCtrls, JPEG, MpegFrames, ID3v1Tags, ID3v2Tags, ID3v2Frames,
   AudioFiles.Declarations, AudioFiles.BaseTags,
-  ExtDlgs, ShellApi {$IFDEF USE_PNG}, PNGImage, Vcl.Mask{$ENDIF};
+  ExtDlgs, ShellApi, AWBDemo.Common;
 
 type
   TForm1 = class(TForm)
@@ -370,7 +368,7 @@ begin
           try
               iFrame.GetPicture(PictureData, Mime, PicType, Description);
               PictureData.Position := 0;
-              Ed4_Pic.Picture.LoadFromStream(PictureData);
+              ShowImageFromStream(PictureData, Ed4_Pic);
               Ed4_PicMime.Text := Mime;
               Ed4_PicDescription.Text := Description;
               ed4_cbPictureType.ItemIndex := Integer(PicType)

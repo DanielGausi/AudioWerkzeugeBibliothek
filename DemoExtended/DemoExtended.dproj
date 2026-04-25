@@ -165,11 +165,13 @@
         <DCCReference Include="..\source\OggContainer.pas"/>
         <DCCReference Include="..\source\OpusFiles.pas"/>
         <DCCReference Include="..\source\AudioFiles.BaseTags.pas"/>
+        <DCCReference Include="..\source\AWB.Base64.pas"/>
         <DCCReference Include="..\source\BaseVorbisFiles.pas"/>
         <DCCReference Include="FNewTagItem.pas">
             <Form>FormNewTagItem</Form>
         </DCCReference>
         <DCCReference Include="..\source\DummyFiles.pas"/>
+        <DCCReference Include="..\DemoCommon\AWBDemo.Common.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

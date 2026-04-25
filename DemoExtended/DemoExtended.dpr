@@ -1,6 +1,6 @@
 program DemoExtended;
 
-
+{$I ..\source\config.inc}
 
 uses
   Forms,
@@ -36,9 +36,13 @@ uses
   OggContainer in '..\source\OggContainer.pas',
   OpusFiles in '..\source\OpusFiles.pas',
   AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
+  {$IFDEF B64_FALLBACK}
+  AWB.Base64 in '..\source\AWB.Base64.pas',
+  {$ENDIF }
   BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
   FNewTagItem in 'FNewTagItem.pas' {FormNewTagItem},
-  DummyFiles in '..\source\DummyFiles.pas';
+  DummyFiles in '..\source\DummyFiles.pas',
+  AWBDemo.Common in '..\DemoCommon\AWBDemo.Common.pas';
 
 {$R *.res}
 

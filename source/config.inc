@@ -1,17 +1,26 @@
 
 {
   Compatibilty to older Delphi Versions:
-  Undef USE_SYSTEM_TYPES to not use System.Types
   Undef USE_DICTIONARY to use a regular TObjectList instead of TDictionary for registering audiotypes
 }
 
-{$DEFINE USE_SYSTEM_TYPES}
-
-
-{$if CompilerVersion > 20} // Delphi 2009 or later
+{$IF CompilerVersion > 20} // Delphi 2009 or later
   {$DEFINE USE_DICTIONARY}
   {$DEFINE USE_GENERICS}
+  {$DEFINE USE_PNG}
 {$ifend}
+
+{$IF CompilerVersion >= 23}  // XE2 or later
+  {$DEFINE USE_UNIT_SCOPES}
+{$IFEND}
+
+{$IF CompilerVersion < 33}  // before 10.3 Rio: No Picture.LoadFromStream available
+  {$DEFINE LOADIMAGE_FALLBACK}
+{$IFEND}
+
+{$IF CompilerVersion < 28}  // before XE7 (System.NetEncoding was introduced in XE7 (?))
+  {$DEFINE B64_FALLBACK}
+{$IFEND}
 
 {
   Compiler-Switch-TNT:
@@ -24,12 +33,9 @@
 }
 
 {$DEFINE USE_TNT_COMPOS}
-
 {
   Delphi 2009: Unicode-capable by default. TNTs ar not needed.
-               => Deactivate use of TNTs
 }
-
 {$IFDEF UNICODE}
     {$UNDEF USE_TNT_COMPOS}
 {$ENDIF}

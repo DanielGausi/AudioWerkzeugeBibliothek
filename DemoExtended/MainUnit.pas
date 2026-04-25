@@ -2,8 +2,6 @@ unit MainUnit;
 
 interface
 
-{$DEFINE USE_PNG}
-
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, Jpeg, ContNrs, AudioFiles.Base, AudioFiles.BaseTags,
@@ -11,8 +9,7 @@ uses
   ID3v1Tags, ID3v2Tags, Apev2Tags, VorbisComments,
   Mp3Files, FlacFiles, BaseVorbisFiles, OggVorbisFiles, MonkeyFiles, WavPackFiles,
   MusePackFiles, OptimFrogFiles, TrueAudioFiles, WavFiles,
-  M4aAtoms, M4AFiles, FileCtrl, ComCtrls
-  {$IFDEF USE_PNG}, PNGImage, Vcl.Menus{$ENDIF} ;
+  M4aAtoms, M4AFiles, FileCtrl, ComCtrls, Menus, AWBDemo.Common;
 
 type
   TMainFormAWB = class(TForm)
@@ -60,6 +57,7 @@ type
     pmEdit: TMenuItem;
     pmNew: TMenuItem;
     MemoSpecific: TMemo;
+    cbSetPictureMode: TComboBox;
     procedure FormDestroy(Sender: TObject);
     procedure BtnSaveClick(Sender: TObject);
     procedure cbPicturesChange(Sender: TObject);
@@ -75,7 +73,6 @@ type
     { Private-Deklarationen }
     AudioFile: TBaseAudioFile;
 
-    function StreamToBitmap(aStream: TStream; aBitmap: TBitmap): Boolean;
     procedure RefreshImageList;
 
     procedure ApplyUpdateSettings;
@@ -311,9 +308,7 @@ begin
         if not ImageAssigned then begin
           ImageAssigned := True;
           cbPictures.ItemIndex := 0;
-          Stream.Position := 0;
-          Image1.Picture.LoadFromStream(Stream);
-          //StreamToBitmap(stream, Image1.Picture.Bitmap)
+          ShowImageFromStream(Stream, Image1);
         end;
       end;
     end;
@@ -351,8 +346,20 @@ begin
         try
           fs := TFileStream.Create(NewPic.FileName, fmOpenRead or fmShareDenyWrite);
           try
-            AudioFile.SetPicture(fs, aMimeType, NewPic.PicType, NewPic.Description);
+            case cbSetPictureMode.ItemIndex of
+              0: AudioFile.SetPicture(fs, aMimeType, NewPic.PicType, NewPic.Description);
+              1: AudioFile.AddPicture(fs, aMimeType, NewPic.PicType, NewPic.Description, True);
+              2: AudioFile.AddPicture(fs, aMimeType, NewPic.PicType, NewPic.Description, False);
+              3: begin
+                  if cbPictures.ItemIndex >= 0 then
+                    TTagItem(cbPictures.Items.Objects[cbPictures.ItemIndex]).SetPicture(fs, aMimeType, NewPic.PicType, NewPic.Description)
+                  else
+                    ShowMessage('There is no image to replace ...');
+              end;
+            end;
+
             RefreshImageList;
+            RefillTagItems;
           finally
               fs.Free;
           end;
@@ -406,7 +413,7 @@ end;
 
 procedure TMainFormAWB.BtnDeletePictureClick(Sender: TObject);
 begin
-  AudioFile.DeleteTagItem(TTagItem(cbPictures.Items.Objects[cbPictures.ItemIndex]));
+   AudioFile.DeleteTagItem(TTagItem(cbPictures.Items.Objects[cbPictures.ItemIndex]));
   RefreshImageList;
   RefillTagItems;
 end;
@@ -436,9 +443,7 @@ begin
   stream := TMemoryStream.Create;
   try
     if TTagItem(cbPictures.Items.Objects[cbPictures.ItemIndex]).GetPicture(stream, Mime, PicType, Description) then begin
-      //StreamToBitmap(stream, Image1.Picture.Bitmap)
-      Stream.Position := 0;
-      Image1.Picture.LoadFromStream(Stream);
+      ShowImageFromStream(Stream, Image1);
     end
     else
       Image1.Picture.Assign(Nil);
@@ -447,50 +452,6 @@ begin
   end;
 end;
 
-function TMainFormAWB.StreamToBitmap(aStream: TStream; aBitmap: TBitmap): Boolean;
-var jp: TJPEGImage;
-    {$IFDEF USE_PNG}png: TPNGImage; {$ENDIF}
-    LoadingFailed: Boolean;
-begin
-    aStream.Position := 0;
 
-    LoadingFailed := False;
-    // try it with JPG
-    jp := TJPEGImage.Create;
-    try
-        try
-            aStream.Position := 0;
-            jp.LoadFromStream(aStream);
-            jp.DIBNeeded;
-            aBitmap.Assign(jp);
-        except
-            LoadingFailed := True;
-        end;
-    finally
-        jp.Free;
-    end;
-
-    {$IFDEF USE_PNG} 
-    if LoadingFailed then
-    begin
-        LoadingFailed := False;
-        // try it with PNG
-        png := TPNGImage.Create;
-        try
-            try
-                aStream.Position := 0;
-                png.LoadFromStream(aStream);
-                aBitmap.Assign(png);
-            except
-                LoadingFailed := True;
-            end;
-        finally
-            png.Free;
-        end;
-    end;
-    {$ENDIF}
-
-    result := NOT LoadingFailed;
-end;
 
 end.

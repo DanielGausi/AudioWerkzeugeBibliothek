@@ -1,5 +1,7 @@
 program DemoMp3;
 
+{$I ..\source\config.inc}
+
 uses
   Forms,
   Unit1 in 'Unit1.pas' {Form1},
@@ -31,9 +33,15 @@ uses
   WavFiles in '..\source\WavFiles.pas',
   WavPackFiles in '..\source\WavPackFiles.pas',
   WmaFiles in '..\source\WmaFiles.pas',
+  OggContainer in '..\source\OggContainer.pas',
   OpusFiles in '..\source\OpusFiles.pas',
   AudioFiles.BaseTags in '..\source\AudioFiles.BaseTags.pas',
-  BaseVorbisFiles in '..\source\BaseVorbisFiles.pas';
+  {$IFDEF B64_FALLBACK}
+  AWB.Base64 in '..\source\AWB.Base64.pas',
+  {$ENDIF }
+  BaseVorbisFiles in '..\source\BaseVorbisFiles.pas',
+  DummyFiles in '..\source\DummyFiles.pas',
+  AWBDemo.Common in '..\DemoCommon\AWBDemo.Common.pas';
 
 {$R *.res}
 

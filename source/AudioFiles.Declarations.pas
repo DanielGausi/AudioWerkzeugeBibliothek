@@ -19,9 +19,14 @@ interface
 {$I config.inc}
 
 
-uses Classes, SysUtils, Windows
-    {$IFDEF USE_TNT_COMPOS}, TntSysUtils, TntClasses{$ENDIF}
-    ;
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  System.Classes, System.SysUtils, Winapi.Windows
+  {$ELSE}
+  Classes, SysUtils, Windows
+  {$ENDIF}
+  {$IFDEF USE_TNT_COMPOS}, TntSysUtils, TntClasses{$ENDIF}
+  ;
 
 const
     APE_PREAMBLE = 'APETAGEX';
@@ -103,6 +108,12 @@ type
           ptMedia, ptLeadArtist, ptArtist, ptConductor, ptBand, ptComposer, ptLyricist,
           ptStudio, ptRecording, ptPerformance, ptScreenCapture, ptBrightColoredFish,
           ptIllustration, ptBandLogo, ptPublisherLogo);
+
+    // tePictureKeyProperty: Used for SetPicture() to determine which existing Picture tag should be replaced
+    //tePictureKeyProperty =
+    //  (pkpNone, pkpPictureType, pkpDescription);
+
+    teSetPictureMode = (spmSet, spmAddUniqueByType, spmAdd);
 
 type
   teAWBExceptions = (
@@ -358,7 +369,7 @@ begin
   result := ChangefileExt(aFilename, '.~');
   if FileExists(result) then
     repeat
-      result := ChangefileExt(aFilename, '.~' + i.ToString);
+      result := ChangefileExt(aFilename, '.~' + IntToStr(i));
       inc(i);
     until not FileExists(result)
 end;

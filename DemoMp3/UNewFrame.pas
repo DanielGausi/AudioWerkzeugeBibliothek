@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ExtDlgs, StdCtrls, ExtCtrls, ComCtrls, JPEG, AudioFiles.Declarations,
-  AudioFiles.BaseTags, ID3v2Tags, ID3v2Frames, LanguageCodeList, Vcl.Mask;
+  AudioFiles.BaseTags, ID3v2Tags, ID3v2Frames, LanguageCodeList;
 
 type
   TFormNewFrame = class(TForm)

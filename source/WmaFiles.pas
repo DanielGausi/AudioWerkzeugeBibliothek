@@ -56,9 +56,13 @@
 
 unit WmaFiles;
 
+{$I config.inc}
+
 interface
 
-uses Classes, SysUtils, AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
+uses
+  {$IFDEF USE_UNIT_SCOPES}System.Classes, System.SysUtils,{$ELSE}Classes, SysUtils,{$ENDIF}
+  AudioFiles.Base, AudioFiles.Declarations, AudioFiles.BaseTags;
 
 const
   // Channel modes
@@ -124,6 +128,7 @@ type
             function GetUnusedTextTags: TTagItemInfoDynArray; override;
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
             function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
         end;
 
 implementation
@@ -443,6 +448,7 @@ begin
     // not supported
   setlength(result, 0);
 end;
+
 function TWMAfile.AddTextTagItem(aKey, aValue: UnicodeString): TTagItem;
 begin
   // not supported
@@ -450,7 +456,15 @@ begin
 end;
 function TWMAfile.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
 begin
-    // not supported
+  // not supported
+  result := False;
+end;
+
+function TWMAfile.AddPicture(Source: TStream; aMime: AnsiString;
+  aPicType: TPictureType; aDescription: UnicodeString;
+  WantUniqueByType: Boolean): Boolean;
+begin
+  // not supported
   result := False;
 end;
 

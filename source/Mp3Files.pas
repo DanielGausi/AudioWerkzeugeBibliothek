@@ -50,11 +50,18 @@
 
 unit Mp3Files;
 
+{$I config.inc}
+
 interface
 
-uses Windows, Messages, SysUtils, StrUtils, Variants, ContNrs, Classes,
-     AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
-     ID3v1Tags, ID3v2Tags, MpegFrames, ID3v2Frames, Apev2Tags;
+uses
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils, System.ContNrs, System.Classes, System.StrUtils,
+  {$ELSE}
+  Windows, SysUtils, ContNrs, Classes, StrUtils,
+  {$ENDIF}
+  AudioFiles.Base, AudioFiles.BaseTags, AudioFiles.Declarations,
+  ID3v1Tags, ID3v2Tags, MpegFrames, ID3v2Frames, Apev2Tags;
 
 type
 
@@ -202,7 +209,8 @@ type
             function GetUnusedTextTags: TTagItemInfoDynArray; override;
             function AddTextTagItem(aKey, aValue: UnicodeString): TTagItem; override;
 
-            function SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean; override;
+            function SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean; override;
+            function AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean; override;
 
             ///  AnalyseFile: This is only for a low level analysis of the file
             ///               It is mainly used by myself to have a closer look on "odd" mp3 files
@@ -227,6 +235,8 @@ end;
 
 constructor TMP3File.Create;
 begin
+    inherited;
+
     fID3v1Tag := TID3v1Tag.Create;
     fID3v2Tag := TID3v2Tag.Create;
     fMpegInfo := TMpegInfo.create;
@@ -672,14 +682,24 @@ begin
     ttID3v2: fId3v2Tag.DeleteTagItem(aTagItem);
     ttApev2: fApeTag.DeleteTagItem(aTagItem);
   end;
-
 end;
 
-function TMP3File.SetPicture(Source: TStream; Mime: AnsiString; PicType: TPictureType; Description: UnicodeString): Boolean;
+function TMP3File.SetPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString): Boolean;
 begin
-  result := fID3v2Tag.SetPicture(Source, Mime, PicType, Description);
+  result := fID3v2Tag.SetPicture(Source, aMime, aPicType, aDescription, spmSet);
 end;
 
+function TMP3File.AddPicture(Source: TStream; aMime: AnsiString; aPicType: TPictureType; aDescription: UnicodeString; WantUniqueByType: Boolean): Boolean;
+begin
+  if assigned(Source) and (Source.Size > 0) then begin
+    if WantUniqueByType then
+      result := fID3v2Tag.SetPicture(Source, aMime, aPicType, aDescription, spmAddUniqueByType)
+    else
+      result := fID3v2Tag.SetPicture(Source, aMime, aPicType, aDescription, spmAdd)
+  end
+  else
+    result := false;
+end;
 
 
 end.

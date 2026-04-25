@@ -53,9 +53,12 @@ unit ID3v1Tags;
 interface
 
 uses
-  SysUtils, Classes, Windows, Contnrs, U_CharCode, System.WideStrUtils
-  {$IFDEF USE_SYSTEM_TYPES}, System.Types{$ENDIF}
-  , AudioFiles.Declarations;
+  {$IFDEF USE_UNIT_SCOPES}
+  Winapi.Windows, System.SysUtils,  System.ContNrs, System.Classes, {$IFDEF UNICODE}System.WideStrUtils,{$ENDIF} System.Types,
+  {$ELSE}
+  Windows,  SysUtils, Variants, ContNrs, Classes, {$IFDEF UNICODE}WideStrUtils,{$ENDIF} Types,
+  {$ENDIF}
+  U_CharCode, AudioFiles.Declarations;
 
 type
 
@@ -427,9 +430,11 @@ var
 begin
     if AutoCorrectCodepage then
     begin
+      {$IFDEF UNICODE}
       if IsUTf8String(Value) then
         result := UTF8ToString(Value)
       else
+      {$ENDIF}
       begin
 
                 L := MultiByteToWideChar(FCharCode.CodePage,
