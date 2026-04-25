@@ -1,4 +1,4 @@
-# AudioWerkzeugeBibliothek (v3.2)
+# AudioWerkzeugeBibliothek (v3.3)
 
 A Delphi library for audio files. 
 
